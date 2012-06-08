@@ -1,0 +1,24 @@
+Create c api for spead
+
+itemgroups 
+  have items with names
+    ig.keys is all the items in the item group
+    ig.add_item(name,description,shape,format)
+      e.g. data_timestamp (from unix epoch ms for current visibility sample) (1) (uint 64)
+           vis_data (complex vis spectrum for single time dump) (
+           
+  items ig.get_item(mame)
+
+
+receiver
+udp 
+  port 8888
+  pkt-count 1024
+  buffersize 51200000 
+  receiver creates a heap of itemgroups
+    
+ transmitter
+ udp
+  port 8888
+
+
