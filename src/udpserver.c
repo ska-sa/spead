@@ -179,9 +179,9 @@ int run_loop_us(struct u_server *s)
     if (nread == -1)
       continue;               /* Ignore failed request */
 
-    char host[NI_MAXHOST], service[NI_MAXSERV];
+    //char host[NI_MAXHOST], service[NI_MAXSERV];
 
-    rtn = getnameinfo((struct sockaddr *) &peer_addr, peer_addr_len, host, NI_MAXHOST, service, NI_MAXSERV, NI_NUMERICSERV);
+    //rtn = getnameinfo((struct sockaddr *) &peer_addr, peer_addr_len, host, NI_MAXHOST, service, NI_MAXSERV, NI_NUMERICSERV);
 #ifdef DEBUG
     if (rtn == 0)
       printf("Received %ld bytes from %s:%s\n", (long) nread, host, service);
@@ -189,10 +189,12 @@ int run_loop_us(struct u_server *s)
       fprintf(stderr, "getnameinfo: %s\n", gai_strerror(rtn));
 #endif
 
+#if 0
     if (sendto(s->s_fd, buf, nread, 0, (struct sockaddr *) &peer_addr, peer_addr_len) != nread)
 #ifdef DEBUG
       fprintf(stderr, "Error sending response\n");
 #endif
+#endif 
 
     s->s_bc += nread;
 
