@@ -182,11 +182,13 @@ int run_loop_us(struct u_server *s)
     //char host[NI_MAXHOST], service[NI_MAXSERV];
 
     //rtn = getnameinfo((struct sockaddr *) &peer_addr, peer_addr_len, host, NI_MAXHOST, service, NI_MAXSERV, NI_NUMERICSERV);
+#if 0
 #ifdef DEBUG
     if (rtn == 0)
       printf("Received %ld bytes from %s:%s\n", (long) nread, host, service);
     else
       fprintf(stderr, "getnameinfo: %s\n", gai_strerror(rtn));
+#endif
 #endif
 
 #if 0
