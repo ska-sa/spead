@@ -133,7 +133,7 @@ void spead_item_wipe(SpeadItem *item) ;
 |____/| .__/ \___|\__,_|\__,_|_| |_|\___|\__,_| .__/ 
       |_|                                     |_|    */
 
-typedef struct {
+struct spead_heap {
     int is_valid;
     int64_t heap_cnt;
     int64_t heap_len;
@@ -142,7 +142,8 @@ typedef struct {
     SpeadPacket *last_pkt;
     SpeadItem *head_item;
     SpeadItem *last_item;
-} SpeadHeap;
+};
+typedef struct spead_heap SpeadHeap;
 
 void spead_heap_init(SpeadHeap *heap) ;
 void spead_heap_wipe(SpeadHeap *heap) ;

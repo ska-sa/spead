@@ -18,6 +18,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include "spead_api.h"
 #include "udpserver.h"
 
 
@@ -161,48 +162,114 @@ int run_loop_us(struct u_server *s)
 {
   struct sockaddr_storage peer_addr;
   socklen_t peer_addr_len;
-  unsigned char *buf;
   ssize_t nread;
-  int rtn;
+  int rtn, rcount;
+  struct spead_packet *p;
+  struct spead_heap *h;
+  struct spead_heap_store *hs;
+
+  rcount = 0;
+  p  = NULL;
+  hs = NULL;
   
   if (s == NULL)
     return -1;
-
-  buf = malloc(sizeof(unsigned char)*BUF_SIZE);
-  if (buf == NULL)
+ 
+  hs = create_store_hs();
+  if (hs == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot create spead_heap_store\n", __func__);
+#endif
     return -1;
+  }
 
   while (run) {
+
+    rcount++;
     
     peer_addr_len = sizeof(struct sockaddr_storage); 
-    nread = recvfrom(s->s_fd, buf, BUF_SIZE, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
-    if (nread == -1)
-      continue;               /* Ignore failed request */
 
-    //char host[NI_MAXHOST], service[NI_MAXSERV];
+    p = create_spead_packet();
+    if (p == NULL){
+#ifdef DEBUG
+      fprintf(stderr, "%s: cannot allocate memory for spead_packet\n", __func__);
+#endif
+      destroy_spead_heap(h);
+      return -1;
+    }
 
-    //rtn = getnameinfo((struct sockaddr *) &peer_addr, peer_addr_len, host, NI_MAXHOST, service, NI_MAXSERV, NI_NUMERICSERV);
+    nread = recvfrom(s->s_fd, p->data, SPEAD_MAX_PACKET_LEN, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
+    if (nread <= 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: rcount [%d] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
+#endif
 #if 0
+      run = -1;
+      break;
+#endif
+      continue;
+    }
+
+    s->s_bc += nread;
+    
+    if (process_packet_hs(hs, p) < 0){
+      
+      destroy_spead_packet(p);
+
+      continue; 
+    }
+
+#if 0
+    if (spead_heap_got_all_packets(h)){
+
+#ifdef DEBUG
+      fprintf(stderr, "%s: rcount [%d] spead heap has all packets for heap %d\n", __func__, rcount, h->heap_cnt);
+#endif
+      
+      if (spead_heap_finalize(h) == SPEAD_ERR){
+#ifdef DEBUG
+        fprintf(stderr, "%s: rcount [%d] spead heap [%d] cannot finalize\n", __func__, rcount, h->heap_cnt);
+#endif
+      }
+
+      spead_heap_wipe(h);
+
+      destroy_spead_heap(h);
+
+      h = create_spead_heap();
+      if (h == NULL){
+#ifdef DEBUG
+        fprintf(stderr, "%s: cannot allocate memory for spead_heap\n", __func__);
+#endif
+        run = -1;
+        break;
+      }
+
+    }
+#endif
+    
+
+#if 0
+    char host[NI_MAXHOST], service[NI_MAXSERV];
+    rtn = getnameinfo((struct sockaddr *) &peer_addr, peer_addr_len, host, NI_MAXHOST, service, NI_MAXSERV, NI_NUMERICSERV);
 #ifdef DEBUG
     if (rtn == 0)
       printf("Received %ld bytes from %s:%s\n", (long) nread, host, service);
     else
       fprintf(stderr, "getnameinfo: %s\n", gai_strerror(rtn));
 #endif
-#endif
-
-#if 0
     if (sendto(s->s_fd, buf, nread, 0, (struct sockaddr *) &peer_addr, peer_addr_len) != nread)
 #ifdef DEBUG
       fprintf(stderr, "Error sending response\n");
 #endif
 #endif 
 
-    s->s_bc += nread;
 
   }
-
-  free(buf);
+  
+  destroy_store_hs(hs);
+  
+  destroy_spead_packet(p);
 
 #ifdef DEBUG
   fprintf(stderr, "%s: final recv count: %llu bytes\n", __func__, s->s_bc);

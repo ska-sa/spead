@@ -16,7 +16,12 @@ udp
   pkt-count 1024
   buffersize 51200000 
   receiver creates a heap of itemgroups
-    
+  Ringbuffer (seems to have threads)
+    has slots or RingItems
+
+
+
+
  transmitter
  udp
   port 8888
