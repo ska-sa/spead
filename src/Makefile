@@ -7,7 +7,9 @@ HDR = spead_packet.h spead_api.h udpserver.h
 
 # CFLAGS += -DSTANDALONE
 CFLAGS += -DDEBUG
+CFLAGS += -DDATA
 CFLAGS += -ggdb
+CFLAGS += -O2
 
 
 OBJ = $(patsubst %.c,%.o,$(SRC))

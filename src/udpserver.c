@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/utsname.h>
+#include <sys/time.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -23,6 +24,48 @@
 
 
 static volatile int run = 1;
+
+int sub_time(struct timeval *delta, struct timeval *alpha, struct timeval *beta)
+{
+  if(alpha->tv_usec < beta->tv_usec){
+    if(alpha->tv_sec <= beta->tv_sec){
+      delta->tv_sec  = 0;
+      delta->tv_usec = 0;
+      return -1;
+    }
+    delta->tv_sec  = alpha->tv_sec - (beta->tv_sec + 1);
+    delta->tv_usec = (1000000 + alpha->tv_usec) - beta->tv_usec;
+  } else {
+    if(alpha->tv_sec < beta->tv_sec){
+      delta->tv_sec  = 0;
+      delta->tv_usec = 0;
+      return -1;
+    }
+    delta->tv_sec  = alpha->tv_sec  - beta->tv_sec;
+    delta->tv_usec = alpha->tv_usec - beta->tv_usec;
+  }
+#ifdef DEBUG
+  if(delta->tv_usec >= 1000000){
+    fprintf(stderr, "major logic failure: %lu.%06lu-%lu.%06lu yields %lu.%06lu\n", alpha->tv_sec, alpha->tv_usec, beta->tv_sec, beta->tv_usec, delta->tv_sec, delta->tv_usec);
+    abort();
+  }
+#endif
+  return 0;
+}
+
+void print_time(struct timeval *result, int bytes)
+{
+  int64_t us;
+  double bpus;
+
+  us = result->tv_sec*1000*1000 + result->tv_usec;
+  bpus = bytes / us * 1000 * 1000 / 1024 / 1024;
+
+#ifdef DATA
+  fprintf(stderr, "component time: %lu.%06lds MB/s: %f\n", result->tv_sec, result->tv_usec, bpus);
+#endif
+}
+
 
 void handle_us(int signum) 
 {
@@ -165,8 +208,8 @@ int run_loop_us(struct u_server *s)
   ssize_t nread;
   int rtn, rcount;
   struct spead_packet *p;
-  struct spead_heap *h;
   struct spead_heap_store *hs;
+  struct timeval prev, now, delta;
 
   rcount = 0;
   p  = NULL;
@@ -183,7 +226,10 @@ int run_loop_us(struct u_server *s)
     return -1;
   }
 
+
   while (run) {
+
+    gettimeofday(&prev, NULL);
 
     rcount++;
     
@@ -194,7 +240,6 @@ int run_loop_us(struct u_server *s)
 #ifdef DEBUG
       fprintf(stderr, "%s: cannot allocate memory for spead_packet\n", __func__);
 #endif
-      destroy_spead_heap(h);
       return -1;
     }
 
@@ -264,7 +309,12 @@ int run_loop_us(struct u_server *s)
 #endif
 #endif 
 
+    gettimeofday(&now, NULL);
+    
+    sub_time(&delta, &now, &prev);
 
+    print_time(&delta, nread);
+      
   }
   
   destroy_store_hs(hs);
@@ -330,6 +380,12 @@ int capture_client_data(struct u_client *c)
 
 int main(int argc, char *argv[])
 {
-  
+  long cpus;
+
+  cpus = sysconf(_SC_NPROCESSORS_ONLN);
+#ifdef DEBUG
+  fprintf(stderr, "CPUs present: %d\n", cpus);
+#endif  
+
   return register_client_handler_server(&capture_client_data , PORT);
 }

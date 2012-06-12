@@ -131,7 +131,7 @@ int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
   
   if (hs->s_count <= id) {
 #ifdef DEBUG
-    fprintf(stderr, "%s: cannot ship more than i have\n", __func__);
+    fprintf(stderr, "%s: ALL heaps shipped\n", __func__);
 #endif
     return -1;
   }
@@ -145,10 +145,15 @@ int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
   hs->s_heaps[id] = NULL;
 
   rtn = spead_heap_got_all_packets(hs->s_shipping);
-
-#ifdef DEBUG
-  fprintf(stderr, "%s: got all packets rtn=[%d]\n", __func__, rtn);
+  if (rtn) {
+#ifdef DATA
+    fprintf(stderr, "%s: COMPLETED HEAP [%lld] rtn=[%d]\n", __func__, hs->s_shipping->heap_cnt, rtn);
 #endif
+  } else {
+#ifdef DATA
+    fprintf(stderr, "%s: PARTIAL HEAP [%lld] rtn=[%d]\n", __func__, hs->s_shipping->heap_cnt, rtn);
+#endif
+  }
 
   if (spead_heap_finalize(hs->s_shipping) == SPEAD_ERR){
 #ifdef DEBUG
