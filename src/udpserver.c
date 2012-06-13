@@ -56,13 +56,14 @@ int sub_time(struct timeval *delta, struct timeval *alpha, struct timeval *beta)
 void print_time(struct timeval *result, int bytes)
 {
   int64_t us;
-  double bpus;
+  int64_t bpus;
 
   us = result->tv_sec*1000*1000 + result->tv_usec;
-  bpus = bytes / us * 1000 * 1000 / 1024 / 1024;
+  //bpus = bytes / us * 1000 * 1000 / 1024 / 1024;
+  bpus = (bytes / us) * 1000 * 1000;
 
 #ifdef DATA
-  fprintf(stderr, "component time: %lu.%06lds MB/s: %f\n", result->tv_sec, result->tv_usec, bpus);
+  fprintf(stderr, "[%d] component time: %lu.%06lds B/s: %lld\n", getpid(), result->tv_sec, result->tv_usec, bpus);
 #endif
 }
 
@@ -89,20 +90,29 @@ int register_signals_us()
   return 0;
 }
 
-struct u_server *create_server_us(int (*cdfn)(struct u_client *c))
+struct u_server *create_server_us(int (*cdfn)(struct u_client *c), long cpus)
 {
   struct u_server *s;
 
 #if 1
   if (cdfn == NULL)
     return NULL;
+
+  if (cpus < 1){
+#ifdef DEBUG
+    fprintf(stderr, "%s: must have at least 1 cpu\n", __func__);
+#endif
+    return NULL;
+  }
   
   s = malloc(sizeof(struct u_server));
   if (s == NULL)
     return NULL;
   
-  s->s_fd = 0;
-  s->s_bc = 0;
+  s->s_fd   = 0;
+  s->s_bc   = 0;
+  s->s_cpus = cpus;
+  s->s_sps  = NULL;
 
 #endif
   return s;
@@ -110,9 +120,22 @@ struct u_server *create_server_us(int (*cdfn)(struct u_client *c))
 
 void destroy_server_us(struct u_server *s)
 {
-  if (s)
-    free(s);
+  int i;
 
+  if (s){
+    
+    if (s->s_sps){
+
+      /*WARNING: review code --ed should be ok now*/
+      for (i=0; i < s->s_cpus; i++){
+        kill(s->s_sps[i], 2);
+      }
+
+      free(s->s_sps);
+    }
+
+    free(s);
+  }
 #ifdef DEBUG
   fprintf(stderr, "%s: destroyed server\n",  __func__);
 #endif
@@ -122,7 +145,7 @@ int startup_server_us(struct u_server *s, char *port)
 {
   struct addrinfo hints;
   struct addrinfo *res, *rp;
-  int backlog, reuse_addr;
+  int reuse_addr;
 
   if (s == NULL || port == NULL)
     return -1;
@@ -160,8 +183,14 @@ int startup_server_us(struct u_server *s, char *port)
   }
 
   reuse_addr   = 1;
-
   setsockopt(s->s_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
+
+  reuse_addr = 100*1024*1024;
+  if (setsockopt(s->s_fd, SOL_SOCKET, SO_RCVBUF, &reuse_addr, sizeof(reuse_addr)) < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
+#endif
+  }
 
   if (bind(s->s_fd, rp->ai_addr, rp->ai_addrlen) < 0){
 #ifdef DEBUG
@@ -172,8 +201,6 @@ int startup_server_us(struct u_server *s, char *port)
   }
 
   freeaddrinfo(res);
-
-  backlog      = 10;
 
 #ifdef DEBUG
   fprintf(stderr,"%s: server pid: %d running on port: %s\n", __func__, getpid(), port);
@@ -200,41 +227,42 @@ void shutdown_server_us(struct u_server *s)
 #endif
 } 
 
-
-int run_loop_us(struct u_server *s)
+int worker_task_us(struct u_server *s)
 {
+  struct spead_packet *p;
+  struct timeval prev, now, delta;
   struct sockaddr_storage peer_addr;
   socklen_t peer_addr_len;
   ssize_t nread;
-  int rtn, rcount;
-  struct spead_packet *p;
-  struct spead_heap_store *hs;
-  struct timeval prev, now, delta;
+  int rtn;
+  uint64_t rcount, bcount;
+  pid_t pid;
 
   rcount = 0;
-  p  = NULL;
-  hs = NULL;
-  
-  if (s == NULL)
-    return -1;
- 
-  hs = create_store_hs();
-  if (hs == NULL){
+  bcount = 0;
+  p      = NULL;
+  pid    = getpid();
+
 #ifdef DEBUG
-    fprintf(stderr, "%s: cannot create spead_heap_store\n", __func__);
+  fprintf(stderr, "%s:\tCHILD: first lite getpid [%d]\n", __func__, getpid());
+#endif
+
+  p = create_spead_packet();
+  if (p == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot allocate memory for spead_packet\n", __func__);
 #endif
     return -1;
   }
 
-
   while (run) {
 
+#if 1
     gettimeofday(&prev, NULL);
-
     rcount++;
-    
     peer_addr_len = sizeof(struct sockaddr_storage); 
 
+#if 0
     p = create_spead_packet();
     if (p == NULL){
 #ifdef DEBUG
@@ -242,57 +270,30 @@ int run_loop_us(struct u_server *s)
 #endif
       return -1;
     }
+#endif
 
     nread = recvfrom(s->s_fd, p->data, SPEAD_MAX_PACKET_LEN, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
     if (nread <= 0){
 #ifdef DEBUG
-      fprintf(stderr, "%s: rcount [%d] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
-#endif
-#if 0
-      run = -1;
-      break;
+      fprintf(stderr, "%s: rcount [%lu] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
 #endif
       continue;
     }
 
-    s->s_bc += nread;
-    
-    if (process_packet_hs(hs, p) < 0){
-      
-      destroy_spead_packet(p);
+    bcount += nread;
 
-      continue; 
-    }
+    fwrite(p->data, 1, nread, stdout);
+    //fflush(stdout);
 
 #if 0
-    if (spead_heap_got_all_packets(h)){
+    destroy_spead_packet(p);
 
-#ifdef DEBUG
-      fprintf(stderr, "%s: rcount [%d] spead heap has all packets for heap %d\n", __func__, rcount, h->heap_cnt);
-#endif
-      
-      if (spead_heap_finalize(h) == SPEAD_ERR){
-#ifdef DEBUG
-        fprintf(stderr, "%s: rcount [%d] spead heap [%d] cannot finalize\n", __func__, rcount, h->heap_cnt);
-#endif
-      }
-
-      spead_heap_wipe(h);
-
-      destroy_spead_heap(h);
-
-      h = create_spead_heap();
-      if (h == NULL){
-#ifdef DEBUG
-        fprintf(stderr, "%s: cannot allocate memory for spead_heap\n", __func__);
-#endif
-        run = -1;
-        break;
-      }
-
+    if (process_packet_hs(hs, p) < 0){
+      destroy_spead_packet(p);
+      continue; 
     }
 #endif
-    
+
 
 #if 0
     char host[NI_MAXHOST], service[NI_MAXSERV];
@@ -310,25 +311,128 @@ int run_loop_us(struct u_server *s)
 #endif 
 
     gettimeofday(&now, NULL);
-    
-    sub_time(&delta, &now, &prev);
+//    sub_time(&delta, &now, &prev);
+//    print_time(&delta, nread);
+#endif
 
-    print_time(&delta, nread);
+#if 0
+def DEBUG
+    fprintf(stderr, "[%d]: recvd %llu bytes\n", pid, bcount);
+#endif
+
+#if 0
+def DEBUG
+    fflush(stderr);
+#endif
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s:\tCHILD: last lite getpid [%d] bytes: %llu\n", __func__, getpid(), bcount);
+#endif
+
+  destroy_spead_packet(p);
+   
+  return 0;
+}
+
+int add_sp_us(struct u_server *s, pid_t sp, int size)
+{
+  if (s == NULL)
+    return -1;
+
+  s->s_sps = realloc(s->s_sps, sizeof(pid_t) * (size+1));
+  if (s->s_sps == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: logic error cannot realloc for worker list\n", __func__);
+#endif 
+    return -1;
+  }
+
+  s->s_sps[size] = sp;
+  
+  return size + 1;
+}
+
+int spawn_workers_us(struct u_server *s)
+{
+  struct spead_heap_store *hs;
+  int status, i;
+  pid_t sp;
+
+  hs = NULL;
+  
+  if (s == NULL)
+    return -1;
+ 
+  hs = create_store_hs();
+  if (hs == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot create spead_heap_store\n", __func__);
+#endif
+    return -1;
+  }
+
+  i = 0;
+  
+  do {
+
+    sp = fork_child_sp(s, &worker_task_us);
+    if (sp < 0){
+#ifdef DEBUG
+      fprintf(stderr, "$s: fork_child_sp fail\n", __func__);
+#endif
+      continue;
+    }
+
+    if (add_sp_us(s, sp, i) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: could not store worker pid [%d]\n", __func__, sp);
+#endif
+      if (kill(sp, 2) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "%s: kill error (%s)\n", __func__, strerror(errno));
+#endif
+      }
+    } else
+      i++;
+
+  } while (i < s->s_cpus);
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: PARENT about to loop\n", __func__);
+#endif
+  
+  while(run) {
+    
+    //sleep(100);
+    sp = waitpid(-1, &status, 0);
+
+#ifdef DEBUG
+    fprintf(stderr,"%s: PARENT waitpid [%d]\n", __func__, sp);
+    if (WIFEXITED(status)) {
+      fprintf(stderr, "exited, status=%d\n", WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+      fprintf(stderr, "killed by signal %d\n", WTERMSIG(status));
+    } else if (WIFSTOPPED(status)) {
+      fprintf(stderr, "stopped by signal %d\n", WSTOPSIG(status));
+    } else if (WIFCONTINUED(status)) {
+      fprintf(stderr, "continued\n");
+    }
+#endif
       
   }
-  
-  destroy_store_hs(hs);
-  
-  destroy_spead_packet(p);
 
 #ifdef DEBUG
   fprintf(stderr, "%s: final recv count: %llu bytes\n", __func__, s->s_bc);
 #endif
 
+  
+  destroy_store_hs(hs);
+
   return 0;
 }
 
-int register_client_handler_server(int (*client_data_fn)(struct u_client *c), char *port)
+int register_client_handler_server(int (*client_data_fn)(struct u_client *c), char *port, long cpus)
 {
   struct u_server *s;
   
@@ -339,7 +443,7 @@ int register_client_handler_server(int (*client_data_fn)(struct u_client *c), ch
     return -1;
   }
 
-  s = create_server_us(client_data_fn);
+  s = create_server_us(client_data_fn, cpus);
   if (s == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: error could not create server\n", __func__);
@@ -355,7 +459,7 @@ int register_client_handler_server(int (*client_data_fn)(struct u_client *c), ch
     return -1;
   }
 
-  if (run_loop_us(s) < 0){ 
+  if (spawn_workers_us(s) < 0){ 
 #ifdef DEBUG
     fprintf(stderr,"%s: error during run\n", __func__);
 #endif
@@ -384,8 +488,8 @@ int main(int argc, char *argv[])
 
   cpus = sysconf(_SC_NPROCESSORS_ONLN);
 #ifdef DEBUG
-  fprintf(stderr, "CPUs present: %d\n", cpus);
+  fprintf(stderr, "SPEAD SERVER\n\tCPUs present: %ld\n", cpus);
 #endif  
 
-  return register_client_handler_server(&capture_client_data , PORT);
+  return register_client_handler_server(&capture_client_data , PORT, cpus + 1 );
 }

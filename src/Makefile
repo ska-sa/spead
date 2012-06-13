@@ -2,7 +2,7 @@
 #LIB = -lssl 
 
 EXE = spead 
-SRC = spead_packet.c spead_api.c udpserver.c
+SRC = sp.c spead_packet.c spead_api.c udpserver.c
 HDR = spead_packet.h spead_api.h udpserver.h
 
 # CFLAGS += -DSTANDALONE
