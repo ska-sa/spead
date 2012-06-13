@@ -134,6 +134,8 @@ void destroy_server_us(struct u_server *s)
       free(s->s_cs);
     }
 
+    destroy_store_hs(s->s_hs);
+
     free(s);
   }
 #ifdef DEBUG
@@ -242,6 +244,7 @@ int worker_task_us(struct u_server *s)
   fprintf(stderr, "%s:\tCHILD[%d]: about to loop\n", __func__, getpid());
 #endif
 
+#if 0
   p = create_spead_packet();
   if (p == NULL){
 #ifdef DEBUG
@@ -249,6 +252,7 @@ int worker_task_us(struct u_server *s)
 #endif
     return -1;
   }
+#endif
 
   while (run) {
 
@@ -257,7 +261,7 @@ int worker_task_us(struct u_server *s)
     rcount++;
     peer_addr_len = sizeof(struct sockaddr_storage); 
 
-#if 0
+#if 1
     p = create_spead_packet();
     if (p == NULL){
 #ifdef DEBUG
@@ -281,17 +285,13 @@ int worker_task_us(struct u_server *s)
     fwrite(p->data, 1, nread, stdout);
 #endif
 
-#if 0
-    destroy_spead_packet(p);
-
-    if (process_packet_hs(hs, p) < 0){
+#if 1
+    if (process_packet_hs(s->s_hs, p) < 0){
       destroy_spead_packet(p);
       continue; 
     }
 #endif
 
-
-#endif 
 
     gettimeofday(&now, NULL);
 //    sub_time(&delta, &now, &prev);
@@ -303,9 +303,9 @@ int worker_task_us(struct u_server *s)
 #ifdef DEBUG
   fprintf(stderr, "%s:\tCHILD[%d]: exiting with bytes: %lu\n", __func__, getpid(), bcount);
 #endif
-
+#if 0
   destroy_spead_packet(p);
-   
+#endif
   return 0;
 }
 
@@ -346,6 +346,8 @@ int spawn_workers_us(struct u_server *s)
 #endif
     return -1;
   }
+
+  s->s_hs = hs;
 
   i = 0;
   
@@ -398,8 +400,9 @@ int spawn_workers_us(struct u_server *s)
   fprintf(stderr, "%s: final recv count: %ld bytes\n", __func__, s->s_bc);
 #endif
 
-  
+#if 0 
   destroy_store_hs(hs);
+#endif
 
   return 0;
 }
@@ -463,5 +466,5 @@ int main(int argc, char *argv[])
   fprintf(stderr, "SPEAD SERVER\n\tCPUs present: %ld\n", cpus);
 #endif  
 
-  return register_client_handler_server(&capture_client_data , PORT, cpus + 1 );
+  return register_client_handler_server(&capture_client_data , PORT, 1 );
 }

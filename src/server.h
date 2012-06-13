@@ -3,6 +3,8 @@
 #ifndef UDP_SERVER_H
 #define UDP_SERVER_H
 
+#include "spead_api.h"
+
 #define PORT      "8888"
 
 struct u_server {
@@ -10,6 +12,7 @@ struct u_server {
   struct u_child **s_cs;
   int s_fd;
   uint64_t s_bc;
+  struct spead_heap_store *s_hs;
 };
 
 struct u_child {
@@ -19,6 +22,5 @@ struct u_child {
 
 void destroy_child_sp(struct u_child *c);
 struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s));
-
 
 #endif
