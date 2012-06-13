@@ -9,7 +9,7 @@
 #include <sysexits.h>
 #include <string.h>
 
-#include "udpserver.h"
+#include "server.h"
 
 pid_t fork_child_sp(struct u_server *s, int (*call)(struct u_server *s))
 {

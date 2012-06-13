@@ -2,14 +2,14 @@
 #LIB = -lssl 
 
 EXE = spead 
-SRC = sp.c spead_packet.c spead_api.c udpserver.c
-HDR = spead_packet.h spead_api.h udpserver.h
+SRC = sp.c spead_packet.c spead_api.c server.c
+HDR = spead_packet.h spead_api.h server.h
 
 # CFLAGS += -DSTANDALONE
 CFLAGS += -DDEBUG
 CFLAGS += -DDATA
 CFLAGS += -ggdb
-CFLAGS += -O2
+CFLAGS += -O3
 
 
 OBJ = $(patsubst %.c,%.o,$(SRC))

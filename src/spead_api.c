@@ -1,5 +1,7 @@
-#include "spead_api.h"
+/* (c) 2012 SKA SA */
+/* Released under the GNU GPLv3 - see COPYING */
 
+#include "spead_api.h"
 
 struct spead_heap *create_spead_heap()
 {
@@ -91,7 +93,7 @@ int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
   id = h->heap_cnt % hs->s_backlog;
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: calculated id to [%lld]\n", __func__, id);
+  fprintf(stderr, "%s: calculated id to [%ld]\n", __func__, id);
 #endif
   
   if (hs->s_count <= id) {
@@ -112,7 +114,7 @@ int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
   hs->s_heaps[id] = h;
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: inserted heap [%lld] @ id: [%lld] into heap_store [sc: %lld]\n", __func__, h->heap_cnt, id, hs->s_count);
+  fprintf(stderr, "%s: inserted heap [%ld] @ id: [%ld] into heap_store [sc: %ld]\n", __func__, h->heap_cnt, id, hs->s_count);
 #endif
   
   return id;
@@ -137,7 +139,7 @@ int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s:\tSHIP HEAP [%lld]\n", __func__, id);
+  fprintf(stderr, "%s:\tSHIP HEAP [%ld]\n", __func__, id);
 #endif
 
   hs->s_shipping = hs->s_heaps[id];
@@ -147,11 +149,11 @@ int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
   rtn = spead_heap_got_all_packets(hs->s_shipping);
   if (rtn) {
 #ifdef DATA
-    fprintf(stderr, "%s: COMPLETED HEAP [%lld] rtn=[%d]\n", __func__, hs->s_shipping->heap_cnt, rtn);
+    fprintf(stderr, "%s: COMPLETED HEAP [%ld] rtn=[%d]\n", __func__, hs->s_shipping->heap_cnt, rtn);
 #endif
   } else {
 #ifdef DATA
-    fprintf(stderr, "%s: PARTIAL HEAP [%lld] rtn=[%d]\n", __func__, hs->s_shipping->heap_cnt, rtn);
+    fprintf(stderr, "%s: PARTIAL HEAP [%ld] rtn=[%d]\n", __func__, hs->s_shipping->heap_cnt, rtn);
 #endif
   }
 
@@ -207,7 +209,7 @@ struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid)
 
   if (h->heap_cnt != hid){
 #ifdef DEBUG
-    fprintf(stderr, "%s: heap id [%lld] not in heap store\n", __func__, h->heap_cnt);
+    fprintf(stderr, "%s: heap id [%ld] not in heap store\n", __func__, h->heap_cnt);
 #endif 
   
     if (ship_heap_hs(hs, id) < 0){
@@ -237,7 +239,7 @@ int store_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
 
   if (h == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "%s: first packet for heap [%lld]\n", __func__, p->heap_cnt);
+    fprintf(stderr, "%s: first packet for heap [%ld]\n", __func__, p->heap_cnt);
 #endif 
 
     h = create_spead_heap();
@@ -307,7 +309,7 @@ int process_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
   } 
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %lld\n", __func__, p, p->heap_cnt);
+  fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld\n", __func__, p, p->heap_cnt);
 #endif
 
   if (p->is_stream_ctrl_term){

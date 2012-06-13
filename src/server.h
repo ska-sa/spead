@@ -16,7 +16,7 @@ struct u_client {
 
 };
 
-pid_t fork_childi_sp(struct u_server *s, int (*call)(struct u_server *s));
+pid_t fork_child_sp(struct u_server *s, int (*call)(struct u_server *s));
 
 
 #endif

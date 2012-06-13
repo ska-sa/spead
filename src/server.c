@@ -20,7 +20,7 @@
 #include <netinet/in.h>
 
 #include "spead_api.h"
-#include "udpserver.h"
+#include "server.h"
 
 
 static volatile int run = 1;
@@ -63,7 +63,7 @@ void print_time(struct timeval *result, int bytes)
   bpus = (bytes / us) * 1000 * 1000;
 
 #ifdef DATA
-  fprintf(stderr, "[%d] component time: %lu.%06lds B/s: %lld\n", getpid(), result->tv_sec, result->tv_usec, bpus);
+  fprintf(stderr, "[%d] component time: %lu.%06lds B/s: %ld\n", getpid(), result->tv_sec, result->tv_usec, bpus);
 #endif
 }
 
@@ -128,7 +128,7 @@ void destroy_server_us(struct u_server *s)
 
       /*WARNING: review code --ed should be ok now*/
       for (i=0; i < s->s_cpus; i++){
-        kill(s->s_sps[i], 2);
+        kill(s->s_sps[i], SIGTERM);
       }
 
       free(s->s_sps);
@@ -185,7 +185,7 @@ int startup_server_us(struct u_server *s, char *port)
   reuse_addr   = 1;
   setsockopt(s->s_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
 
-  reuse_addr = 100*1024*1024;
+  reuse_addr = 12*1024*1024;
   if (setsockopt(s->s_fd, SOL_SOCKET, SO_RCVBUF, &reuse_addr, sizeof(reuse_addr)) < 0){
 #ifdef DEBUG
     fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
@@ -201,27 +201,22 @@ int startup_server_us(struct u_server *s, char *port)
   }
 
   freeaddrinfo(res);
-
 #ifdef DEBUG
   fprintf(stderr,"%s: server pid: %d running on port: %s\n", __func__, getpid(), port);
 #endif
-
   return 0;
 }
 
 void shutdown_server_us(struct u_server *s)
 {
   if (s){
-
     if (close(s->s_fd) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: error server shutdown: %s\n", __func__, strerror(errno));
 #endif
     }
-
     destroy_server_us(s);
   }
-
 #ifdef DEBUG
   fprintf(stderr, "%s: server shutdown complete\n", __func__);
 #endif
@@ -327,7 +322,7 @@ def DEBUG
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s:\tCHILD: last lite getpid [%d] bytes: %llu\n", __func__, getpid(), bcount);
+  fprintf(stderr, "%s:\tCHILD: last lite getpid [%d] bytes: %lu\n", __func__, getpid(), bcount);
 #endif
 
   destroy_spead_packet(p);
@@ -423,7 +418,7 @@ int spawn_workers_us(struct u_server *s)
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: final recv count: %llu bytes\n", __func__, s->s_bc);
+  fprintf(stderr, "%s: final recv count: %ld bytes\n", __func__, s->s_bc);
 #endif
 
   
