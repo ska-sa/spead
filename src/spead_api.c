@@ -78,6 +78,14 @@ void destroy_store_hs(struct spead_heap_store *hs)
   }
 }
 
+int64_t get_id_hs(struct spead_heap_store *hs, int64_t hid)
+{
+  if (hs == NULL)
+    return -1;
+
+  return hid % hs->s_backlog;
+}
+
 int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
 {
   int64_t id;
@@ -227,6 +235,7 @@ struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid)
 int store_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
 {
   struct spead_heap *h;
+  int64_t id;
 
   if (hs == NULL || p == NULL){
 #ifdef DEBUG
@@ -274,6 +283,21 @@ int store_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
     fprintf(stderr, "%s: error could not add packet to heap\n", __func__);
 #endif 
     return -1;
+  }
+
+  if (spead_heap_got_all_packets(h)){
+#ifdef DATA
+    fprintf(stderr, "%s: COMPLETE heap about to ship\n", __func__);
+#endif 
+    
+    id = get_id_hs(hs, h->heap_cnt);
+    
+    if (ship_heap_hs(hs, id) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error shipping heap [%ld]\n", __func__, id);
+#endif
+    }
+
   }
     
   return 0;
