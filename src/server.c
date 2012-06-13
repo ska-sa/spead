@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <netdb.h>
+#include <wait.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>

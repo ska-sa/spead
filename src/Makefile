@@ -6,7 +6,7 @@ SRC = sp.c spead_packet.c spead_api.c server.c
 HDR = spead_packet.h spead_api.h server.h
 
 # CFLAGS += -DSTANDALONE
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 CFLAGS += -DDATA
 CFLAGS += -ggdb
 CFLAGS += -O3
