@@ -205,19 +205,21 @@ void spead_heap_wipe(SpeadHeap *heap) {
     
 int spead_heap_add_packet(SpeadHeap *heap, SpeadPacket *pkt) {
     SpeadPacket *_pkt;
-    if (pkt->n_items == 0) return SPEAD_ERR;
+    if (pkt->n_items == 0) 
+      return SPEAD_ERR;
     if (heap->heap_cnt < 0) {  // We have a fresh heap
         heap->heap_cnt = pkt->heap_cnt;
         heap->head_pkt = pkt;
         heap->last_pkt = pkt;
     } 
     else { // We need to insert this packet in the correct order
-        if (heap->heap_cnt != pkt->heap_cnt) return SPEAD_ERR;
+        if (heap->heap_cnt != pkt->heap_cnt) 
+          return SPEAD_ERR;
         _pkt = heap->head_pkt;
         // Find the right slot to insert this pkt
         if (pkt->payload_off < _pkt->payload_off) {
-         pkt->next = heap->head_pkt;
-         heap->head_pkt = pkt;
+          pkt->next = heap->head_pkt;
+          heap->head_pkt = pkt;
         } else {
           while (_pkt->next != NULL && _pkt->next->payload_off < pkt->payload_off) {
             _pkt = _pkt->next;
@@ -225,24 +227,30 @@ int spead_heap_add_packet(SpeadHeap *heap, SpeadPacket *pkt) {
           // Insert the pkt
           pkt->next = _pkt->next;
           _pkt->next = pkt;
-          if (pkt->next == NULL) heap->last_pkt = pkt;
+          if (pkt->next == NULL) 
+            heap->last_pkt = pkt;
         } // else if packet does not belong at head
     }
-    if (pkt->heap_len != SPEAD_ERR) heap->heap_len = pkt->heap_len;
+    if (pkt->heap_len != SPEAD_ERR) 
+      heap->heap_len = pkt->heap_len;
     heap->has_all_packets = SPEAD_ERR;
     return spead_heap_got_all_packets(heap);
 }
 
 int spead_heap_got_all_packets(SpeadHeap *heap) {
     SpeadPacket *pkt = heap->head_pkt;
-    if (heap->heap_len == SPEAD_ERR || pkt == NULL) return 0;  // Don't compute if we can't know the answer
-    if (heap->has_all_packets != SPEAD_ERR) return heap->has_all_packets; // Don't recompute if we do know the answer
+    if (heap->heap_len == SPEAD_ERR || pkt == NULL) 
+      return 0;  // Don't compute if we can't know the answer
+    if (heap->has_all_packets != SPEAD_ERR) 
+      return heap->has_all_packets; // Don't recompute if we do know the answer
     heap->has_all_packets = 0;
     while (pkt->next != NULL) {
-        if (pkt->payload_off + pkt->payload_len != pkt->next->payload_off) return 0;
-        pkt = pkt->next;
+      if (pkt->payload_off + pkt->payload_len != pkt->next->payload_off) 
+        return 0;
+      pkt = pkt->next;
     }
-    if (pkt->payload_off + pkt->payload_len != heap->heap_len) return 0;
+    if (pkt->payload_off + pkt->payload_len != heap->heap_len) 
+      return 0;
     heap->has_all_packets = 1;
     return 1;
 }

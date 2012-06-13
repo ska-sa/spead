@@ -7,16 +7,18 @@
 
 struct u_server {
   long s_cpus;
-  pid_t *s_sps;
+  struct u_child **s_cs;
   int s_fd;
   uint64_t s_bc;
 };
 
-struct u_client {
-
+struct u_child {
+  pid_t c_pid;
+  int c_fd;
 };
 
-pid_t fork_child_sp(struct u_server *s, int (*call)(struct u_server *s));
+void destroy_child_sp(struct u_child *c);
+struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s));
 
 
 #endif

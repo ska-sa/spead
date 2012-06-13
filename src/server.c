@@ -90,7 +90,7 @@ int register_signals_us()
   return 0;
 }
 
-struct u_server *create_server_us(int (*cdfn)(struct u_client *c), long cpus)
+struct u_server *create_server_us(int (*cdfn)(), long cpus)
 {
   struct u_server *s;
 
@@ -112,7 +112,7 @@ struct u_server *create_server_us(int (*cdfn)(struct u_client *c), long cpus)
   s->s_fd   = 0;
   s->s_bc   = 0;
   s->s_cpus = cpus;
-  s->s_sps  = NULL;
+  s->s_cs  = NULL;
 
 #endif
   return s;
@@ -124,14 +124,14 @@ void destroy_server_us(struct u_server *s)
 
   if (s){
     
-    if (s->s_sps){
+    if (s->s_cs){
 
       /*WARNING: review code --ed should be ok now*/
       for (i=0; i < s->s_cpus; i++){
-        kill(s->s_sps[i], SIGTERM);
+        destroy_child_sp(s->s_cs[i]);
       }
 
-      free(s->s_sps);
+      free(s->s_cs);
     }
 
     free(s);
@@ -239,7 +239,7 @@ int worker_task_us(struct u_server *s)
   pid    = getpid();
 
 #ifdef DEBUG
-  fprintf(stderr, "%s:\tCHILD: first lite getpid [%d]\n", __func__, getpid());
+  fprintf(stderr, "%s:\tCHILD[%d]: about to loop\n", __func__, getpid());
 #endif
 
   p = create_spead_packet();
@@ -277,8 +277,9 @@ int worker_task_us(struct u_server *s)
 
     bcount += nread;
 
+#if 0
     fwrite(p->data, 1, nread, stdout);
-    //fflush(stdout);
+#endif
 
 #if 0
     destroy_spead_packet(p);
@@ -290,19 +291,6 @@ int worker_task_us(struct u_server *s)
 #endif
 
 
-#if 0
-    char host[NI_MAXHOST], service[NI_MAXSERV];
-    rtn = getnameinfo((struct sockaddr *) &peer_addr, peer_addr_len, host, NI_MAXHOST, service, NI_MAXSERV, NI_NUMERICSERV);
-#ifdef DEBUG
-    if (rtn == 0)
-      printf("Received %ld bytes from %s:%s\n", (long) nread, host, service);
-    else
-      fprintf(stderr, "getnameinfo: %s\n", gai_strerror(rtn));
-#endif
-    if (sendto(s->s_fd, buf, nread, 0, (struct sockaddr *) &peer_addr, peer_addr_len) != nread)
-#ifdef DEBUG
-      fprintf(stderr, "Error sending response\n");
-#endif
 #endif 
 
     gettimeofday(&now, NULL);
@@ -310,19 +298,10 @@ int worker_task_us(struct u_server *s)
 //    print_time(&delta, nread);
 #endif
 
-#if 0
-def DEBUG
-    fprintf(stderr, "[%d]: recvd %llu bytes\n", pid, bcount);
-#endif
-
-#if 0
-def DEBUG
-    fflush(stderr);
-#endif
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s:\tCHILD: last lite getpid [%d] bytes: %lu\n", __func__, getpid(), bcount);
+  fprintf(stderr, "%s:\tCHILD[%d]: exiting with bytes: %lu\n", __func__, getpid(), bcount);
 #endif
 
   destroy_spead_packet(p);
@@ -330,20 +309,20 @@ def DEBUG
   return 0;
 }
 
-int add_sp_us(struct u_server *s, pid_t sp, int size)
+int add_child_us(struct u_server *s, struct u_child *c, int size)
 {
-  if (s == NULL)
+  if (s == NULL || c == NULL)
     return -1;
 
-  s->s_sps = realloc(s->s_sps, sizeof(pid_t) * (size+1));
-  if (s->s_sps == NULL){
+  s->s_cs = realloc(s->s_cs, sizeof(struct u_child*) * (size+1));
+  if (s->s_cs == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: logic error cannot realloc for worker list\n", __func__);
 #endif 
     return -1;
   }
 
-  s->s_sps[size] = sp;
+  s->s_cs[size] = c;
   
   return size + 1;
 }
@@ -351,6 +330,7 @@ int add_sp_us(struct u_server *s, pid_t sp, int size)
 int spawn_workers_us(struct u_server *s)
 {
   struct spead_heap_store *hs;
+  struct u_child *c;
   int status, i;
   pid_t sp;
 
@@ -371,23 +351,20 @@ int spawn_workers_us(struct u_server *s)
   
   do {
 
-    sp = fork_child_sp(s, &worker_task_us);
-    if (sp < 0){
+    c = fork_child_sp(s, &worker_task_us);
+    if (c == NULL){
 #ifdef DEBUG
       fprintf(stderr, "$s: fork_child_sp fail\n", __func__);
 #endif
       continue;
     }
 
-    if (add_sp_us(s, sp, i) < 0){
+    if (add_child_us(s, c, i) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: could not store worker pid [%d]\n", __func__, sp);
 #endif
-      if (kill(sp, 2) < 0){
-#ifdef DEBUG
-        fprintf(stderr, "%s: kill error (%s)\n", __func__, strerror(errno));
-#endif
-      }
+      destroy_child_sp(c);
+
     } else
       i++;
 
@@ -427,7 +404,7 @@ int spawn_workers_us(struct u_server *s)
   return 0;
 }
 
-int register_client_handler_server(int (*client_data_fn)(struct u_client *c), char *port, long cpus)
+int register_client_handler_server(int (*client_data_fn)(), char *port, long cpus)
 {
   struct u_server *s;
   
@@ -472,7 +449,7 @@ int register_client_handler_server(int (*client_data_fn)(struct u_client *c), ch
 }
 
 
-int capture_client_data(struct u_client *c)
+int capture_client_data()
 {
 
 }
