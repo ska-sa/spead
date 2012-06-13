@@ -76,7 +76,8 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
   if (cpid > 0) {
     /*in parent*/
     close(pipefd[1]); /*close write end parent*/
-#ifdef DEBUG
+#if 0
+    def DEBUG
     fprintf(stderr, "%s:\tnew child pid [%d]\n", __func__, cpid);
 #endif
 

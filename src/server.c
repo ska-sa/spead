@@ -205,7 +205,7 @@ int startup_server_us(struct u_server *s, char *port)
 
   freeaddrinfo(res);
 #ifdef DEBUG
-  fprintf(stderr,"%s: server pid: %d running on port: %s\n", __func__, getpid(), port);
+  fprintf(stderr,"\tserver pid:\t%d\n\tport:\t\t%s\n", getpid(), port);
 #endif
   return 0;
 }
@@ -242,7 +242,7 @@ int worker_task_us(struct u_server *s)
   pid    = getpid();
 
 #ifdef DEBUG
-  fprintf(stderr, "%s:\tCHILD[%d]: about to loop\n", __func__, getpid());
+  fprintf(stderr, "\t  CHILD\t\t[%d]\n", pid);
 #endif
 
 #if 0
@@ -351,13 +351,17 @@ int spawn_workers_us(struct u_server *s)
   s->s_hs = hs;
 
   i = 0;
+
+#ifdef DEBUG
+  fprintf(stderr, "\tworkers:\t%ld\n", s->s_cpus);
+#endif
   
   do {
 
     c = fork_child_sp(s, &worker_task_us);
     if (c == NULL){
 #ifdef DEBUG
-      fprintf(stderr, "$s: fork_child_sp fail\n", __func__);
+      fprintf(stderr, "%s: fork_child_sp fail\n", __func__);
 #endif
       continue;
     }
@@ -373,7 +377,9 @@ int spawn_workers_us(struct u_server *s)
 
   } while (i < s->s_cpus);
 
-#ifdef DEBUG
+
+#if 0
+def DEBUG
   fprintf(stderr, "%s: PARENT about to loop\n", __func__);
 #endif
   
@@ -461,11 +467,75 @@ int capture_client_data()
 int main(int argc, char *argv[])
 {
   long cpus;
+  int i, j, c;
+  char *port;
 
+  i = 1;
+  j = 1;
+
+  port = PORT;
   cpus = sysconf(_SC_NPROCESSORS_ONLN);
+
 #ifdef DEBUG
-  fprintf(stderr, "SPEAD SERVER\n\tCPUs present: %ld\n", cpus);
+  fprintf(stderr, "\nS-P-E-A-D S.E.R.V.E.R\n\n");
 #endif  
 
-  return register_client_handler_server(&capture_client_data , PORT, 1 );
+  while (i < argc){
+    if (argv[i][0] == '-'){
+      c = argv[i][j];
+
+      switch(c){
+        case '\0':
+          j = 1;
+          i++;
+          break;
+        case '-':
+          j++;
+          break;
+
+        /*switches*/  
+        case 'h':
+          fprintf(stderr, "usage:\n\t%s -w [workers (d:%ld)] -p [port (d:%s)]\n\n", argv[0], cpus, port);
+          return EX_OK;
+
+        /*settings*/
+        case 'p':
+        case 'w':
+          j++;
+          if (argv[i][j] == '\0'){
+            j = 0;
+            i++;
+          }
+          if (i >= argc){
+            fprintf(stderr, "%s: option -%c requires a parameter\n", argv[0], c);
+            return EX_USAGE;
+          }
+          switch (c){
+            case 'p':
+              port = argv[i] + j;  
+              break;
+            case 'w':
+              cpus = atol(argv[i] + j);
+              break;
+          }
+          i++;
+          j = 1;
+          break;
+
+        default:
+          fprintf(stderr, "%s: unknown option -%c\n", argv[0], c);
+          return EX_USAGE;
+      }
+
+    } else {
+
+      fprintf(stderr, "%s: extra argument %s\n", argv[0], argv[i]);
+      return EX_USAGE;
+    }
+    
+  }
+
+
+
+  return register_client_handler_server(&capture_client_data , port, cpus );
 }
