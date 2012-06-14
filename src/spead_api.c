@@ -175,6 +175,29 @@ int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
 #endif 
   }
 
+  
+  struct spead_heap *h;
+  struct spead_item *itm;
+  int i;
+
+  h = hs->s_shipping;
+  itm = h->head_item;
+     
+#ifdef DATA
+  do{ 
+    
+    fprintf(stderr, "ITEM\n\tis_valid:\t%d\n\tid:\t%d\n\tlen:\t%ld\n\tval:\n", itm->is_valid, itm->id, itm->len);
+
+    for(i=0; i<itm->len; i++){
+      
+      fprintf(stderr,"%X ", itm->val[i]);
+      
+    }
+    fprintf(stderr,"\n");
+
+  } while ((itm = itm->next) != NULL);
+#endif
+
   destroy_spead_heap(hs->s_shipping);
   
   hs->s_shipping = NULL;
