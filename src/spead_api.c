@@ -54,7 +54,7 @@ struct spead_heap_store *create_store_hs()
   if (hs == NULL)
     return NULL;
 
-  hs->s_backlog  = 3;
+  hs->s_backlog  = 10;
   hs->s_count    = 0;
   hs->s_heaps    = NULL;
   hs->s_shipping = NULL;
@@ -146,22 +146,22 @@ int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
     return -1;
   }
 
-#ifdef DEBUG
-  fprintf(stderr, "%s:\tSHIP HEAP [%ld]\n", __func__, id);
-#endif
-
   hs->s_shipping = hs->s_heaps[id];
+
+#ifdef DEBUG
+  fprintf(stderr, "%s:\tSHIP HEAP hs:[%ld]->[%ld]\n", __func__, id, hs->s_shipping->heap_cnt);
+#endif
 
   hs->s_heaps[id] = NULL;
 
   rtn = spead_heap_got_all_packets(hs->s_shipping);
   if (rtn) {
 #ifdef DATA
-    fprintf(stderr, "%s: COMPLETED HEAP [%ld] rtn=[%d]\n", __func__, hs->s_shipping->heap_cnt, rtn);
+    fprintf(stderr, "[%d] %s: COMPLETED HEAP [%ld] SHIPPED rtn=[%d]\n", getpid(), __func__, hs->s_shipping->heap_cnt, rtn);
 #endif
   } else {
 #ifdef DATA
-    fprintf(stderr, "%s: PARTIAL HEAP [%ld] rtn=[%d]\n", __func__, hs->s_shipping->heap_cnt, rtn);
+    fprintf(stderr, "[%d] %s: PARTIAL HEAP [%ld] SHIPPED rtn=[%d]\n", getpid(), __func__, hs->s_shipping->heap_cnt, rtn);
 #endif
   }
 
@@ -286,7 +286,7 @@ int store_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
   }
 
   if (spead_heap_got_all_packets(h)){
-#ifdef DATA
+#ifdef DEBUG
     fprintf(stderr, "%s: COMPLETE heap about to ship\n", __func__);
 #endif 
     
@@ -333,7 +333,7 @@ int process_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
   } 
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld\n", __func__, p, p->heap_cnt);
+  fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
 #endif
 
   if (p->is_stream_ctrl_term){
@@ -341,7 +341,7 @@ int process_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
     fprintf(stderr, "%s: GOT STREAM TERMINATOR\n", __func__);
 #endif
     
-    for (i=0; !ship_heap_hs(hs, i); i++);
+    //for (i=0; !ship_heap_hs(hs, i); i++);
 
     return 0;
   } else {

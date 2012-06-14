@@ -332,7 +332,8 @@ int spawn_workers_us(struct u_server *s)
 {
   struct spead_heap_store *hs;
   struct u_child *c;
-  int status, i;
+  int status, i, hi_fd;
+  fd_set ins;
   pid_t sp;
 
   hs = NULL;
@@ -383,9 +384,40 @@ def DEBUG
   fprintf(stderr, "%s: PARENT about to loop\n", __func__);
 #endif
   
+  hi_fd = 0;
+
   while(run) {
+
+#if 0
+    FD_ZERO(&ins);
     
-    //sleep(100);
+    for (i=0; i<s->s_cpus; i++){
+      c = s->s_cs[i];
+      if (c != NULL){
+        if (c->c_fd > 0){
+          FD_SET(c->c_fd, &ins);
+          if (c->c_fd > hi_fd){
+            hi_fd = c->c_fd;
+          }
+        }
+      }
+    }
+
+    if (pselect(fd_hi + 1, &ins, (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask) < 0){
+      switch(errno){
+        case EAGAIN:
+        case EINTR:
+          break;
+        default:
+#ifdef DEBUG
+          fprintf(stderr, "%s: pselect error\n", __func__);
+#endif    
+          run = 0;
+          break;
+      }
+    }
+#endif
+    
     sp = waitpid(-1, &status, 0);
 
 #ifdef DEBUG
