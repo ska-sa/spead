@@ -273,6 +273,22 @@ int store_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
 #endif 
       destroy_spead_heap(h);
       return -1;
+
+    }
+    
+    if (spead_heap_got_all_packets(h)){
+#ifdef DEBUG
+      fprintf(stderr, "%s: COMPLETE heap about to ship\n", __func__);
+#endif 
+
+      id = get_id_hs(hs, h->heap_cnt);
+
+      if (ship_heap_hs(hs, id) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "%s: error shipping heap [%ld]\n", __func__, id);
+#endif
+      }
+
     }
     
     return 0;
