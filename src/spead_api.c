@@ -1,6 +1,8 @@
 /* (c) 2012 SKA SA */
 /* Released under the GNU GPLv3 - see COPYING */
 
+#include <string.h>
+
 #include "spead_api.h"
 
 struct spead_heap *create_spead_heap()
@@ -174,34 +176,140 @@ int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
     fprintf(stderr, "%s: finalize spead heap SUCCESS!!\n", __func__);
 #endif 
   }
-
   
-  struct spead_heap *h;
-  struct spead_item *itm;
-  int i;
-
-  h = hs->s_shipping;
-  itm = h->head_item;
-     
-#ifdef DATA
-  do{ 
-    
-    fprintf(stderr, "ITEM\n\tis_valid:\t%d\n\tid:\t%d\n\tlen:\t%ld\n\tval:\n", itm->is_valid, itm->id, itm->len);
-
-    for(i=0; i<itm->len; i++){
-      
-      fprintf(stderr,"%X ", itm->val[i]);
-      
-    }
-    fprintf(stderr,"\n");
-
-  } while ((itm = itm->next) != NULL);
+  if (process_heap_hs(hs, hs->s_shipping) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot process heap\n", __func__);
 #endif
-
+  }
+  
   destroy_spead_heap(hs->s_shipping);
   
   hs->s_shipping = NULL;
 
+  return 0;
+}
+
+int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
+{
+  struct spead_packet *p;
+  struct spead_heap *th;
+  struct spead_item *itm, *itm2;
+  int i;
+
+  if (h == NULL)
+    return -1;
+
+  h = hs->s_shipping;
+  itm = h->head_item;
+
+  p = create_spead_packet();
+  if (p == NULL){
+#ifdef DEBUG
+    fprintf(stderr,"%s: cannot create temp packet\n", __func__);
+#endif
+    return -1;
+  }
+     
+  do { 
+    
+#ifdef DATA
+    fprintf(stderr, "ITEM\n\tis_valid:\t%d\n\tid:\t%d\n\tlen:\t%ld\n", itm->is_valid, itm->id, itm->len);
+#endif
+
+    switch(itm->id){
+
+      case SPEAD_DESCRIPTOR_ID:
+        
+        /*we have a spead packet inside itm->val*/
+        memcpy(p->data, itm->val, itm->len);
+
+        if (spead_packet_unpack_header(p) == SPEAD_ERR){
+#ifdef DEBUG
+          fprintf(stderr, "%s: unable to unpack spead header for Item Descriptor packet (%p)\n", __func__, p);
+#endif
+          break;
+        }
+
+#ifdef DEBUG
+        fprintf(stderr, "%s: unpacked spead header for Item Descriptor packet (%p)\n", __func__, p);
+#endif
+
+        if (spead_packet_unpack_items(p) == SPEAD_ERR){
+#ifdef DEBUG
+          fprintf(stderr, "%s: unable to unpack spead items for Item Descriptor packet (%p)\n", __func__, p);
+#endif
+          break;
+        } 
+
+#ifdef DEBUG
+        fprintf(stderr, "%s: unpacked spead items for Item Descriptor packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
+#endif
+
+        th = create_spead_heap();
+        if (th == NULL){
+#ifdef DEBUG
+          fprintf(stderr, "%s: unable to create Item Descriptor temp heap\n", __func__);
+#endif
+          break;
+        }
+
+        if (spead_heap_add_packet(th, p) < 0){
+#ifdef DEBUG
+          fprintf(stderr, "%s: error could not add Item Descriptor packet to heap\n", __func__);
+#endif 
+          destroy_spead_packet(p);
+          destroy_spead_heap(h);
+          return -1;
+        }
+
+        if (spead_heap_got_all_packets(th)) {
+#ifdef DATA
+          fprintf(stderr, "[%d] %s: COMPLETED Item Descriptor HEAP [%ld]\n", getpid(), __func__, th->heap_cnt);
+#endif
+        } else {
+#ifdef DATA
+          fprintf(stderr, "[%d] %s: PARTIAL Item Descriptor HEAP [%ld]\n", getpid(), __func__, th->heap_cnt);
+#endif
+        }
+
+        if (spead_heap_finalize(th) == SPEAD_ERR){
+#ifdef DEBUG
+          fprintf(stderr, "%s: error trying to finalize Item Descriptor spead heap\n", __func__);
+#endif 
+        } else {
+#ifdef DEBUG
+          fprintf(stderr, "%s: finalize Item Descriptor spead heap SUCCESS!!\n", __func__);
+#endif 
+        }
+
+        itm2 = th->head_item;
+        do {
+#ifdef DATA
+          fprintf(stderr, "ITEM DESCRIPTOR\n\tis_valid:\t%d\n\tid:\t%d\n\tlen:\t%ld\n\tval:%s\n", itm2->is_valid, itm2->id, itm2->len, itm2->val);
+          for(i=0; i<itm2->len; i++){
+            fprintf(stderr,"0x%X ", itm2->val[i]);
+          }
+          fprintf(stderr,"\n");
+#endif
+
+        } while((itm2 = itm2->next) != NULL);
+
+        destroy_spead_heap(th);
+        
+        break;
+      
+      default:
+        continue;
+    }
+#if 0
+    for(i=0; i<itm->len; i++){
+      fprintf(stderr,"0x%X ", itm->val[i]);
+    }
+    fprintf(stderr,"\n");
+#endif
+  } while ((itm = itm->next) != NULL);
+  
   return 0;
 }
 
@@ -389,3 +497,4 @@ int process_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
 
   return rtn;
 }
+

@@ -27,5 +27,11 @@ int process_packet_hs(struct spead_heap_store *hs, struct spead_packet *p);
 
 int ship_heap_hs(struct spead_heap_store *hs, int64_t id); 
 
+int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h);
+
+  
+
+
+
 #endif
 
