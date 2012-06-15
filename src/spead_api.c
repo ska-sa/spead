@@ -146,7 +146,7 @@ int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
      
   do { 
     
-#ifdef DATA
+#ifdef DEBUG
     fprintf(stderr, "ITEM\n\tis_valid:\t%d\n\tid:\t%d\n\tlen:\t%ld\n", itm->is_valid, itm->id, itm->len);
 #endif
 
@@ -204,11 +204,11 @@ int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
         }
 
         if (spead_heap_got_all_packets(th)) {
-#ifdef DATA
+#ifdef DEBUG
           fprintf(stderr, "[%d] %s: COMPLETED Item Descriptor HEAP [%ld]\n", getpid(), __func__, th->heap_cnt);
 #endif
         } else {
-#ifdef DATA
+#ifdef DEBUG
           fprintf(stderr, "[%d] %s: PARTIAL Item Descriptor HEAP [%ld]\n", getpid(), __func__, th->heap_cnt);
 #endif
         }
@@ -225,7 +225,7 @@ int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
 
         itm2 = th->head_item;
         do {
-#ifdef DATA
+#ifdef DEBUG
           fprintf(stderr, "ITEM DESCRIPTOR\n\tis_valid:\t%d\n\tid:\t%d\n\tlen:\t%ld\n\tval:\n", itm2->is_valid, itm2->id, itm2->len);
           for(i=0; i<itm2->len; i++){
             fprintf(stderr,"%X[%c] ", itm2->val[i], itm2->val[i]);

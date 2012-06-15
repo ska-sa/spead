@@ -188,7 +188,7 @@ int startup_server_us(struct u_server *s, char *port)
   reuse_addr   = 1;
   setsockopt(s->s_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
 
-  reuse_addr = 12*1024*1024;
+  reuse_addr = 700*1024*1024;
   if (setsockopt(s->s_fd, SOL_SOCKET, SO_RCVBUF, &reuse_addr, sizeof(reuse_addr)) < 0){
 #ifdef DEBUG
     fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
