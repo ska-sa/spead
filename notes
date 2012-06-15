@@ -55,12 +55,20 @@ Receiver data path
             |   unpack items
             |   create temp heap
             |   add packet
-            |   finalize packet
+    *       |   finalize packet
             |   |
             |    \
             |     Loop through items for stream definition
             |
              \
               Do stuff with other items
+
+Callgrind analysis
+  worker thread spends most time in (spead_heap_finalize)
+  
+  spead_heap_finalize
+    loops through items and mallocs each one
+    lots of mallocs (slow)
+
 
 
