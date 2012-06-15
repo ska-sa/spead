@@ -143,13 +143,6 @@ int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
   h = hs->s_shipping;
   itm = h->head_item;
 
-  p = create_spead_packet();
-  if (p == NULL){
-#ifdef DEBUG
-    fprintf(stderr,"%s: cannot create temp packet\n", __func__);
-#endif
-    return -1;
-  }
      
   do { 
     
@@ -160,6 +153,13 @@ int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
     switch(itm->id){
 
       case SPEAD_DESCRIPTOR_ID:
+        p = create_spead_packet();
+        if (p == NULL){
+#ifdef DEBUG
+          fprintf(stderr,"%s: cannot create temp packet\n", __func__);
+#endif
+          return -1;
+        }
         
         /*we have a spead packet inside itm->val*/
         memcpy(p->data, itm->val, itm->len);
@@ -226,9 +226,9 @@ int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
         itm2 = th->head_item;
         do {
 #ifdef DATA
-          fprintf(stderr, "ITEM DESCRIPTOR\n\tis_valid:\t%d\n\tid:\t%d\n\tlen:\t%ld\n\tval:%s\n", itm2->is_valid, itm2->id, itm2->len, itm2->val);
+          fprintf(stderr, "ITEM DESCRIPTOR\n\tis_valid:\t%d\n\tid:\t%d\n\tlen:\t%ld\n\tval:\n", itm2->is_valid, itm2->id, itm2->len);
           for(i=0; i<itm2->len; i++){
-            fprintf(stderr,"0x%X ", itm2->val[i]);
+            fprintf(stderr,"%X[%c] ", itm2->val[i], itm2->val[i]);
           }
           fprintf(stderr,"\n");
 #endif
