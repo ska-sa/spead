@@ -27,3 +27,40 @@ udp
   port 8888
 
 cat /dev/zero | pv -br | socat -b50000 - UDP:ip6-localhost:8888 > /dev/null
+
+
+Receiver data path
+==================
+|->unpack header
+|  unpack items
+|  check for stream termination
+|  store packet
+|    get associated heap / create a new heap
+|  * add packet to heap
+|    check for heap completeness
+|-----|
+       \
+        SHIP HEAP
+     *   finalize heap
+         |
+          \
+           process heap
+            loop through items
+            |
+            |\
+            | LOOK for SPEAD ITEM DESCRIPTOR
+            |   create a temp packet
+            |   copy item val into packet data
+            |   unpack header
+            |   unpack items
+            |   create temp heap
+            |   add packet
+            |   finalize packet
+            |   |
+            |    \
+            |     Loop through items for stream definition
+            |
+             \
+              Do stuff with other items
+
+
