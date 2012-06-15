@@ -422,16 +422,29 @@ def DEBUG
 
 #ifdef DEBUG
     fprintf(stderr,"%s: PARENT waitpid [%d]\n", __func__, sp);
-    if (WIFEXITED(status)) {
-      fprintf(stderr, "exited, status=%d\n", WEXITSTATUS(status));
-    } else if (WIFSIGNALED(status)) {
-      fprintf(stderr, "killed by signal %d\n", WTERMSIG(status));
-    } else if (WIFSTOPPED(status)) {
-      fprintf(stderr, "stopped by signal %d\n", WSTOPSIG(status));
-    } else if (WIFCONTINUED(status)) {
-      fprintf(stderr, "continued\n");
-    }
 #endif
+
+    if (WIFEXITED(status)) {
+#ifdef DEBUG
+      fprintf(stderr, "exited, status=%d\n", WEXITSTATUS(status));
+#endif
+      run = 0;
+    } else if (WIFSIGNALED(status)) {
+#ifdef DEBUG
+      fprintf(stderr, "killed by signal %d\n", WTERMSIG(status));
+#endif
+      run = 0;
+    } else if (WIFSTOPPED(status)) {
+#ifdef DEBUG
+      fprintf(stderr, "stopped by signal %d\n", WSTOPSIG(status));
+#endif
+      run = 0;
+    } else if (WIFCONTINUED(status)) {
+#ifdef DEBUG
+      fprintf(stderr, "continued\n");
+#endif
+      run = 0;
+    }
       
   }
 
