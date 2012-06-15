@@ -130,66 +130,6 @@ int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
   return id;
 }
 
-int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
-{
-  int rtn;
-
-  if (hs == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: cannot ship null heap\n", __func__);
-#endif
-    return -1;
-  }
-  
-  if (hs->s_count <= id) {
-#ifdef DEBUG
-    fprintf(stderr, "%s: ALL heaps shipped\n", __func__);
-#endif
-    return -1;
-  }
-
-  hs->s_shipping = hs->s_heaps[id];
-
-#ifdef DEBUG
-  fprintf(stderr, "%s:\tSHIP HEAP hs:[%ld]->[%ld]\n", __func__, id, hs->s_shipping->heap_cnt);
-#endif
-
-  hs->s_heaps[id] = NULL;
-
-  rtn = spead_heap_got_all_packets(hs->s_shipping);
-  if (rtn) {
-#ifdef DATA
-    fprintf(stderr, "[%d] %s: COMPLETED HEAP [%ld] SHIPPED rtn=[%d]\n", getpid(), __func__, hs->s_shipping->heap_cnt, rtn);
-#endif
-  } else {
-#ifdef DATA
-    fprintf(stderr, "[%d] %s: PARTIAL HEAP [%ld] SHIPPED rtn=[%d]\n", getpid(), __func__, hs->s_shipping->heap_cnt, rtn);
-#endif
-  }
-
-  if (spead_heap_finalize(hs->s_shipping) == SPEAD_ERR){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error trying to finalize spead heap\n", __func__);
-#endif 
-  } else {
-#ifdef DEBUG
-    fprintf(stderr, "%s: finalize spead heap SUCCESS!!\n", __func__);
-#endif 
-  }
-  
-  if (process_heap_hs(hs, hs->s_shipping) < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: cannot process heap\n", __func__);
-#endif
-  }
-  
-  destroy_spead_heap(hs->s_shipping);
-  
-  hs->s_shipping = NULL;
-
-  return 0;
-}
-
 int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
 {
   struct spead_packet *p;
@@ -312,6 +252,67 @@ int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
   
   return 0;
 }
+
+int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
+{
+  int rtn;
+
+  if (hs == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot ship null heap\n", __func__);
+#endif
+    return -1;
+  }
+  
+  if (hs->s_count <= id) {
+#ifdef DEBUG
+    fprintf(stderr, "%s: ALL heaps shipped\n", __func__);
+#endif
+    return -1;
+  }
+
+  hs->s_shipping = hs->s_heaps[id];
+
+#ifdef DEBUG
+  fprintf(stderr, "%s:\tSHIP HEAP hs:[%ld]->[%ld]\n", __func__, id, hs->s_shipping->heap_cnt);
+#endif
+
+  hs->s_heaps[id] = NULL;
+
+  rtn = spead_heap_got_all_packets(hs->s_shipping);
+  if (rtn) {
+#ifdef DATA
+    fprintf(stderr, "[%d] %s: COMPLETED HEAP [%ld] SHIPPED rtn=[%d]\n", getpid(), __func__, hs->s_shipping->heap_cnt, rtn);
+#endif
+  } else {
+#ifdef DATA
+    fprintf(stderr, "[%d] %s: PARTIAL HEAP [%ld] SHIPPED rtn=[%d]\n", getpid(), __func__, hs->s_shipping->heap_cnt, rtn);
+#endif
+  }
+
+  if (spead_heap_finalize(hs->s_shipping) == SPEAD_ERR){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error trying to finalize spead heap\n", __func__);
+#endif 
+  } else {
+#ifdef DEBUG
+    fprintf(stderr, "%s: finalize spead heap SUCCESS!!\n", __func__);
+#endif 
+  }
+  
+  if (process_heap_hs(hs, hs->s_shipping) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot process heap\n", __func__);
+#endif
+  }
+  
+  destroy_spead_heap(hs->s_shipping);
+  
+  hs->s_shipping = NULL;
+
+  return 0;
+}
+
 
 struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid)
 {

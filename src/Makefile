@@ -2,11 +2,11 @@
 #LIB = -lssl 
 
 EXE = spead 
-SRC = sp.c spead_packet.c spead_api.c server.c
-HDR = spead_packet.h spead_api.h server.h
+SRC = avltree.c sp.c spead_packet.c spead_api.c server.c
+HDR = avltree.h spead_packet.h spead_api.h server.h
 
 # CFLAGS += -DSTANDALONE
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 CFLAGS += -DDATA
 CFLAGS += -ggdb
 CFLAGS += -O3
