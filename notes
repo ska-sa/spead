@@ -70,5 +70,35 @@ Callgrind analysis
     loops through items and mallocs each one
     lots of mallocs (slow)
 
+S-P-E-A-D Description
+
+spead_packet
+  heap count
+  heap length
+  number of items
+  is stream control termination
+  payload length
+  payload offset
+  data[SPEAD_MAX_PACKET_LEN] 9200Bytes
+  pointer into data where payload starts
+  pointer to next spead packet
+
+spead_heap
+  is valid
+  heap count
+  heap length
+  has all packets
+  pointer to head packet
+  pointer to last packet
+  pointer to head item
+  pointer to last item
+
+spead_item
+  is valid
+  id
+  pointer to char data
+  length of data
+  pointer to next item
+
 
 
