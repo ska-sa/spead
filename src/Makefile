@@ -20,10 +20,13 @@ $(EXE): $(OBJ)
 	$(CC) -o $@ $^ $(LIB)
 
 clean: 
-	$(RM) -f $(EXE) *.o core vgcore*
+	$(RM) -f $(EXE) *.o core vgcore* test-*
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC)
 
 install: all
 	$(INSTALL) $(EXE) $(PREFIX)/sbin
+
+test-hash: hash.c
+	$(CC) $(CFLAGS) -DTEST_HASH -o $@ $^
