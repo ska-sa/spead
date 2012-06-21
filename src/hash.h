@@ -1,6 +1,8 @@
 #ifndef HASH_H
 #define HASH_H
 
+#include <stdint.h>
+
 struct hash_table;
 
 struct hash_o_list {
@@ -47,7 +49,7 @@ struct hash_table {
 void destroy_hash_table(struct hash_table *t);
 struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, uint64_t in));
 
-
+void *get_data_hash_table(struct hash_table *t, uint64_t id);
 
 
 #endif

@@ -8,16 +8,22 @@ struct spead_heap_store{
   int64_t s_count;
   struct spead_heap **s_heaps;
   struct spead_heap *s_shipping;
+  
+  struct hash_o_list *s_list;
+  struct hash_table *s_hash;
 };
 
 
 struct spead_heap *create_spead_heap();
 void destroy_spead_heap(struct spead_heap *h);
+#if 0
 struct spead_packet *create_spead_packet();
-void destroy_spead_packet(struct spead_packet *p);
+#endif
+void *create_spead_packet();
+void destroy_spead_packet(void *data);
 
 
-struct spead_heap_store *create_store_hs();
+struct spead_heap_store *create_store_hs(uint64_t list_len);
 void destroy_store_hs(struct spead_heap_store *hs);
 int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h);
 struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid);

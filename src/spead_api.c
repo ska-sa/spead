@@ -2,7 +2,10 @@
 /* Released under the GNU GPLv3 - see COPYING */
 
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
+#include "hash.h"
 #include "spead_api.h"
 
 struct spead_heap *create_spead_heap()
@@ -27,7 +30,7 @@ void destroy_spead_heap(struct spead_heap *h)
 }
 
 
-struct spead_packet *create_spead_packet()
+void *create_spead_packet()
 {
   struct spead_packet *p;
 
@@ -40,15 +43,23 @@ struct spead_packet *create_spead_packet()
   return p;
 }
 
-void destroy_spead_packet(struct spead_packet *p)
+void destroy_spead_packet(void *data)
 {
+  struct spead_packet *p;
+  p = data;
   if (p != NULL){
     free(p);
   }
 }
 
+uint64_t hash_fn_spead_packet(struct hash_table *t, uint64_t in)
+{
+  if (t == NULL || t->t_len < 0)
+    return -1;
+  return in % t->t_len;
+}
 
-struct spead_heap_store *create_store_hs()
+struct spead_heap_store *create_store_hs(uint64_t list_len)
 {
   struct spead_heap_store *hs;
 
@@ -60,6 +71,35 @@ struct spead_heap_store *create_store_hs()
   hs->s_count    = 0;
   hs->s_heaps    = NULL;
   hs->s_shipping = NULL;
+
+  hs->s_hash  = NULL;
+  hs->s_list  = NULL;
+
+  hs->s_list = create_o_list(list_len, &create_spead_packet, &destroy_spead_packet, sizeof(struct spead_packet));
+  if (hs->s_list == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: failed to create spead packet bank size [%ld]\n", __func__, list_len);
+#endif
+    destroy_store_hs(hs);
+    return NULL;
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: created spead packet bank of size [%ld]\n", __func__, list_len);
+#endif
+
+  hs->s_hash = create_hash_table(hs->s_list, 0, list_len, &hash_fn_spead_packet);
+  if (hs->s_hash == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: failed to create spead packet hash table size [%ld]\n", __func__, list_len);
+#endif
+    destroy_store_hs(hs);
+    return NULL; 
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: created spead packet hash table of size [%ld]\n", __func__, list_len);
+#endif
 
   return hs;
 }
@@ -76,6 +116,14 @@ void destroy_store_hs(struct spead_heap_store *hs)
     }
     if (hs->s_shipping)
       free(hs->s_shipping);
+
+    if (hs->s_hash)
+      destroy_hash_table(hs->s_hash);
+  
+    if (hs->s_list)
+      destroy_o_list(hs->s_list);
+    
+
     free(hs);
   }
 }
@@ -453,7 +501,7 @@ int store_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
 
 int process_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
 {
-  int rtn, i;
+  int rtn;
 
   if (hs == NULL || p == NULL){
 #ifdef DEBUG

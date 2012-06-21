@@ -2,7 +2,7 @@
 #LIB = -lssl 
 
 EXE = spead 
-SRC = hash.c avltree.c sp.c spead_packet.c spead_api.c server.c
+SRC = hash.c avltree.c subprocess.c spead_packet.c spead_api.c server.c
 HDR = hash.h avltree.h spead_packet.h spead_api.h server.h
 
 # CFLAGS += -DSTANDALONE
@@ -10,6 +10,7 @@ CFLAGS += -DDEBUG
 CFLAGS += -DDATA
 CFLAGS += -ggdb
 CFLAGS += -O3
+CFLAGS += -Wall
 
 
 OBJ = $(patsubst %.c,%.o,$(SRC))

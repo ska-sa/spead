@@ -36,7 +36,7 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   if (t == NULL)
     return NULL;
 
-  t->t_id  = 0;
+  t->t_id  = id;
   t->t_hfn = hfn;
   t->t_len = len;
   t->t_os  = NULL;
@@ -48,17 +48,13 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
     return NULL;
   }
 
-#ifdef DEBUG
-  fprintf(stderr, "%s: about to start getting objects from bank\n", __func__);
-#endif
-
-  bzero(t->t_os, len);
+  bzero(t->t_os, len*sizeof(struct hash_o*));
   
   for (i=0; i<len; i++){
     t->t_os[i] = pop_hash_o(l);
     if (t->t_os[i] == NULL){
 #ifdef DEBUG
-      fprintf(stderr, "%s: err pop_hash_o\n", __func__);
+      fprintf(stderr, "%s: FAIL getting obejct from bank\n", __func__);
 #endif
       destroy_hash_table(t);
       return NULL;
@@ -66,10 +62,8 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: done from bank\n", __func__);
+  fprintf(stderr, "HAVE HASH TABLE[%ld]\n\tconsumed [%ld] objects\n", id, len);
 #endif
-
-  print_list_stats(l, __func__);
 
   return t;
 }
@@ -81,14 +75,18 @@ void destroy_hash_table(struct hash_table *t)
 
     if (t->t_os){
       if (t->t_l && t->t_l){
+
         for (i=0; i<t->t_len; i++){
-          if (push_hash_o(t->t_l, t->t_os[i]) < 0){
+          if (t->t_os[i] != NULL){
+            if (push_hash_o(t->t_l, t->t_os[i]) < 0){
 #ifdef DEBUG
-            fprintf(stderr, "%s: failed to push o (%p) onto list (%p) from table [%ld]\n", __func__, t->t_os[i], t->t_l, t->t_id);
+              fprintf(stderr, "%s: failed to push o (%p) onto list (%p) from table [%ld]\n", __func__, t->t_os[i], t->t_l, t->t_id);
 #endif
-            destroy_hash_o(t->t_l, t->t_os[i]);
+              destroy_hash_o(t->t_l, t->t_os[i]);
+            }
           }
         }
+
       }
       free(t->t_os);
     }
@@ -154,6 +152,20 @@ struct hash_o *get_o_ht(struct hash_table *t, uint64_t id)
 
   return t->t_os[id];
 }
+
+void *get_data_hash_table(struct hash_table *t, uint64_t id)
+{
+  struct hash_o *o;
+
+  if (t == NULL || id < 0 || id > t->t_len)
+    return NULL;
+
+  o = get_o_ht(t, (*t->t_hfn)(t, id));
+  if (o == NULL)
+    return NULL;
+
+  return o->o;
+} 
 
 int add_o_ht(struct hash_table *t, uint64_t id, void *data, uint64_t len)
 {
@@ -233,7 +245,7 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
   
   if (o == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "%s: err list object pointer is null\n", __func__);
+    fprintf(stderr, "%s: err no more objects in bank\n", __func__);
 #endif
     return NULL;
   }
@@ -263,7 +275,7 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
 void *create_test()
 {
   char *obj;
-  obj = malloc(sizeof(char));
+  obj = malloc(sizeof(char)*8);
   if (obj == NULL)
     return NULL;
 
@@ -288,33 +300,39 @@ int main(int argc, char **argv)
 {
   struct hash_o_list *b;
   struct hash_table *t[10];
+  int i;
 
-  b = create_o_list(100000, &create_test, &del_test, sizeof(char));
+  b = create_o_list(100000000, &create_test, &del_test, sizeof(char)*8);
   if (b == NULL){
     fprintf(stderr, "err: create_o_list\n");
     return 1;
   }
-  
-  t[0] = create_hash_table(b, 0, 100, &hash_fn);
-  if (t[0] == NULL){
-    destroy_o_list(b);
-    fprintf(stderr, "err: create_hash_table\n");
-    return 1;
+ 
+#if 1
+  for (i=0;i<10;i++){
+    t[i] = create_hash_table(b, i, 1001001, &hash_fn);
+    if (t[i] == NULL){
+      for (i=0;i<10;i++){
+        destroy_hash_table(t[i]);
+      }
+      destroy_o_list(b);
+      fprintf(stderr, "err: create_hash_table\n");
+      return 1;
+    }
   }
+#endif
+ 
+  sleep(10);
   
-  t[1] = create_hash_table(b, 1, 101010, &hash_fn);
-  if (t[1] == NULL){
-    destroy_o_list(b);
-    fprintf(stderr, "err: create_hash_table\n");
-    return 1;
-  }
 
   
-
   
-  
-  destroy_hash_table(t[0]);
+  for (i=0;i<10;i++){
+    destroy_hash_table(t[i]);
+  }
+#if 0
   destroy_hash_table(t[1]);
+#endif
 
 
   destroy_o_list(b);

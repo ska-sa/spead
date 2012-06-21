@@ -22,6 +22,7 @@
 
 #include "spead_api.h"
 #include "server.h"
+#include "hash.h"
 
 
 static volatile int run = 1;
@@ -170,6 +171,9 @@ int startup_server_us(struct u_server *s, char *port)
   }
 
   for (rp = res; rp != NULL; rp = rp->ai_next) {
+#ifdef DEBUG
+    fprintf(stderr, "%s: res (%p) with: %d\n", __func__, rp, rp->ai_protocol);
+#endif
     if (rp->ai_family == AF_INET6)
       break;
   }
@@ -204,9 +208,13 @@ int startup_server_us(struct u_server *s, char *port)
   }
 
   freeaddrinfo(res);
+
 #ifdef DEBUG
   fprintf(stderr,"\tserver pid:\t%d\n\tport:\t\t%s\n", getpid(), port);
 #endif
+
+  sleep(10);
+
   return 0;
 }
 
@@ -228,6 +236,8 @@ void shutdown_server_us(struct u_server *s)
 int worker_task_us(struct u_server *s)
 {
   struct spead_packet *p;
+  struct spead_heap_store *hs;
+
   struct timeval prev, now, delta;
   struct sockaddr_storage peer_addr;
   socklen_t peer_addr_len;
@@ -240,6 +250,11 @@ int worker_task_us(struct u_server *s)
   bcount = 0;
   p      = NULL;
   pid    = getpid();
+
+  if (s == NULL || s->s_hs == NULL)
+    return -1;
+
+  hs = s->s_hs;
 
 #ifdef DEBUG
   fprintf(stderr, "\t  CHILD\t\t[%d]\n", pid);
@@ -258,11 +273,17 @@ int worker_task_us(struct u_server *s)
   while (run) {
 
 #if 1
+    p = get_data_hash_table(hs->s_hash, rcount);
+    if (p == NULL){
+      continue;
+    }
+
+
     gettimeofday(&prev, NULL);
     rcount++;
     peer_addr_len = sizeof(struct sockaddr_storage); 
 
-#if 1
+#if 0
     p = create_spead_packet();
     if (p == NULL){
 #ifdef DEBUG
@@ -286,12 +307,12 @@ int worker_task_us(struct u_server *s)
     fwrite(p->data, 1, nread, stdout);
 #endif
 
-#if 1
     if (process_packet_hs(s->s_hs, p) < 0){
+#if 0
       destroy_spead_packet(p);
+#endif
       continue; 
     }
-#endif
 
 
     gettimeofday(&now, NULL);
@@ -341,7 +362,7 @@ int spawn_workers_us(struct u_server *s)
   if (s == NULL)
     return -1;
  
-  hs = create_store_hs();
+  hs = create_store_hs(1000);
   if (hs == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: cannot create spead_heap_store\n", __func__);
@@ -357,6 +378,7 @@ int spawn_workers_us(struct u_server *s)
   fprintf(stderr, "\tworkers:\t%ld\n", s->s_cpus);
 #endif
   
+#if 1
   do {
 
     c = fork_child_sp(s, &worker_task_us);
@@ -372,7 +394,6 @@ int spawn_workers_us(struct u_server *s)
       fprintf(stderr, "%s: could not store worker pid [%d]\n", __func__, sp);
 #endif
       destroy_child_sp(c);
-
     } else
       i++;
 
@@ -448,6 +469,8 @@ def DEBUG
       
   }
 
+#endif
+
 #ifdef DEBUG
   fprintf(stderr, "%s: final recv count: %ld bytes\n", __func__, s->s_bc);
 #endif
@@ -478,6 +501,7 @@ int register_client_handler_server(int (*client_data_fn)(), char *port, long cpu
     return -1;
   }
 
+#if 1
   if (startup_server_us(s, port) < 0){
 #ifdef DEBUG
     fprintf(stderr,"%s: error in startup\n", __func__);
@@ -485,6 +509,7 @@ int register_client_handler_server(int (*client_data_fn)(), char *port, long cpu
     shutdown_server_us(s);
     return -1;
   }
+#endif
 
   if (spawn_workers_us(s) < 0){ 
 #ifdef DEBUG
