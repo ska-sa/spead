@@ -12,6 +12,7 @@ struct hash_o_list {
   void (*l_destroy)(void *data);
 };
 
+/*create a list of objects each with element size*/
 struct hash_o_list *create_o_list(uint64_t len, void *(*create)(), void (*destroy)(void *data), uint64_t size);
 void destroy_o_list(struct hash_o_list *l);
 
@@ -23,10 +24,6 @@ struct hash_o {
   uint64_t o_len;
   void *o;
   struct hash_o *o_next;
-#if 0
-  void *(*o_create)();
-  void (*o_destroy)(void *data);
-#endif
 };
 
 void destroy_hash_o(struct hash_o_list *l, struct hash_o *o);

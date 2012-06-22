@@ -109,16 +109,8 @@ struct hash_o *create_hash_o(void *(*create)(), void (*destroy)(void *data), uin
   o->o         = NULL;
   o->o_len     = 0;
   o->o_next    = NULL;
-#if 0
-  o->o_create  = NULL;
-  o->o_destroy = NULL;
-#endif
 
   if (create != NULL && destroy != NULL){
-#if 0
-    o->o_create  = create;
-    o->o_destroy = destroy;
-#endif
 
     o->o = (*create)();
 
@@ -144,50 +136,6 @@ void destroy_hash_o(struct hash_o_list *l, struct hash_o *o)
     free(o);
   }
 }
-
-struct hash_o *get_o_ht(struct hash_table *t, uint64_t id)
-{
-  if (t == NULL || id < 0 || id > t->t_len)
-    return NULL;
-
-  return t->t_os[id];
-}
-
-void *get_data_hash_table(struct hash_table *t, uint64_t id)
-{
-  struct hash_o *o;
-
-  if (t == NULL || id < 0 || id > t->t_len)
-    return NULL;
-
-  o = get_o_ht(t, (*t->t_hfn)(t, id));
-  if (o == NULL)
-    return NULL;
-
-  return o->o;
-} 
-
-int add_o_ht(struct hash_table *t, uint64_t id, void *data, uint64_t len)
-{
-  struct hash_o *o;
-
-  if (t == NULL || id < 0 || data == NULL || len < 0)
-    return -1;
-
-  o = get_o_ht(t, (*t->t_hfn)(t, id));
-  if (o == NULL)
-    return -1;
-
-  if (o->o == NULL)
-    return -1;
-
-  o->o      = data;
-  o->o_len  = len;
-  o->o_next = NULL;
-  
-  return 0;
-}
-
 
 struct hash_o_list *create_o_list(uint64_t len, void *(*create)(), void (*destroy)(void *data), uint64_t size)
 {
@@ -232,6 +180,49 @@ void destroy_o_list(struct hash_o_list *l)
 
     free(l);
   }
+}
+
+struct hash_o *get_o_ht(struct hash_table *t, uint64_t id)
+{
+  if (t == NULL || id < 0 || id > t->t_len)
+    return NULL;
+
+  return t->t_os[id];
+}
+
+void *get_data_hash_table(struct hash_table *t, uint64_t id)
+{
+  struct hash_o *o;
+
+  if (t == NULL || id < 0 || id > t->t_len)
+    return NULL;
+
+  o = get_o_ht(t, (*t->t_hfn)(t, id));
+  if (o == NULL)
+    return NULL;
+
+  return o->o;
+} 
+
+int add_o_ht(struct hash_table *t, uint64_t id, void *data, uint64_t len)
+{
+  struct hash_o *o;
+
+  if (t == NULL || id < 0 || data == NULL || len < 0)
+    return -1;
+
+  o = get_o_ht(t, (*t->t_hfn)(t, id));
+  if (o == NULL)
+    return -1;
+
+  if (o->o == NULL)
+    return -1;
+
+  o->o      = data;
+  o->o_len  = len;
+  o->o_next = NULL;
+  
+  return 0;
 }
 
 struct hash_o *pop_hash_o(struct hash_o_list *l)
