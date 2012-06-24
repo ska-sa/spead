@@ -317,7 +317,6 @@ int main(int argc, char **argv)
   
 
   
-  
   for (i=0;i<10;i++){
     destroy_hash_table(t[i]);
   }
