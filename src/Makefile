@@ -31,3 +31,6 @@ install: all
 
 test-hash: hash.c
 	$(CC) $(CFLAGS) -DTEST_HASH -o $@ $^
+
+test-shm: sharedmem.c
+	$(CC) $(CFLAGS) -DTEST_SHARED_MEM -o $@ $^
