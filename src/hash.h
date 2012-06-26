@@ -7,9 +7,11 @@ struct hash_table;
 
 struct hash_o_list {
   uint64_t l_len;
+  uint64_t l_olen;
   struct hash_o *l_top;
   void *(*l_create)();
   void (*l_destroy)(void *data);
+  int l_semid;
 };
 
 /*create a list of objects each with element size*/
@@ -21,7 +23,6 @@ struct hash_o *pop_hash_o(struct hash_o_list *l);
 
 
 struct hash_o {
-  uint64_t o_len;
   void *o;
   struct hash_o *o_next;
 };

@@ -29,7 +29,7 @@ clean:
 install: all
 	$(INSTALL) $(EXE) $(PREFIX)/sbin
 
-test-hash: hash.c
+test-hash: sharedmem.c hash.c
 	$(CC) $(CFLAGS) -DTEST_HASH -o $@ $^
 
 test-shm: sharedmem.c

@@ -1,9 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <unistd.h>
 #include <strings.h>
 
 #include "hash.h"
+#include "sharedmem.h"
 
 void print_list_stats(struct hash_o_list *l, const char *func) 
 {
@@ -13,7 +15,7 @@ void print_list_stats(struct hash_o_list *l, const char *func)
   if (l){
     
     if (l->l_top){
-      len = l->l_top->o_len;
+      len = l->l_olen;
     }
 
     total = (sizeof(struct hash_o) + len) * l->l_len + sizeof(struct hash_o_list);
@@ -42,7 +44,7 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   t->t_os  = NULL;
   t->t_l   = l;
 
-  t->t_os = malloc(sizeof(struct hash_o*) * len);
+  t->t_os  = malloc(sizeof(struct hash_o*) * len);
   if (t->t_os == NULL){
     free(t);
     return NULL;
@@ -102,12 +104,14 @@ struct hash_o *create_hash_o(void *(*create)(), void (*destroy)(void *data), uin
 {
   struct hash_o *o;
 
+#if 0
   o = malloc(sizeof(struct hash_o));
+#endif
+  o = shared_malloc(sizeof(struct hash_o));
   if (o == NULL)
     return NULL;
 
   o->o         = NULL;
-  o->o_len     = 0;
   o->o_next    = NULL;
 
   if (create != NULL && destroy != NULL){
@@ -119,8 +123,6 @@ struct hash_o *create_hash_o(void *(*create)(), void (*destroy)(void *data), uin
       return NULL;
     }
 
-    o->o_len = len;
-
   }
  
   return o;
@@ -128,6 +130,7 @@ struct hash_o *create_hash_o(void *(*create)(), void (*destroy)(void *data), uin
 
 void destroy_hash_o(struct hash_o_list *l, struct hash_o *o)
 {
+#if 0
   if (o){
     if (o->o && l && l->l_destroy){
       (*l->l_destroy)(o->o);
@@ -135,6 +138,7 @@ void destroy_hash_o(struct hash_o_list *l, struct hash_o *o)
 
     free(o);
   }
+#endif
 }
 
 struct hash_o_list *create_o_list(uint64_t len, void *(*create)(), void (*destroy)(void *data), uint64_t size)
@@ -142,16 +146,41 @@ struct hash_o_list *create_o_list(uint64_t len, void *(*create)(), void (*destro
   struct hash_o_list *l;
   struct hash_o *o;
   uint64_t i;
+  int semid;
 
-  l = malloc(sizeof(struct hash_o_list));
-  if (l == NULL)
+  if (create_shared_mem((size + sizeof(struct hash_o)) * len + sizeof(struct hash_o_list)) < 0) {
+#ifdef DEBUG
+    fprintf(stderr, "%s: could not create shared memory\n", __func__);
+#endif
     return NULL;
+  }
+  
+  semid = create_sem();
+  if (semid < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: could not create semaphore for shared mem\n", __func__);
+#endif
+    destroy_shared_mem();
+    return NULL;
+  }
+  
+#if 0
+  l = malloc(sizeof(struct hash_o_list));
+#endif
+  l = shared_malloc(sizeof(struct hash_o_list));
+  if (l == NULL){
+    destroy_sem(semid);
+    destroy_shared_mem();
+    return NULL;
+  }
 
   l->l_len = len;
-  l->l_top = NULL;
+  l->l_olen = size;
+  l->l_top   = NULL;
   l->l_create = create;
   l->l_destroy = destroy;
-  
+  l->l_semid = semid;
+
   for (i=0; i<len; i++){
     o = create_hash_o(create, destroy, size);
     if (o == NULL){
@@ -169,8 +198,18 @@ struct hash_o_list *create_o_list(uint64_t len, void *(*create)(), void (*destro
 
 void destroy_o_list(struct hash_o_list *l)
 {
+  
+  if (l){
+    
+    destroy_sem(l->l_semid);
+
+  }
+
+  destroy_shared_mem();
+#if 0
   struct hash_o *o;
   if (l){
+
     o = l->l_top;
     do {
       l->l_top = o->o_next;
@@ -180,6 +219,7 @@ void destroy_o_list(struct hash_o_list *l)
 
     free(l);
   }
+#endif
 }
 
 struct hash_o *get_o_ht(struct hash_table *t, uint64_t id)
@@ -219,7 +259,6 @@ int add_o_ht(struct hash_table *t, uint64_t id, void *data, uint64_t len)
     return -1;
 
   o->o      = data;
-  o->o_len  = len;
   o->o_next = NULL;
   
   return 0;
@@ -231,6 +270,7 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
 
   if (l == NULL)
     return NULL;
+  
   
   o = l->l_top;
   
@@ -266,7 +306,7 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
 void *create_test()
 {
   char *obj;
-  obj = malloc(sizeof(char)*8);
+  obj = shared_malloc(sizeof(char)*8);
   if (obj == NULL)
     return NULL;
 
@@ -276,7 +316,7 @@ void *create_test()
 void del_test(void *obj)
 {
   if (obj){
-    free(obj);
+    //free(obj);
   }
 }
 
@@ -293,7 +333,7 @@ int main(int argc, char **argv)
   struct hash_table *t[10];
   int i;
 
-  b = create_o_list(100000000, &create_test, &del_test, sizeof(char)*8);
+  b = create_o_list(1000000, &create_test, &del_test, sizeof(char)*8);
   if (b == NULL){
     fprintf(stderr, "err: create_o_list\n");
     return 1;
@@ -301,9 +341,9 @@ int main(int argc, char **argv)
  
 #if 1
   for (i=0;i<10;i++){
-    t[i] = create_hash_table(b, i, 1001001, &hash_fn);
+    t[i] = create_hash_table(b, i, 100000, &hash_fn);
     if (t[i] == NULL){
-      for (i=0;i<10;i++){
+      for (;i>=0;i--){
         destroy_hash_table(t[i]);
       }
       destroy_o_list(b);
@@ -315,15 +355,13 @@ int main(int argc, char **argv)
  
   sleep(10);
   
-
-  
   for (i=0;i<10;i++){
     destroy_hash_table(t[i]);
   }
+
 #if 0
   destroy_hash_table(t[1]);
 #endif
-
 
   destroy_o_list(b);
 

@@ -8,10 +8,14 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/sem.h>
 #include <sys/wait.h>
 
 
 #include "sharedmem.h"
+
+#define KEYPATH     "/dev/null"
+#define MAX_RETRIES 10
 
 static struct shared_mem *m_area = NULL;
 
@@ -36,7 +40,7 @@ int create_shared_mem(uint64_t size)
     return -1;
   }
 
-  key = ftok("/dev/null", 'A');
+  key = ftok(KEYPATH, 'A');
   if (key < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: ftok error: %s\n", __func__, strerror(errno));
@@ -65,6 +69,8 @@ int create_shared_mem(uint64_t size)
     }
     return -1;
   }
+
+  memset(ptr, 0, size);
 
   m_area = malloc(sizeof(struct shared_mem));
   if (m_area == NULL){
@@ -143,20 +149,152 @@ void shared_free(void *ptr)
 }
 #endif
 
+int create_sem()
+{
+  int semid, i, ready;
+  union semun arg;
+  struct semid_ds buf;
+  struct sembuf sb;
+  key_t key;
+
+  key = ftok(KEYPATH, 'B');
+  if (key < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: ftok error: %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
+  semid = semget(key, 1, IPC_CREAT | IPC_EXCL | 0666);
+  
+  if (semid < 0){ 
+    switch(errno){
+      case EEXIST: /*semaphore is already created*/
+        ready = 1;
+        semid = semget(key, 1, 0);
+        if (semid < 0){
+#ifdef DEBUG
+          fprintf(stderr, "%s: error semget %s\n", __func__, strerror(errno));
+#endif
+          return -1;
+        }
+
+        arg.buf = &buf;
+        for (i=0; i<MAX_RETRIES && !ready; i++){
+          semctl(semid, 0, IPC_STAT, arg);
+          if (arg.buf->sem_otime == 0) {
+            ready = 1;
+          } else {
+            sleep(1);
+          }
+        }
+
+        if (!ready){
+          errno = ETIME;
+#ifdef DEBUG
+          fprintf(stderr, "%s: error waiting %s\n", __func__, strerror(errno));
+#endif
+          return -1;
+        }
+
+        return semid;
+
+      default:
+#ifdef DEBUG
+        fprintf(stderr, "%s: error semget %s\n", __func__, strerror(errno));
+#endif
+        return -1;
+    }
+  }
+
+  /*set semaphore to unlocked*/
+  sb.sem_num = 0;
+  sb.sem_op  = 1;
+  sb.sem_flg = 0;
+  arg.val    = 1;
+
+  if (semop(semid, &sb, 1) < 0) {
+#ifdef DEBUG
+    fprintf(stderr, "%s: error semop %s\n", __func__, strerror(errno));
+#endif
+    semctl(semid, 0, IPC_RMID);
+    return -1;
+  }
+
+  return semid; 
+}
+
+/*test and lock semaphore*/
+int lock_sem(int semid)
+{
+  struct sembuf sb;
+  
+  if (semid < 0)
+    return -1;
+
+  sb.sem_num =   0;
+  sb.sem_op  = (-1);
+  sb.sem_flg = SEM_UNDO;
+  
+  if (semop(semid, &sb, 1) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error semop %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
+  return 0;
+}
+
+int unlock_sem(int semid)
+{
+  struct sembuf sb;
+
+  if (semid < 0)
+    return -1;
+
+  sb.sem_num = 0;
+  sb.sem_op  = 1;
+  sb.sem_flg = SEM_UNDO;
+
+  if (semop(semid, &sb, 1) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error semop %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+  
+  return 0;
+}
+
+void destroy_sem(int semid)
+{
+  if (semid > 0){
+    
+    if (semctl(semid, 0, IPC_RMID) < 0) {
+      fprintf(stderr, "%s: error semctl %s\n", __func__, strerror(errno));
+    }
+
+  }
+}
+
 
 #ifdef TEST_SHARED_MEM
 #ifdef DEBUG
 
-#define SIZE 5
+#define SIZE      50
+#define CHILD     40
 
 struct test_mem{
-  char m_test[100];
+  /*char m_test[100];
+  */
+  int v;
 };
 
 int main(int argc, char *argv[])
 {
   struct test_mem *m[SIZE];
-  int i,j;
+  int semid, i, j;
   pid_t cpid;
 
   if (create_shared_mem(SIZE*sizeof(struct test_mem)) < 0){
@@ -171,13 +309,19 @@ int main(int argc, char *argv[])
       destroy_shared_mem();
       return 1;
     }
+    bzero(m[i], sizeof(struct test_mem));
   }
   
-#if 0
+ semid = create_sem();
+ //semid=0;
+  if (semid < 0){
+    fprintf(stderr, "could not create semaphore for shared mem\n"); 
+    destroy_shared_mem();
+    return 1;
+  }
 
-#endif
+  for (j=0; j<CHILD; j++){
 
-  for (j=0; j<2; j++){
     cpid = fork();
 
     if (cpid < 0){
@@ -186,9 +330,18 @@ int main(int argc, char *argv[])
     }
 
     if (!cpid){
+      /*THIS IS A CHILD*/
+
       for (i=0; i<SIZE; i++){
-        fprintf(stderr, "child [%d] writing\n", getpid());
-        snprintf(m[i]->m_test, sizeof(m[i]->m_test), "i [%d] am block number %d\n", getpid(), i);
+        //if (!strlen(m[i]->m_test)){
+          fprintf(stderr, "CHILD [%d] writing %d\n", getpid(), i);
+          lock_sem(semid);
+#if 0
+          snprintf(m[i]->m_test, sizeof(m[i]->m_test), "i [%d] am block number %d\n", getpid(), i);
+#endif
+          m[i]->v++;
+          unlock_sem(semid);
+        //}
       }
 
       exit(EX_OK);
@@ -197,13 +350,17 @@ int main(int argc, char *argv[])
     fprintf(stderr, "PARENT [%d] forked child [%d]\n", getpid(), cpid);
   }
 
-
-  wait(NULL);
+  i=0;
+  do {
+    fprintf(stderr, "parent collected child [%d]\n", wait(NULL));
+  } while(i++ < CHILD);
 
   for (i=0; i<SIZE; i++){
-    fprintf(stderr, "parent: %s", m[i]->m_test);
+    //fprintf(stderr, "parent: %s", m[i]->m_test);
+    fprintf(stderr, "parent: %d\n", m[i]->v);
   }
 
+  destroy_sem(semid);
   destroy_shared_mem(); 
   return 0;
 }
