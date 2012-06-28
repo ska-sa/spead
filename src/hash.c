@@ -34,9 +34,13 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   if (l == NULL || len < 0 || id < 0 || hfn == NULL)
     return NULL;
 
-  t = malloc(sizeof(struct hash_table));
-  if (t == NULL)
+  t = shared_malloc(sizeof(struct hash_table));
+  if (t == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot allocate hash_table from shared mem\n", __func__);
+#endif
     return NULL;
+  }
 
   t->t_id  = id;
   t->t_hfn = hfn;
@@ -44,14 +48,17 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   t->t_os  = NULL;
   t->t_l   = l;
 
-  t->t_os  = malloc(sizeof(struct hash_o*) * len);
+  t->t_os  = shared_malloc(sizeof(struct hash_o*) * len);
   if (t->t_os == NULL){
-    free(t);
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot allocate hash_table object store from shared mem\n", __func__);
+#endif
     return NULL;
   }
 
   bzero(t->t_os, len*sizeof(struct hash_o*));
   
+#if 0
   for (i=0; i<len; i++){
     t->t_os[i] = pop_hash_o(l);
     if (t->t_os[i] == NULL){
@@ -62,10 +69,13 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
       return NULL;
     }
   }
+#endif
 
 #ifdef DEBUG
   fprintf(stderr, "HAVE HASH TABLE[%ld]\n\tconsumed [%ld] objects\n", id, len);
 #endif
+
+  print_list_stats(t->t_l, __func__);
 
   return t;
 }
@@ -90,12 +100,12 @@ void destroy_hash_table(struct hash_table *t)
         }
 
       }
-      free(t->t_os);
+      //free(t->t_os);
     }
     
     print_list_stats(t->t_l, __func__);
 
-    free(t);
+    //free(t);
   }
 
 }
@@ -141,14 +151,22 @@ void destroy_hash_o(struct hash_o_list *l, struct hash_o *o)
 #endif
 }
 
-struct hash_o_list *create_o_list(uint64_t len, void *(*create)(), void (*destroy)(void *data), uint64_t size)
+struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, void *(*create)(), void (*destroy)(void *data), uint64_t size)
 {
   struct hash_o_list *l;
   struct hash_o *o;
   uint64_t i;
   int semid;
+  uint64_t req_size;
 
-  if (create_shared_mem((size + sizeof(struct hash_o)) * len + sizeof(struct hash_o_list)) < 0) {
+  req_size = (size+sizeof(struct hash_o))*len + sizeof(struct hash_o_list) + (sizeof(struct hash_table *) + sizeof(struct hash_table))*hlen + sizeof(struct hash_o *)*hsize;
+
+#ifdef DEBUG
+  fprintf(stderr, "REQ: (hash_o [%ld] + data size [%ld]) * len [%ld] + hash_o_list [%ld] + (hash_table [%ld] hash_table ptr [%ld])* hlen [%ld] + hash_o ptr [%ld] * hsize [%ld]\n", sizeof(struct hash_o), size, len, sizeof(struct hash_o_list), sizeof(struct hash_table), sizeof(struct hash_table *), hlen, sizeof(struct hash_o *), hsize);
+  fprintf(stderr, "%s: calculated size required for all sharedmem [%ld]\n", __func__, req_size);
+#endif
+
+  if (create_shared_mem(req_size) < 0) {  /*hashtables objects*/
 #ifdef DEBUG
     fprintf(stderr, "%s: could not create shared memory\n", __func__);
 #endif
@@ -169,6 +187,9 @@ struct hash_o_list *create_o_list(uint64_t len, void *(*create)(), void (*destro
 #endif
   l = shared_malloc(sizeof(struct hash_o_list));
   if (l == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: could not allocate hash_o_list from shared memory\n", __func__);
+#endif
     destroy_sem(semid);
     destroy_shared_mem();
     return NULL;
@@ -200,12 +221,10 @@ void destroy_o_list(struct hash_o_list *l)
 {
   
   if (l){
-    
     destroy_sem(l->l_semid);
-
   }
-
   destroy_shared_mem();
+
 #if 0
   struct hash_o *o;
   if (l){
@@ -264,14 +283,16 @@ int add_o_ht(struct hash_table *t, uint64_t id, void *data, uint64_t len)
   return 0;
 }
 
+/*Critical section*/
 struct hash_o *pop_hash_o(struct hash_o_list *l)
 {
   struct hash_o *o;
 
   if (l == NULL)
     return NULL;
-  
-  
+
+  lock_sem(l->l_semid);
+
   o = l->l_top;
   
   if (o == NULL){
@@ -286,17 +307,24 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
 
   o->o_next = NULL;
 
+  unlock_sem(l->l_semid);
+
   return o;
 }
 
+/*Critical section*/
 int push_hash_o(struct hash_o_list *l, struct hash_o *o)
 {
+  lock_sem(l->l_semid);
+
   if (l == NULL || o == NULL || o->o_next != NULL)
     return -1;
 
   o->o_next = l->l_top;
   l->l_top = o;
   l->l_len++;
+
+  unlock_sem(l->l_semid);
 
   return 0;
 }

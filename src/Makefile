@@ -2,8 +2,8 @@
 #LIB = -lssl 
 
 EXE = spead 
-SRC = hash.c avltree.c subprocess.c spead_packet.c spead_api.c server.c
-HDR = hash.h avltree.h spead_packet.h spead_api.h server.h
+SRC = sharedmem.c hash.c avltree.c subprocess.c spead_packet.c spead_api.c server.c
+HDR = sharedmem.h hash.h avltree.h spead_packet.h spead_api.h server.h
 
 # CFLAGS += -DSTANDALONE
 CFLAGS += -DDEBUG

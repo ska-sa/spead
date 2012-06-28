@@ -15,7 +15,7 @@ struct hash_o_list {
 };
 
 /*create a list of objects each with element size*/
-struct hash_o_list *create_o_list(uint64_t len, void *(*create)(), void (*destroy)(void *data), uint64_t size);
+struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, void *(*create)(), void (*destroy)(void *data), uint64_t size);
 void destroy_o_list(struct hash_o_list *l);
 
 int push_hash_o(struct hash_o_list *l, struct hash_o *o);
@@ -49,5 +49,5 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
 
 void *get_data_hash_table(struct hash_table *t, uint64_t id);
 
-
 #endif
+

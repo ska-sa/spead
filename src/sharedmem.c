@@ -133,12 +133,20 @@ void *shared_malloc(size_t size)
   if (m == NULL)
     return NULL;
  
-  if (size < 0 && size + m->m_off < m->m_size)
+  if (size < 0 || (size + m->m_off) > m->m_size){
+#ifdef DEBUG
+    fprintf(stderr, "%s: FAIL shared_malloc size req [%ld] mem stats msize [%ld] m_off [%ld]\n", __func__, size, m->m_size, m->m_off); 
+#endif
     return NULL;
+  }
 
   ptr       = m->m_ptr + m->m_off;
   m->m_off  = m->m_off + size;
   
+#ifdef DEBUG
+  fprintf(stderr, "%s: allocated [%ld] from sharedmem\n", __func__, size);
+#endif
+
   return ptr;
 }
 

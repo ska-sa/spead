@@ -6,11 +6,13 @@
 struct spead_heap_store{
   int64_t s_backlog;
   int64_t s_count;
+#if 0
   struct spead_heap **s_heaps;
+#endif
   struct spead_heap *s_shipping;
   
   struct hash_o_list *s_list;
-  struct hash_table *s_hash;
+  struct hash_table **s_hash;
 };
 
 
@@ -23,7 +25,7 @@ void *create_spead_packet();
 void destroy_spead_packet(void *data);
 
 
-struct spead_heap_store *create_store_hs(uint64_t list_len);
+struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_count, uint64_t hash_table_size);
 void destroy_store_hs(struct spead_heap_store *hs);
 int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h);
 struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid);

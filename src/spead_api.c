@@ -7,6 +7,7 @@
 
 #include "hash.h"
 #include "spead_api.h"
+#include "sharedmem.h"
 
 struct spead_heap *create_spead_heap()
 {
@@ -34,7 +35,7 @@ void *create_spead_packet()
 {
   struct spead_packet *p;
 
-  p = malloc(sizeof(struct spead_packet));
+  p = shared_malloc(sizeof(struct spead_packet));
   if (p == NULL)
     return p;
 
@@ -45,11 +46,13 @@ void *create_spead_packet()
 
 void destroy_spead_packet(void *data)
 {
+#if 0
   struct spead_packet *p;
   p = data;
   if (p != NULL){
     free(p);
   }
+#endif
 }
 
 uint64_t hash_fn_spead_packet(struct hash_table *t, uint64_t in)
@@ -59,23 +62,26 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, uint64_t in)
   return in % t->t_len;
 }
 
-struct spead_heap_store *create_store_hs(uint64_t list_len)
+struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_count, uint64_t hash_table_size)
 {
   struct spead_heap_store *hs;
+  int i;
 
   hs = malloc(sizeof(struct spead_heap_store));
   if (hs == NULL)
     return NULL;
 
-  hs->s_backlog  = 10;
+  hs->s_backlog  = hash_table_count;
   hs->s_count    = 0;
+#if 0
   hs->s_heaps    = NULL;
+#endif
   hs->s_shipping = NULL;
 
   hs->s_hash  = NULL;
   hs->s_list  = NULL;
 
-  hs->s_list = create_o_list(list_len, &create_spead_packet, &destroy_spead_packet, sizeof(struct spead_packet));
+  hs->s_list = create_o_list(list_len, hash_table_count, hash_table_size, &create_spead_packet, &destroy_spead_packet, sizeof(struct spead_packet));
   if (hs->s_list == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: failed to create spead packet bank size [%ld]\n", __func__, list_len);
@@ -88,13 +94,23 @@ struct spead_heap_store *create_store_hs(uint64_t list_len)
   fprintf(stderr, "%s: created spead packet bank of size [%ld]\n", __func__, list_len);
 #endif
 
-  hs->s_hash = create_hash_table(hs->s_list, 0, list_len, &hash_fn_spead_packet);
+  hs->s_hash = shared_malloc(sizeof(struct hash_table *) * hash_table_count);
   if (hs->s_hash == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "%s: failed to create spead packet hash table size [%ld]\n", __func__, list_len);
+    fprintf(stderr, "%s: could not get shared memory space for hash_tables\n", __func__);
 #endif
-    destroy_store_hs(hs);
-    return NULL; 
+    return NULL;
+  }
+    
+  for (i=0; i<hs->s_backlog; i++){
+    hs->s_hash[i] = create_hash_table(hs->s_list, 0, hash_table_size, &hash_fn_spead_packet);
+    if (hs->s_hash[i] == NULL){
+#ifdef DEBUG
+      fprintf(stderr, "%s: failed to create spead packet hash table size [%ld]\n", __func__, list_len);
+#endif
+      destroy_store_hs(hs);
+      return NULL; 
+    }
   }
 
 #ifdef DEBUG
@@ -106,23 +122,28 @@ struct spead_heap_store *create_store_hs(uint64_t list_len)
 
 void destroy_store_hs(struct spead_heap_store *hs)
 {
+#if 0
   int i;
+#endif
   if (hs){
+#if 0
     if (hs->s_heaps){
       for (i=0; i<hs->s_count; i++){
         destroy_spead_heap(hs->s_heaps[i]);
       }
       free(hs->s_heaps);
     }
+#endif
     if (hs->s_shipping)
       free(hs->s_shipping);
 
+#if 0
     if (hs->s_hash)
       destroy_hash_table(hs->s_hash);
+#endif
   
     if (hs->s_list)
       destroy_o_list(hs->s_list);
-    
 
     free(hs);
   }
@@ -140,7 +161,8 @@ int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
 {
   int64_t id;
   int i;
-  
+
+#if 0
   if (hs == NULL || h == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: error cannot work with NULL heap store or NULL heap\n", __func__);
@@ -174,7 +196,8 @@ int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
 #ifdef DEBUG
   fprintf(stderr, "%s: inserted heap [%ld] @ id: [%ld] into heap_store [sc: %ld]\n", __func__, h->heap_cnt, id, hs->s_count);
 #endif
-  
+#endif
+
   return id;
 }
 
@@ -280,7 +303,6 @@ int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
           }
           fprintf(stderr,"\n");
 #endif
-
         } while((itm2 = itm2->next) != NULL);
 
         destroy_spead_heap(th);
@@ -319,6 +341,7 @@ int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
     return -1;
   }
 
+#if 0
   hs->s_shipping = hs->s_heaps[id];
 
 #ifdef DEBUG
@@ -357,6 +380,7 @@ int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
   destroy_spead_heap(hs->s_shipping);
   
   hs->s_shipping = NULL;
+#endif
 
   return 0;
 }
@@ -367,6 +391,8 @@ struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid)
   struct spead_heap *h;
   int id;
   
+  h == NULL;
+#if 0
   if (hs == NULL || hs->s_heaps == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: error cannot address requested heap\n", __func__);
@@ -408,7 +434,7 @@ struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid)
 
     return NULL;
   }
-
+#endif
   return h;
 }
 
