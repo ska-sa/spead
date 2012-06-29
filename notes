@@ -1,3 +1,8 @@
+consider increasing /proc/sys/kernel/shmmax
+
+sudo sh -c "echo $[1000*1024*1024] > /proc/sys/kernel/shmmax"
+
+
 Create c api for spead
 
 itemgroups 

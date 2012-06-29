@@ -236,6 +236,7 @@ int worker_task_us(struct u_server *s)
 {
   struct spead_packet *p;
   struct spead_heap_store *hs;
+  struct hash_o *o;
 
   struct timeval prev, now, delta;
   struct sockaddr_storage peer_addr;
@@ -265,7 +266,12 @@ int worker_task_us(struct u_server *s)
   while (run) {
 
 #if 1
-    p = get_data_hash_table(hs->s_hash, rcount);
+    o = pop_hash_o(hs->s_list);
+    if (o == NULL){
+      continue;
+    }
+
+    p = get_data_hash_o(o);
     if (p == NULL){
       continue;
     }
@@ -284,7 +290,7 @@ int worker_task_us(struct u_server *s)
 
     bcount += nread;
 
-    if (process_packet_hs(s->s_hs, p) < 0){
+    if (process_packet_hs(s->s_hs, o) < 0){
       continue; 
     }
 
@@ -330,7 +336,7 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 
   hs = NULL;
   
-  if (s == NULL)
+  if (s == NULL || hashes < 1 || hashsize < 1)
     return -1;
  
   hs = create_store_hs((hashes * hashsize), hashes, hashsize);

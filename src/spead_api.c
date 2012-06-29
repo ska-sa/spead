@@ -103,7 +103,7 @@ struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_
   }
     
   for (i=0; i<hs->s_backlog; i++){
-    hs->s_hash[i] = create_hash_table(hs->s_list, 0, hash_table_size, &hash_fn_spead_packet);
+    hs->s_hash[i] = create_hash_table(hs->s_list, i, hash_table_size, &hash_fn_spead_packet);
     if (hs->s_hash[i] == NULL){
 #ifdef DEBUG
       fprintf(stderr, "%s: failed to create spead packet hash table size [%ld]\n", __func__, list_len);
@@ -385,6 +385,24 @@ int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
   return 0;
 }
 
+struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
+{
+  struct hash_table *ht;
+  uint64_t id;
+
+  if (hs == NULL || id < 0)
+    return NULL;
+
+#if 0
+  id = hid % hs->s_backlog;
+#endif
+  id = get_id_hs(hs, hid);
+  
+  if (hs->s_hash == NULL)
+    return NULL;
+
+  return hs->s_hash[id];
+}
 
 struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid)
 {
@@ -438,18 +456,43 @@ struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid)
   return h;
 }
 
-int store_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
+int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
 {
+#if 0
   struct spead_heap *h;
+#endif
+  struct spead_packet *p;
+  struct hash_table *ht;
   int64_t id;
 
-  if (hs == NULL || p == NULL){
+  if (hs == NULL || o == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: error invalid data\n", __func__);
 #endif 
     return -1;
   }
+
+  p = get_data_hash_o(o);
+  if (p == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot get packet from object (%p)\n", __func__, o);
+#endif 
+    return -1;
+  }
   
+  ht = get_ht_hs(hs, p->heap_cnt);
+  if (ht == NULL){
+    return -1;
+  }
+
+  if (add_o_ht(ht, o) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: could not add packet to hash table [%ld]\n", __func__, p->heap_cnt);
+#endif 
+    return -1;
+  }
+
+#if 0
   h = get_heap_hs(hs, p->heap_cnt);
 
   if (h == NULL){
@@ -521,20 +564,31 @@ int store_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
     }
 
   }
+#endif
     
   return 0;
 }
 
-int process_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
+int process_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
 {
+  struct spead_packet *p;
   int rtn;
 
-  if (hs == NULL || p == NULL){
+  if (hs == NULL || o == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: error invalid data\n", __func__);
 #endif 
     return -1;
   }
+
+  p = get_data_hash_o(o);
+  if (p == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot get packet from object (%p)\n", __func__, o);
+#endif 
+    return -1;
+  }
+
   
   if (spead_packet_unpack_header(p) == SPEAD_ERR){
 #ifdef DEBUG
@@ -543,7 +597,7 @@ int process_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
     return -1;
   }
 
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: unpacked spead header for packet (%p)\n", __func__, p);
 #endif
 
@@ -554,7 +608,7 @@ int process_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
     return -1;
   } 
 
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
 #endif
 
@@ -567,7 +621,7 @@ int process_packet_hs(struct spead_heap_store *hs, struct spead_packet *p)
 
     return 0;
   } else {
-    rtn = store_packet_hs(hs, p);
+    rtn = store_packet_hs(hs, o);
   }
 
   return rtn;

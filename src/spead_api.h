@@ -2,6 +2,7 @@
 #define SPEAD_API_H
 
 #include "spead_packet.h"
+#include "hash.h"
 
 struct spead_heap_store{
   int64_t s_backlog;
@@ -31,7 +32,7 @@ int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h);
 struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid);
 
 
-int process_packet_hs(struct spead_heap_store *hs, struct spead_packet *p);
+int process_packet_hs(struct spead_heap_store *hs, struct hash_o *o);
 
 int ship_heap_hs(struct spead_heap_store *hs, int64_t id); 
 

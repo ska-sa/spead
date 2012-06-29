@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import numpy, spead, logging, sys, time
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 PORT = 8888
 SHAPE = (4096,4)
 

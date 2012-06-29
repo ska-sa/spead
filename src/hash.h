@@ -31,7 +31,7 @@ void destroy_hash_o(struct hash_o_list *l, struct hash_o *o);
 struct hash_o *create_hash_o(void *(*create)(), void (*destroy)(void *data), uint64_t len);
 
 struct hash_o *get_o_ht(struct hash_table *t, uint64_t id);
-int add_o_ht(struct hash_table *t, uint64_t id, void *data, uint64_t len);
+int add_o_ht(struct hash_table *t, struct hash_o *o);
 
 
 struct hash_table {
@@ -47,7 +47,7 @@ struct hash_table {
 void destroy_hash_table(struct hash_table *t);
 struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, uint64_t in));
 
-void *get_data_hash_table(struct hash_table *t, uint64_t id);
+void *get_data_hash_o(struct hash_o *o);
 
 #endif
 

@@ -29,7 +29,9 @@ void print_list_stats(struct hash_o_list *l, const char *func)
 struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, uint64_t in))
 {
   struct hash_table *t;
+#if 0
   uint64_t i;
+#endif
 
   if (l == NULL || len < 0 || id < 0 || hfn == NULL)
     return NULL;
@@ -72,10 +74,10 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
 #endif
 
 #ifdef DEBUG
-  fprintf(stderr, "HAVE HASH TABLE[%ld]\n\tconsumed [%ld] objects\n", id, len);
+  fprintf(stderr, "HAVE HASH TABLE[%ld] can hash [%ld] objects\n", id, len);
 #endif
 
-  print_list_stats(t->t_l, __func__);
+  //print_list_stats(t->t_l, __func__);
 
   return t;
 }
@@ -159,10 +161,10 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
   int semid;
   uint64_t req_size;
 
-  req_size = (size+sizeof(struct hash_o))*len + sizeof(struct hash_o_list) + (sizeof(struct hash_table *) + sizeof(struct hash_table))*hlen + sizeof(struct hash_o *)*hsize;
+  req_size = (size+sizeof(struct hash_o))*len + sizeof(struct hash_o_list) + (sizeof(struct hash_table *) + sizeof(struct hash_table))*hlen + sizeof(struct hash_o *)*hsize*hlen;
 
-#ifdef DEBUG
-  fprintf(stderr, "REQ: (hash_o [%ld] + data size [%ld]) * len [%ld] + hash_o_list [%ld] + (hash_table [%ld] hash_table ptr [%ld])* hlen [%ld] + hash_o ptr [%ld] * hsize [%ld]\n", sizeof(struct hash_o), size, len, sizeof(struct hash_o_list), sizeof(struct hash_table), sizeof(struct hash_table *), hlen, sizeof(struct hash_o *), hsize);
+#if DEBUG>1
+  fprintf(stderr, "REQ: (hash_o [%ld] + data size [%ld]) * len [%ld] + hash_o_list [%ld] + (hash_table [%ld] + hash_table ptr [%ld])* hlen [%ld] + hash_o ptr [%ld] * hsize [%ld]\n", sizeof(struct hash_o), size, len, sizeof(struct hash_o_list), sizeof(struct hash_table), sizeof(struct hash_table *), hlen, sizeof(struct hash_o *), hsize);
   fprintf(stderr, "%s: calculated size required for all sharedmem [%ld]\n", __func__, req_size);
 #endif
 
@@ -249,22 +251,22 @@ struct hash_o *get_o_ht(struct hash_table *t, uint64_t id)
   return t->t_os[id];
 }
 
-void *get_data_hash_table(struct hash_table *t, uint64_t id)
+void *get_data_hash_o(struct hash_o *o)
 {
-  struct hash_o *o;
-
-  if (t == NULL || id < 0 || id > t->t_len)
-    return NULL;
-
-  o = get_o_ht(t, (*t->t_hfn)(t, id));
   if (o == NULL)
     return NULL;
 
   return o->o;
 } 
 
-int add_o_ht(struct hash_table *t, uint64_t id, void *data, uint64_t len)
+int add_o_ht(struct hash_table *t, struct hash_o *o)
 {
+  if (t == NULL || o == NULL)
+    return -1;
+  
+  
+
+#if 0
   struct hash_o *o;
 
   if (t == NULL || id < 0 || data == NULL || len < 0)
@@ -279,7 +281,7 @@ int add_o_ht(struct hash_table *t, uint64_t id, void *data, uint64_t len)
 
   o->o      = data;
   o->o_next = NULL;
-  
+#endif
   return 0;
 }
 
