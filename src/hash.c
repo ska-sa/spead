@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <strings.h>
+#include <string.h>
 
 #include "hash.h"
 #include "sharedmem.h"
@@ -26,7 +26,7 @@ void print_list_stats(struct hash_o_list *l, const char *func)
 #endif
 }
 
-struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, uint64_t in))
+struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, struct hash_o *o))
 {
   struct hash_table *t;
 #if 0
@@ -44,11 +44,12 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
     return NULL;
   }
 
-  t->t_id  = id;
-  t->t_hfn = hfn;
-  t->t_len = len;
-  t->t_os  = NULL;
-  t->t_l   = l;
+  t->t_id         = id;
+  t->t_hfn        = hfn;
+  t->t_len        = len;
+  t->t_os         = NULL;
+  t->t_l          = l;
+  t->t_data_count = 0;
 
   t->t_os  = shared_malloc(sizeof(struct hash_o*) * len);
   if (t->t_os == NULL){
@@ -58,7 +59,7 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
     return NULL;
   }
 
-  bzero(t->t_os, len*sizeof(struct hash_o*));
+  memset(t->t_os, 0, len*sizeof(struct hash_o*));
   
 #if 0
   for (i=0; i<len; i++){
@@ -261,27 +262,41 @@ void *get_data_hash_o(struct hash_o *o)
 
 int add_o_ht(struct hash_table *t, struct hash_o *o)
 {
-  if (t == NULL || o == NULL)
+  struct hash_o *to;
+  uint64_t id;
+  int i;
+
+  if (t == NULL || t->t_hfn == NULL || t->t_os == NULL || o == NULL)
     return -1;
   
+  id = (*t->t_hfn)(t, o);
+
+  /*TODO: could be a critical section*/
   
-
-#if 0
-  struct hash_o *o;
-
-  if (t == NULL || id < 0 || data == NULL || len < 0)
-    return -1;
-
-  o = get_o_ht(t, (*t->t_hfn)(t, id));
-  if (o == NULL)
-    return -1;
-
-  if (o->o == NULL)
-    return -1;
-
-  o->o      = data;
-  o->o_next = NULL;
+  if (t->t_os[id] == NULL){
+    /*simple case*/
+    t->t_os[id] = o;
+#ifdef DEBUG
+    fprintf(stderr, "%d: HASHED into [%ld] @ [%ld]\n", getpid(), t->t_id, id);
 #endif
+    return 0;
+  }
+  
+  to = t->t_os[id];
+
+  for (i=0; to->o_next != NULL; i++){
+    to = to->o_next;
+  }
+  
+  if (to == NULL)
+    return -1;
+
+  to->o_next = o;
+
+#ifdef DEBUG
+  fprintf(stderr, "%d: HASHED into [%ld] @ [%ld] LIST pos [%d]\n", getpid(), t->t_id, id, i);
+#endif
+
   return 0;
 }
 

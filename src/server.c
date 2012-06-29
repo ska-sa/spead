@@ -238,13 +238,12 @@ int worker_task_us(struct u_server *s)
   struct spead_heap_store *hs;
   struct hash_o *o;
 
-  struct timeval prev, now, delta;
+  struct timeval prev, now;
   struct sockaddr_storage peer_addr;
 
   socklen_t peer_addr_len;
 
   ssize_t nread;
-  int rtn;
   uint64_t rcount, bcount;
 
   pid_t pid;

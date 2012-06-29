@@ -37,15 +37,19 @@ int add_o_ht(struct hash_table *t, struct hash_o *o);
 struct hash_table {
   uint64_t      t_id;
   uint64_t      t_len;
+  uint64_t      t_data_count;
   struct hash_o_list *t_l;
   struct hash_o **t_os;
 
+  uint64_t (*t_hfn)(struct hash_table *t, struct hash_o *o);
+#if 0
   uint64_t (*t_hfn)(struct hash_table *t, uint64_t in);
+#endif
 };
 
 
 void destroy_hash_table(struct hash_table *t);
-struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, uint64_t in));
+struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, struct hash_o *o));
 
 void *get_data_hash_o(struct hash_o *o);
 
