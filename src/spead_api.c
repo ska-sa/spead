@@ -220,8 +220,9 @@ int process_items(struct hash_table *ht)
 {
   struct spead_packet *p;
   
-
-  
+  if (ht == NULL)
+    return -1;
+   
   return 0;
 }
 
