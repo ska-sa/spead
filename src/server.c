@@ -279,6 +279,8 @@ int worker_task_us(struct u_server *s)
     rcount++;
     peer_addr_len = sizeof(struct sockaddr_storage); 
 
+    bzero(p, sizeof(struct spead_packet));
+
     nread = recvfrom(s->s_fd, p->data, SPEAD_MAX_PACKET_LEN, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
     if (nread <= 0){
 #ifdef DEBUG
@@ -290,6 +292,15 @@ int worker_task_us(struct u_server *s)
     bcount += nread;
 
     if (process_packet_hs(s->s_hs, o) < 0){
+#if DEBUG>1
+      fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
+#endif
+      if (push_hash_o(hs->s_list, o) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: cannot push object!\n", __func__);
+#endif
+      }
+
       continue; 
     }
 

@@ -50,6 +50,7 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   t->t_os         = NULL;
   t->t_l          = l;
   t->t_data_count = 0;
+  t->t_data_id    = (-1);
 
   t->t_os  = shared_malloc(sizeof(struct hash_o*) * len);
   if (t->t_os == NULL){

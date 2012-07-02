@@ -38,6 +38,7 @@ struct hash_table {
   uint64_t      t_id;
   uint64_t      t_len;
   uint64_t      t_data_count;
+  int64_t      t_data_id;
   struct hash_o_list *t_l;
   struct hash_o **t_os;
 

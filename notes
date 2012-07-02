@@ -105,5 +105,16 @@ spead_item
   length of data
   pointer to next item
 
+Spead heap finalize
+  start with 1st packet in the heap
+    loop thought n_items in current packet
+      get item pointer from SPEAD_ITEM macro with packet data ptr and i
+      get item id from SPEAD_ITEM_ID macro with item ptr
+      skip items with ids HEAP_CNT, PAYLOAD_OFF, PAYLOAD_LEN and STREAM_CTRL
+      create a new item
+      get ITEM_MODE from item ptr
+        if DIRECTADDRR
+          get the offset from SPEAD_ITEM_ADDR(item ptr)
+
 
 

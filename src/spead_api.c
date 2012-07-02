@@ -184,6 +184,7 @@ int64_t get_id_hs(struct spead_heap_store *hs, int64_t hid)
 struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
 {
   uint64_t id;
+  struct hash_table *ht;
 
   if (hs == NULL || id < 0)
     return NULL;
@@ -193,9 +194,36 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   if (hs->s_hash == NULL)
     return NULL;
 
-  return hs->s_hash[id];
+  ht = hs->s_hash[id];
+  if (ht == NULL)
+    return NULL;
+
+  if (ht->t_data_id < 0){
+    
+    /*TODO: could be a critical section???*/
+
+    ht->t_data_id = hid;
+  } 
+  
+  if (ht->t_data_id != hid){
+#ifdef DEBUG
+    fprintf(stderr, "%s: hash table [%ld] / packet set [%ld] miss match\n", __func__, hid, ht->t_data_id);
+#endif
+    return NULL;
+  }
+
+  return ht;
 }
 
+
+int process_items(struct hash_table *ht)
+{
+  struct spead_packet *p;
+  
+
+  
+  return 0;
+}
 
 int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
 {
@@ -233,23 +261,34 @@ int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
     return -1;
   }
 
+#if 0
+def DEBUG
+  fprintf(stderr, "Packet has [%d] items\n", p->n_items);  
+#endif
+
   ht->t_data_count += p->payload_len;
 
   if (ht->t_data_count == p->heap_len){
 #ifdef DEBUG
     fprintf(stderr, "[%d] data_count = %ld bytes == heap_len\n", getpid(), ht->t_data_count);
 #endif
+
+    if (process_items(ht) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error processing items in ht (%p)\n", __func__, ht);
+#endif
+      return -1;
+    }
+
   }
 
 
 #if 0
   h = get_heap_hs(hs, p->heap_cnt);
-
   if (h == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: first packet for heap [%ld]\n", __func__, p->heap_cnt);
 #endif 
-
     h = create_spead_heap();
     if (h == NULL){
 #ifdef DEBUG
@@ -257,7 +296,6 @@ int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
 #endif 
       return -1;
     }
-
     if (spead_heap_add_packet(h, p) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: error could not add packet to heap\n", __func__);
@@ -265,23 +303,18 @@ int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
       destroy_spead_heap(h);
       return -1;
     }
-
     if (add_heap_hs(hs, h) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: error could not add heap to heap store\n", __func__);
 #endif 
       destroy_spead_heap(h);
       return -1;
-
     }
-    
     if (spead_heap_got_all_packets(h)){
 #ifdef DEBUG
       fprintf(stderr, "%s: COMPLETE heap about to ship\n", __func__);
 #endif 
-
       id = get_id_hs(hs, h->heap_cnt);
-
       if (ship_heap_hs(hs, id) < 0){
 #ifdef DEBUG
         fprintf(stderr, "%s: error shipping heap [%ld]\n", __func__, id);
@@ -290,27 +323,22 @@ int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
     }
     return 0;
   }
-
   if (spead_heap_add_packet(h, p) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: error could not add packet to heap\n", __func__);
 #endif 
     return -1;
   }
-
   if (spead_heap_got_all_packets(h)){
 #ifdef DEBUG
     fprintf(stderr, "%s: COMPLETE heap about to ship\n", __func__);
 #endif 
-    
     id = get_id_hs(hs, h->heap_cnt);
-    
     if (ship_heap_hs(hs, id) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: error shipping heap [%ld]\n", __func__, id);
 #endif
     }
-
   }
 #endif
     
@@ -374,6 +402,11 @@ int process_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
 
   return rtn;
 }
+
+
+
+
+
 
 #if 0
 int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
