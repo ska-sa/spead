@@ -218,15 +218,79 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
 
 int process_items(struct hash_table *ht)
 {
+  struct hash_o *o;
   struct spead_packet *p;
+  int i, j, id;
+  int64_t iptr;
   
-  if (ht == NULL)
+  if (ht == NULL || ht->t_os == NULL)
     return -1;
+
+  for (i=0; i < ht->t_len; i++){
+    
+    o = ht->t_os[i];
+    if (o == NULL)
+      continue;
+
+    do {
+
+      p = get_data_hash_o(o);
+      if (p == NULL)
+        continue;
+
+      for (j=0; j<p->n_items; j++){
+      
+        iptr = SPEAD_ITEM(p->data, j);
+        id   = SPEAD_ITEM_ID(iptr);
+
+        switch(id){
+          case SPEAD_HEAP_CNT_ID:
+          case SPEAD_PAYLOAD_OFF_ID:
+          case SPEAD_PAYLOAD_LEN_ID:
+          case SPEAD_STREAM_CTRL_ID:
+            continue;
+          default:
+            break;
+        }
+
+#ifdef DEBUG
+        fprintf(stderr, "%s [%d]: ht[%d] item[%d] id[%d] @ %ld", __func__, getpid(), i, j, id, iptr);
+#endif
+
+        switch (SPEAD_ITEM_MODE(iptr)){
+          case SPEAD_DIRECTADDR:
+#ifdef DEBUG 
+            fprintf(stderr, "\tDIRECT ADDRESSED\n");
+#endif
+            break;
+
+          case SPEAD_IMMEDIATEADDR:
+#ifdef DEBUG 
+            fprintf(stderr, "\tIMMEDIATE ADDRESSED len [%d] bytes\n", SPEAD_ADDRLEN);
+#endif
+
+            break;
+
+        }
+
+
+      }
+
+    } while ((o = o->o_next) != NULL);
+
+  }
+
   
-   
-  
-  
-  
+  if (empty_hash_table(ht) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error empting hash table", __func__);
+#endif
+    return -1;
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: DONE empting hash table [%ld]", __func__, ht->t_id);
+#endif
    
   return 0;
 }

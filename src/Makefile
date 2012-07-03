@@ -6,8 +6,8 @@ SRC = sharedmem.c hash.c avltree.c subprocess.c spead_packet.c spead_api.c serve
 HDR = sharedmem.h hash.h avltree.h spead_packet.h spead_api.h server.h
 
 # CFLAGS += -DSTANDALONE
-CFLAGS += -DDEBUG
 #CFLAGS += -DDEBUG=2
+CFLAGS += -DDEBUG
 CFLAGS += -DDATA
 CFLAGS += -ggdb
 CFLAGS += -O3

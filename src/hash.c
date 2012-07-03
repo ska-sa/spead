@@ -114,6 +114,40 @@ void destroy_hash_table(struct hash_table *t)
 
 }
 
+int empty_hash_table(struct hash_table *ht)
+{
+  struct hash_o_list *l;
+  struct hash_o *o;
+  uint64_t i;
+
+  if (ht == NULL || ht->t_os == NULL)
+    return -1;
+
+  l = ht->t_l;
+  if (l == NULL)
+    return -1;
+
+  for (i=0; i<ht->t_len; i++) {
+    
+    o = ht->t_os[i];
+    if (o == NULL)
+      continue;
+
+    do {
+
+      if (push_hash_o(l, o) < 0)
+        continue;
+  
+    } while ((o = o->o_next) != NULL);
+
+  }
+  
+  ht->t_data_count = 0;
+  ht->t_data_id    = (-1);
+
+  return 0;
+}
+
 struct hash_o *create_hash_o(void *(*create)(), void (*destroy)(void *data), uint64_t len)
 {
   struct hash_o *o;
@@ -346,6 +380,7 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
 
   return 0;
 }
+
 
 #ifdef TEST_HASH
 #ifdef DEBUG
