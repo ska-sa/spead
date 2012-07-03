@@ -232,7 +232,7 @@ int create_sem()
   return semid; 
 }
 
-/*test and lock semaphore*/
+/*test and set semaphore*/
 int lock_sem(int semid)
 {
   struct sembuf sb;

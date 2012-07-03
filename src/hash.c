@@ -117,7 +117,7 @@ void destroy_hash_table(struct hash_table *t)
 int empty_hash_table(struct hash_table *ht)
 {
   struct hash_o_list *l;
-  struct hash_o *o;
+  struct hash_o *o, *on;
   uint64_t i;
 
   if (ht == NULL || ht->t_os == NULL)
@@ -132,23 +132,31 @@ int empty_hash_table(struct hash_table *ht)
 #endif
 
   for (i=0; i<ht->t_len; i++) {
+#ifdef DEBUG
+    fprintf(stderr, "%s: o[%ld]\n", __func__, i);
+#endif
     
     o = ht->t_os[i];
     if (o == NULL)
       continue;
 
-    do {
+    while ((on = o->o_next) != NULL) {
 
-      if (push_hash_o(l, o) < 0)
-        continue;
-  
-    } while ((o = o->o_next) != NULL);
+#ifdef DEBUG
+      fprintf(stderr, "%s: o (%p)\n", __func__, o);
+#endif
+      
+      push_hash_o(l, o); 
+
+      o = on;
+
+    }
 
   }
-  
+#if 1
   ht->t_data_count = 0;
   ht->t_data_id    = (-1);
-
+#endif
 #ifdef DEBUG
   fprintf(stderr, "%s: DONE\n", __func__);
 #endif
@@ -324,7 +332,9 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
 #endif
     return 0;
   }
-  
+ 
+  /*list case*/
+
   to = t->t_os[id];
 
   for (i=0; to->o_next != NULL; i++){
@@ -359,6 +369,7 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
 #ifdef DEBUG
     fprintf(stderr, "%s: err no more objects in bank\n", __func__);
 #endif
+    unlock_sem(l->l_semid);
     return NULL;
   }
 
@@ -375,10 +386,10 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
 /*Critical section*/
 int push_hash_o(struct hash_o_list *l, struct hash_o *o)
 {
-  lock_sem(l->l_semid);
-
   if (l == NULL || o == NULL || o->o_next != NULL)
     return -1;
+
+  lock_sem(l->l_semid);
 
   o->o_next = l->l_top;
   l->l_top = o;

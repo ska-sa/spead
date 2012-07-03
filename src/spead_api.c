@@ -254,18 +254,18 @@ int process_items(struct hash_table *ht)
         }
 
 #ifdef DEBUG
-        fprintf(stderr, "%s [%d]: ht[%d] item[%d] id[%d] @ %ld", __func__, getpid(), i, j, id, iptr);
+        fprintf(stderr, "%s [%d]: ht[%ld][%d] item[%d] id[%d] @ %ld", __func__, getpid(), ht->t_id, i, j, id, iptr);
 #endif
 
         switch (SPEAD_ITEM_MODE(iptr)){
           case SPEAD_DIRECTADDR:
-#ifdef DEBUG 
+#ifdef DEBUG
             fprintf(stderr, "\tDIRECT ADDRESSED\n");
 #endif
             break;
 
           case SPEAD_IMMEDIATEADDR:
-#ifdef DEBUG 
+#ifdef DEBUG
             fprintf(stderr, "\tIMMEDIATE ADDRESSED len [%d] bytes\n", SPEAD_ADDRLEN);
 #endif
 
@@ -290,7 +290,7 @@ int process_items(struct hash_table *ht)
 #endif
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: DONE empting hash table [%ld]", __func__, ht->t_id);
+  fprintf(stderr, "%s: DONE empting hash table [%ld]\n", __func__, ht->t_id);
 #endif
    
   return 0;
