@@ -127,6 +127,10 @@ int empty_hash_table(struct hash_table *ht)
   if (l == NULL)
     return -1;
 
+#ifdef DEBUG
+  fprintf(stderr, "%s: about to empty\n", __func__);
+#endif
+
   for (i=0; i<ht->t_len; i++) {
     
     o = ht->t_os[i];
@@ -144,6 +148,10 @@ int empty_hash_table(struct hash_table *ht)
   
   ht->t_data_count = 0;
   ht->t_data_id    = (-1);
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: DONE\n", __func__);
+#endif
 
   return 0;
 }

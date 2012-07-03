@@ -280,13 +280,14 @@ int process_items(struct hash_table *ht)
 
   }
 
-  
+#if 1 
   if (empty_hash_table(ht) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: error empting hash table", __func__);
 #endif
     return -1;
   }
+#endif
 
 #ifdef DEBUG
   fprintf(stderr, "%s: DONE empting hash table [%ld]", __func__, ht->t_id);
