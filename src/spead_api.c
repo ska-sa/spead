@@ -216,16 +216,24 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   return ht;
 }
 
-
 int process_items(struct hash_table *ht)
 {
   struct hash_o *o;
   struct spead_packet *p;
-  int i, j, id;
-  int64_t iptr, data64;
+  int i, j, id, mode;
+  int64_t iptr, off, data64;
   
   if (ht == NULL || ht->t_os == NULL)
     return -1;
+
+#ifdef DEBUG
+  fprintf(stderr, "--PROCESS--BEGIN---\n");
+#endif
+
+  
+
+
+
 
   for (i=0; i < ht->t_len; i++){
     
@@ -240,12 +248,13 @@ int process_items(struct hash_table *ht)
         continue;
 
       for (j=0; j<p->n_items; j++){
-      
-        iptr = SPEAD_ITEM(p->data, j);
+        /*items start from 1, 0 is the header*/ 
+        iptr = SPEAD_ITEM(p->data, (j+1));
         id   = SPEAD_ITEM_ID(iptr);
+        mode = SPEAD_ITEM_MODE(iptr);
 
 #ifdef PROCESS
-        fprintf(stderr, "%s [%d]: ht[%ld][%d] item[%d] id[%d] @ %ld\n", __func__, getpid(), ht->t_id, i, j, id, iptr);
+        fprintf(stderr, "ITEM[%d] mode[%d] id[%d] 0x%lx\n", j, mode, id, iptr);
 #endif
 
         switch(id){
@@ -265,23 +274,35 @@ int process_items(struct hash_table *ht)
         }
 
 
-        switch (SPEAD_ITEM_MODE(iptr)){
+        switch (mode){
           case SPEAD_DIRECTADDR:
 #ifdef PROCESS
             fprintf(stderr, "\tDIRECT ADDRESSED\n");
 #endif
+            off = (int64_t) SPEAD_ITEM_ADDR(iptr);
+
+#ifdef PROCESS
+            fprintf(stderr, "\toff 0x%lx\n", off);
+#endif
+            
             break;
 
           case SPEAD_IMMEDIATEADDR:
 
-            data64 = be64toh(iptr) >> 24;
+            /*this macro call results in the data correctly formatted*/
+            data64 = (int64_t)SPEAD_ITEM_ADDR(iptr);
+
+#if 0
+            for (k=0; k<SPEAD_ADDRLEN; k++){
+              val[k] = 0xFF & (iptr >> (8*(SPEAD_ADDRLEN-k-1)));
+            }
+#endif
 
 #ifdef PROCESS
             fprintf(stderr, "\tIMMEDIATE ADDRESSED len [%d] bytes\n", SPEAD_ADDRLEN);
-            fprintf(stderr, "\tdata: %ld\n", data64);
+            fprintf(stderr, "\tdata: 0x%lx\n", data64);
 #endif
             
-             
 
             break;
 
@@ -293,6 +314,9 @@ int process_items(struct hash_table *ht)
     } while ((o = o->o_next) != NULL);
 
   }
+#ifdef DEBUG
+  fprintf(stderr, "--PROCESS--END-----\n");
+#endif
 
 #if 1 
   if (empty_hash_table(ht) < 0){
@@ -469,7 +493,7 @@ int process_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
     return -1;
   } 
 
-#if DEBUG>1
+#ifdef DEBUG
   fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
 #endif
 
