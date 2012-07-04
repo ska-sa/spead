@@ -127,8 +127,6 @@ int empty_hash_table(struct hash_table *ht)
   if (l == NULL)
     return -1;
 
-  print_list_stats(l, __func__);
-
 #if 0
 def DEBUG
   fprintf(stderr, "%s: about to empty\n", __func__);
@@ -167,7 +165,7 @@ def DEBUG
 
   memset(ht->t_os, 0, ht->t_len*sizeof(struct hash_o*));
 
-  print_list_stats(l, __func__);
+  //print_list_stats(l, __func__);
 
   return 0;
 }

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <endian.h>
 
 #include "hash.h"
 #include "spead_api.h"
@@ -221,7 +222,7 @@ int process_items(struct hash_table *ht)
   struct hash_o *o;
   struct spead_packet *p;
   int i, j, id;
-  int64_t iptr;
+  int64_t iptr, data64;
   
   if (ht == NULL || ht->t_os == NULL)
     return -1;
@@ -243,19 +244,26 @@ int process_items(struct hash_table *ht)
         iptr = SPEAD_ITEM(p->data, j);
         id   = SPEAD_ITEM_ID(iptr);
 
+#ifdef PROCESS
+        fprintf(stderr, "%s [%d]: ht[%ld][%d] item[%d] id[%d] @ %ld\n", __func__, getpid(), ht->t_id, i, j, id, iptr);
+#endif
+
         switch(id){
           case SPEAD_HEAP_CNT_ID:
           case SPEAD_PAYLOAD_OFF_ID:
           case SPEAD_PAYLOAD_LEN_ID:
           case SPEAD_STREAM_CTRL_ID:
             continue;
+          case SPEAD_DESCRIPTOR_ID:
+#ifdef PROCESS
+            fprintf(stderr, "\tITEM_DESCRIPTOR_ID\n");
+#endif
+
+            break;
           default:
             break;
         }
 
-#ifdef PROCESS
-        fprintf(stderr, "%s [%d]: ht[%ld][%d] item[%d] id[%d] @ %ld", __func__, getpid(), ht->t_id, i, j, id, iptr);
-#endif
 
         switch (SPEAD_ITEM_MODE(iptr)){
           case SPEAD_DIRECTADDR:
@@ -265,9 +273,15 @@ int process_items(struct hash_table *ht)
             break;
 
           case SPEAD_IMMEDIATEADDR:
+
+            data64 = be64toh(iptr) >> 24;
+
 #ifdef PROCESS
             fprintf(stderr, "\tIMMEDIATE ADDRESSED len [%d] bytes\n", SPEAD_ADDRLEN);
+            fprintf(stderr, "\tdata: %ld\n", data64);
 #endif
+            
+             
 
             break;
 
