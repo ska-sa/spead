@@ -1,3 +1,8 @@
+consider increasing /proc/sys/kernel/shmmax
+
+sudo sh -c "echo $[1000*1024*1024] > /proc/sys/kernel/shmmax"
+
+
 Create c api for spead
 
 itemgroups 
@@ -69,6 +74,47 @@ Callgrind analysis
   spead_heap_finalize
     loops through items and mallocs each one
     lots of mallocs (slow)
+
+S-P-E-A-D Description
+
+spead_packet
+  heap count
+  heap length
+  number of items
+  is stream control termination
+  payload length
+  payload offset
+  data[SPEAD_MAX_PACKET_LEN] 9200Bytes
+  pointer into data where payload starts
+  pointer to next spead packet
+
+spead_heap
+  is valid
+  heap count
+  heap length
+  has all packets
+  pointer to head packet
+  pointer to last packet
+  pointer to head item
+  pointer to last item
+
+spead_item
+  is valid
+  id
+  pointer to char data
+  length of data
+  pointer to next item
+
+Spead heap finalize
+  start with 1st packet in the heap
+    loop thought n_items in current packet
+      get item pointer from SPEAD_ITEM macro with packet data ptr and i
+      get item id from SPEAD_ITEM_ID macro with item ptr
+      skip items with ids HEAP_CNT, PAYLOAD_OFF, PAYLOAD_LEN and STREAM_CTRL
+      create a new item
+      get ITEM_MODE from item ptr
+        if DIRECTADDRR
+          get the offset from SPEAD_ITEM_ADDR(item ptr)
 
 
 

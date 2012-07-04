@@ -1,0 +1,23 @@
+S-P-E-A-D S.E.R.V.E.R
+
+usage:
+  ./spead 
+    -w [workers (d:4)] 
+    -p [port (d:8888)] 
+    -b [buffers (d:10)] 
+    -l [buffer length (d:10)]
+
+This is a multicore implementation of the Streaming Protocol for Exchange of Astronomy Data (SPEAD).
+
+Workers refer to subprocesses used to capture and process UDP packets. Defaults to amount of processor cores
+
+Port (duh)
+
+Buffers can be thought of as hash tables where packets will be inserted with are backed by linked lists.
+  b defines the amount of the hash tables 
+  l defines the length of the hash tables
+
+
+
+
+

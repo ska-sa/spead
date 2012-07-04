@@ -22,6 +22,8 @@
 
 #include "spead_api.h"
 #include "server.h"
+#include "hash.h"
+#include "sharedmem.h"
 
 
 static volatile int run = 1;
@@ -114,6 +116,7 @@ struct u_server *create_server_us(int (*cdfn)(), long cpus)
   s->s_bc   = 0;
   s->s_cpus = cpus;
   s->s_cs  = NULL;
+  s->s_hs  = NULL;
 
 #endif
   return s;
@@ -136,7 +139,6 @@ void destroy_server_us(struct u_server *s)
     }
 
     destroy_store_hs(s->s_hs);
-
     free(s);
   }
 #ifdef DEBUG
@@ -170,6 +172,9 @@ int startup_server_us(struct u_server *s, char *port)
   }
 
   for (rp = res; rp != NULL; rp = rp->ai_next) {
+#ifdef DEBUG
+    fprintf(stderr, "%s: res (%p) with: %d\n", __func__, rp, rp->ai_protocol);
+#endif
     if (rp->ai_family == AF_INET6)
       break;
   }
@@ -204,9 +209,11 @@ int startup_server_us(struct u_server *s, char *port)
   }
 
   freeaddrinfo(res);
+
 #ifdef DEBUG
   fprintf(stderr,"\tserver pid:\t%d\n\tport:\t\t%s\n", getpid(), port);
 #endif
+
   return 0;
 }
 
@@ -228,12 +235,17 @@ void shutdown_server_us(struct u_server *s)
 int worker_task_us(struct u_server *s)
 {
   struct spead_packet *p;
-  struct timeval prev, now, delta;
+  struct spead_heap_store *hs;
+  struct hash_o *o;
+
+  struct timeval prev, now;
   struct sockaddr_storage peer_addr;
+
   socklen_t peer_addr_len;
+
   ssize_t nread;
-  int rtn;
   uint64_t rcount, bcount;
+
   pid_t pid;
 
   rcount = 0;
@@ -241,72 +253,80 @@ int worker_task_us(struct u_server *s)
   p      = NULL;
   pid    = getpid();
 
+  if (s == NULL || s->s_hs == NULL)
+    return -1;
+
+  hs = s->s_hs;
+
 #ifdef DEBUG
   fprintf(stderr, "\t  CHILD\t\t[%d]\n", pid);
-#endif
-
-#if 0
-  p = create_spead_packet();
-  if (p == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: cannot allocate memory for spead_packet\n", __func__);
-#endif
-    return -1;
-  }
 #endif
 
   while (run) {
 
 #if 1
+    o = pop_hash_o(hs->s_list);
+    if (o == NULL){
+      //run = 0;
+      //break;
+      sleep(1);
+      continue;
+    }
+
+    p = get_data_hash_o(o);
+    if (p == NULL){
+      if (push_hash_o(hs->s_list, o) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: cannot push object!\n", __func__);
+#endif
+      }
+      continue;
+    }
+
     gettimeofday(&prev, NULL);
     rcount++;
     peer_addr_len = sizeof(struct sockaddr_storage); 
 
-#if 1
-    p = create_spead_packet();
-    if (p == NULL){
-#ifdef DEBUG
-      fprintf(stderr, "%s: cannot allocate memory for spead_packet\n", __func__);
-#endif
-      return -1;
-    }
-#endif
+    bzero(p, sizeof(struct spead_packet));
 
     nread = recvfrom(s->s_fd, p->data, SPEAD_MAX_PACKET_LEN, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
     if (nread <= 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: rcount [%lu] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
 #endif
+      if (push_hash_o(hs->s_list, o) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: cannot push object!\n", __func__);
+#endif
+      }
       continue;
     }
 
     bcount += nread;
 
-#if 0
-    fwrite(p->data, 1, nread, stdout);
+    if (process_packet_hs(s->s_hs, o) < 0){
+#if DEBUG>1
+      fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
 #endif
+      if (push_hash_o(hs->s_list, o) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: cannot push object!\n", __func__);
+#endif
+      }
 
-#if 1
-    if (process_packet_hs(s->s_hs, p) < 0){
-      destroy_spead_packet(p);
       continue; 
     }
-#endif
-
 
     gettimeofday(&now, NULL);
 //    sub_time(&delta, &now, &prev);
 //    print_time(&delta, nread);
 #endif
-
   }
 
 #ifdef DEBUG
   fprintf(stderr, "%s:\tCHILD[%d]: exiting with bytes: %lu\n", __func__, getpid(), bcount);
 #endif
-#if 0
-  destroy_spead_packet(p);
-#endif
+
   return 0;
 }
 
@@ -328,20 +348,21 @@ int add_child_us(struct u_server *s, struct u_child *c, int size)
   return size + 1;
 }
 
-int spawn_workers_us(struct u_server *s)
+int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 {
   struct spead_heap_store *hs;
   struct u_child *c;
   int status, i, hi_fd;
   fd_set ins;
   pid_t sp;
+  sigset_t empty_mask;
 
   hs = NULL;
   
-  if (s == NULL)
+  if (s == NULL || hashes < 1 || hashsize < 1)
     return -1;
  
-  hs = create_store_hs();
+  hs = create_store_hs((hashes * hashsize), hashes, hashsize);
   if (hs == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: cannot create spead_heap_store\n", __func__);
@@ -356,7 +377,8 @@ int spawn_workers_us(struct u_server *s)
 #ifdef DEBUG
   fprintf(stderr, "\tworkers:\t%ld\n", s->s_cpus);
 #endif
-  
+
+#if 1
   do {
 
     c = fork_child_sp(s, &worker_task_us);
@@ -372,7 +394,6 @@ int spawn_workers_us(struct u_server *s)
       fprintf(stderr, "%s: could not store worker pid [%d]\n", __func__, sp);
 #endif
       destroy_child_sp(c);
-
     } else
       i++;
 
@@ -384,11 +405,13 @@ def DEBUG
   fprintf(stderr, "%s: PARENT about to loop\n", __func__);
 #endif
   
+  sigemptyset(&empty_mask);
+
   hi_fd = 0;
 
   while(run) {
 
-#if 0
+#if 1
     FD_ZERO(&ins);
     
     for (i=0; i<s->s_cpus; i++){
@@ -403,7 +426,7 @@ def DEBUG
       }
     }
 
-    if (pselect(fd_hi + 1, &ins, (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask) < 0){
+    if (pselect(hi_fd + 1, &ins, (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask) < 0){
       switch(errno){
         case EAGAIN:
         case EINTR:
@@ -417,6 +440,13 @@ def DEBUG
       }
     }
 #endif
+      
+  }
+
+#endif
+
+  i = 0;
+  do {
     
     sp = waitpid(-1, &status, 0);
 
@@ -428,38 +458,30 @@ def DEBUG
 #ifdef DEBUG
       fprintf(stderr, "exited, status=%d\n", WEXITSTATUS(status));
 #endif
-      run = 0;
     } else if (WIFSIGNALED(status)) {
 #ifdef DEBUG
       fprintf(stderr, "killed by signal %d\n", WTERMSIG(status));
 #endif
-      run = 0;
     } else if (WIFSTOPPED(status)) {
 #ifdef DEBUG
       fprintf(stderr, "stopped by signal %d\n", WSTOPSIG(status));
 #endif
-      run = 0;
     } else if (WIFCONTINUED(status)) {
 #ifdef DEBUG
       fprintf(stderr, "continued\n");
 #endif
-      run = 0;
     }
-      
-  }
+
+  } while (i++ < s->s_cpus);
 
 #ifdef DEBUG
   fprintf(stderr, "%s: final recv count: %ld bytes\n", __func__, s->s_bc);
 #endif
 
-#if 0 
-  destroy_store_hs(hs);
-#endif
-
   return 0;
 }
 
-int register_client_handler_server(int (*client_data_fn)(), char *port, long cpus)
+int register_client_handler_server(int (*client_data_fn)(), char *port, long cpus, uint64_t hashes, uint64_t hashsize)
 {
   struct u_server *s;
   
@@ -478,6 +500,7 @@ int register_client_handler_server(int (*client_data_fn)(), char *port, long cpu
     return -1;
   }
 
+#if 1
   if (startup_server_us(s, port) < 0){
 #ifdef DEBUG
     fprintf(stderr,"%s: error in startup\n", __func__);
@@ -485,8 +508,9 @@ int register_client_handler_server(int (*client_data_fn)(), char *port, long cpu
     shutdown_server_us(s);
     return -1;
   }
+#endif
 
-  if (spawn_workers_us(s) < 0){ 
+  if (spawn_workers_us(s, hashes, hashsize) < 0){ 
 #ifdef DEBUG
     fprintf(stderr,"%s: error during run\n", __func__);
 #endif
@@ -506,7 +530,8 @@ int register_client_handler_server(int (*client_data_fn)(), char *port, long cpu
 
 int capture_client_data()
 {
-
+  
+  return 0;
 }
 
 int main(int argc, char *argv[])
@@ -514,9 +539,13 @@ int main(int argc, char *argv[])
   long cpus;
   int i, j, c;
   char *port;
+  uint64_t hashes, hashsize;
 
   i = 1;
   j = 1;
+
+  hashes = 10;
+  hashsize = 10;
 
   port = PORT;
   cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -540,12 +569,14 @@ int main(int argc, char *argv[])
 
         /*switches*/  
         case 'h':
-          fprintf(stderr, "usage:\n\t%s -w [workers (d:%ld)] -p [port (d:%s)]\n\n", argv[0], cpus, port);
+          fprintf(stderr, "usage:\n\t%s -w [workers (d:%ld)] -p [port (d:%s)] -b [buffers (d:%ld)] -l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
           return EX_OK;
 
         /*settings*/
         case 'p':
         case 'w':
+        case 'b':
+        case 'l':
           j++;
           if (argv[i][j] == '\0'){
             j = 0;
@@ -560,7 +591,13 @@ int main(int argc, char *argv[])
               port = argv[i] + j;  
               break;
             case 'w':
-              cpus = atol(argv[i] + j);
+              cpus = atoll(argv[i] + j);
+              break;
+            case 'b':
+              hashes = atoll(argv[i] + j);
+              break;
+            case 'l':
+              hashsize = atol(argv[i] + j);
               break;
           }
           i++;
@@ -573,14 +610,11 @@ int main(int argc, char *argv[])
       }
 
     } else {
-
       fprintf(stderr, "%s: extra argument %s\n", argv[0], argv[i]);
       return EX_USAGE;
     }
     
   }
 
-
-
-  return register_client_handler_server(&capture_client_data , port, cpus );
+  return register_client_handler_server(&capture_client_data , port, cpus, hashes, hashsize);
 }

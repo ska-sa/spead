@@ -358,6 +358,9 @@ int spead_heap_finalize(SpeadHeap *heap) {
         if (item->len < 0) {  // This happens when the last packet in a heap goes missing
           item->is_valid = 0;
         } else {
+          
+          /*TODO: NEED TO Optimize*/
+
           item->val = (char *) malloc(item->len * sizeof(char));
           if (item->val == NULL) 
             return SPEAD_ERR;
