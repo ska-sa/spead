@@ -7,6 +7,7 @@ HDR = sharedmem.h hash.h avltree.h spead_packet.h spead_api.h server.h
 
 # CFLAGS += -DSTANDALONE
 #CFLAGS += -DDEBUG=2
+CFLAGS += -DPROCESS
 CFLAGS += -DDEBUG
 CFLAGS += -DDATA
 CFLAGS += -ggdb

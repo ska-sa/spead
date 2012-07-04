@@ -267,11 +267,19 @@ int worker_task_us(struct u_server *s)
 #if 1
     o = pop_hash_o(hs->s_list);
     if (o == NULL){
+      //run = 0;
+      //break;
+      sleep(1);
       continue;
     }
 
     p = get_data_hash_o(o);
     if (p == NULL){
+      if (push_hash_o(hs->s_list, o) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: cannot push object!\n", __func__);
+#endif
+      }
       continue;
     }
 
@@ -286,6 +294,11 @@ int worker_task_us(struct u_server *s)
 #ifdef DEBUG
       fprintf(stderr, "%s: rcount [%lu] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
 #endif
+      if (push_hash_o(hs->s_list, o) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: cannot push object!\n", __func__);
+#endif
+      }
       continue;
     }
 

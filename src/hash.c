@@ -127,22 +127,30 @@ int empty_hash_table(struct hash_table *ht)
   if (l == NULL)
     return -1;
 
-#ifdef DEBUG
+  print_list_stats(l, __func__);
+
+#if 0
+def DEBUG
   fprintf(stderr, "%s: about to empty\n", __func__);
 #endif
 
   for (i=0; i<ht->t_len; i++) {
-#ifdef DEBUG
-    fprintf(stderr, "%s: o[%ld]\n", __func__, i);
-#endif
     
     o = ht->t_os[i];
     if (o == NULL)
       continue;
 
-    while ((on = o->o_next) != NULL) {
+#if 0
+def DEBUG
+    fprintf(stderr, "%s: o[%ld]\n", __func__, i);
+#endif
 
-#ifdef DEBUG
+    do {
+      
+      on = o->o_next;
+
+#if 0
+def DEBUG
       fprintf(stderr, "%s: o (%p)\n", __func__, o);
 #endif
       
@@ -150,16 +158,16 @@ int empty_hash_table(struct hash_table *ht)
 
       o = on;
 
-    }
+    } while (o != NULL);
 
   }
-#if 1
+
   ht->t_data_count = 0;
   ht->t_data_id    = (-1);
-#endif
-#ifdef DEBUG
-  fprintf(stderr, "%s: DONE\n", __func__);
-#endif
+
+  memset(ht->t_os, 0, ht->t_len*sizeof(struct hash_o*));
+
+  print_list_stats(l, __func__);
 
   return 0;
 }
@@ -328,7 +336,7 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
     /*simple case*/
     t->t_os[id] = o;
 #ifdef DEBUG
-    fprintf(stderr, "%d: HASHED into [%ld] @ [%ld]\n", getpid(), t->t_id, id);
+    fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld]\t\t(%p)\n", getpid(), t->t_id, id, o);
 #endif
     return 0;
   }
@@ -347,7 +355,7 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   to->o_next = o;
 
 #ifdef DEBUG
-  fprintf(stderr, "%d: HASHED into [%ld] @ [%ld] LIST pos [%d]\n", getpid(), t->t_id, id, i);
+  fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld] LIST pos [%d]\t(%p)\n", getpid(), t->t_id, id, i, o);
 #endif
 
   return 0;
@@ -378,6 +386,11 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
 
   o->o_next = NULL;
 
+#if 0 
+def DEBUG
+  fprintf(stderr, "[%d] %s: poped\t\t(%p)\n", getpid(), __func__, o);
+#endif
+
   unlock_sem(l->l_semid);
 
   return o;
@@ -386,7 +399,7 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
 /*Critical section*/
 int push_hash_o(struct hash_o_list *l, struct hash_o *o)
 {
-  if (l == NULL || o == NULL || o->o_next != NULL)
+  if (l == NULL || o == NULL)
     return -1;
 
   lock_sem(l->l_semid);
