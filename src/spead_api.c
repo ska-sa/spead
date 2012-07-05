@@ -198,9 +198,13 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
     return NULL;
 
   if (ht->t_data_id < 0){
+#if 0
     lock_sem(ht->t_semid);
+#endif
     ht->t_data_id = hid;
+#if 0
     unlock_sem(ht->t_semid);
+#endif
   } 
   
   if (ht->t_data_id != hid){
@@ -361,7 +365,7 @@ int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
     /*TODO: we have a newer set from packet must process partial*/
     /*or discard set at current position*/
 #ifdef DATA
-    fprintf(stderr, "%s: backlog collision", __func__);
+    fprintf(stderr, "%s: backlog collision\n", __func__);
 #endif
     return -1;
   }
@@ -378,12 +382,16 @@ def DEBUG
   fprintf(stderr, "Packet has [%d] items\n", p->n_items);  
 #endif
   
+#if 0
   lock_sem(ht->t_semid);
+#endif
 
   ht->t_data_count += p->payload_len;
   ht->t_items      += p->n_items;
-  
+
+#if 0  
   unlock_sem(ht->t_semid);
+#endif
 
   /*have all packets by data count must process*/
   if (ht->t_data_count == p->heap_len){

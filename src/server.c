@@ -277,7 +277,7 @@ int worker_task_us(struct u_server *s, int cfd)
     if (o == NULL){
       //run = 0;
       //break;
-      sleep(1);
+      //sleep(1);
       continue;
     }
 

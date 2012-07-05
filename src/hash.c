@@ -147,7 +147,9 @@ def DEBUG
   fprintf(stderr, "%s: about to empty\n", __func__);
 #endif
 
+#if 0
   lock_sem(ht->t_semid);
+#endif
   
   for (i=0; i<ht->t_len; i++) {
     
@@ -183,7 +185,9 @@ def DEBUG
 
   memset(ht->t_os, 0, ht->t_len*sizeof(struct hash_o*));
 
+#if 0
   unlock_sem(ht->t_semid);
+#endif
 
   //print_list_stats(l, __func__);
 
@@ -348,7 +352,9 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   
   id = (*t->t_hfn)(t, o);
 
+#if 0
   lock_sem(t->t_semid);
+#endif
 
   if (t->t_os[id] == NULL){
     /*simple case*/
@@ -357,7 +363,9 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
     fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld]\t\t(%p)\n", getpid(), t->t_id, id, o);
 #endif
 
+#if 0
     unlock_sem(t->t_semid);
+#endif
 
     return 0;
   }
@@ -371,16 +379,19 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   }
   
   if (to == NULL){
+#if 0
     unlock_sem(t->t_semid);
+#endif
     return -1;
   }
 
   to->o_next = o;
 
-  unlock_sem(t->t_semid);
-
 #ifdef DEBUG
   fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld] LIST pos [%d]\t(%p)\n", getpid(), t->t_id, id, i, o);
+#endif
+#if 0
+  unlock_sem(t->t_semid);
 #endif
 
   return 0;
