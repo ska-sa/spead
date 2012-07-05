@@ -20,6 +20,7 @@
 static struct shared_mem *m_area = NULL;
 
 
+
 int create_shared_mem(uint64_t size)
 {
   key_t key;

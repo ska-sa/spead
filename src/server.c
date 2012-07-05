@@ -126,6 +126,9 @@ struct u_server *create_server_us(int (*cdfn)(), long cpus)
   s->s_cpus = cpus;
   s->s_cs  = NULL;
   s->s_hs  = NULL;
+  s->s_fu  = 0;
+
+  
 
 #endif
   return s;
@@ -352,7 +355,7 @@ int worker_task_us(struct u_server *s, int cfd)
     bcount += nread;
     s->s_bc += nread;
 
-    if (process_packet_hs(s->s_hs, o) < 0){
+   // if (process_packet_hs(s->s_hs, o) < 0){
 #if DEBUG>1
       fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
 #endif
@@ -363,7 +366,7 @@ int worker_task_us(struct u_server *s, int cfd)
       }
 
       //continue; 
-    }
+   // }
 
 #if 0
     if(write(cfd, &nread, sizeof(nread)) < 0)

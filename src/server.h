@@ -8,6 +8,7 @@
 #define PORT      "8888"
 
 struct u_server {
+  int s_fu;
   long s_cpus;
   struct u_child **s_cs;
   int s_fd;

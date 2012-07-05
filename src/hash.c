@@ -405,7 +405,7 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
   if (l == NULL)
     return NULL;
 
-  lock_sem(l->l_semid);
+  //lock_sem(l->l_semid);
 
   o = l->l_top;
   
@@ -427,7 +427,7 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
   print_list_stats(l, __func__);
 #endif
 
-  unlock_sem(l->l_semid);
+  //unlock_sem(l->l_semid);
 
   return o;
 }
@@ -438,7 +438,7 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
   if (l == NULL || o == NULL)
     return -1;
 
-  lock_sem(l->l_semid);
+  //lock_sem(l->l_semid);
 
   o->o_next = l->l_top;
   l->l_top = o;
@@ -449,7 +449,7 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
   print_list_stats(l, __func__);
 #endif
 
-  unlock_sem(l->l_semid);
+  //unlock_sem(l->l_semid);
 
   return 0;
 }
