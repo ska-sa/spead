@@ -243,10 +243,11 @@ int worker_task_us(struct u_server *s, int cfd)
   struct spead_packet *p;
   struct spead_heap_store *hs;
   struct hash_o *o;
-
+#if 0
   struct timeval prev, now;
-  struct sockaddr_storage peer_addr;
+#endif
 
+  struct sockaddr_storage peer_addr;
   socklen_t peer_addr_len;
 
   ssize_t nread;
@@ -290,7 +291,7 @@ int worker_task_us(struct u_server *s, int cfd)
       continue;
     }
 
-    gettimeofday(&prev, NULL);
+    //gettimeofday(&prev, NULL);
     rcount++;
     peer_addr_len = sizeof(struct sockaddr_storage); 
 
@@ -324,9 +325,10 @@ int worker_task_us(struct u_server *s, int cfd)
       //continue; 
     }
 
-    write(cfd, &nread, sizeof(nread));
+    if(write(cfd, &nread, sizeof(nread)) < 0)
+      continue;
 
-    gettimeofday(&now, NULL);
+  //  gettimeofday(&now, NULL);
 //    sub_time(&delta, &now, &prev);
 //    print_time(&delta, nread);
 #endif
@@ -357,6 +359,24 @@ int add_child_us(struct u_server *s, struct u_child *c, int size)
   s->s_cs[size] = c;
   
   return size + 1;
+}
+
+void print_format_bitrate(uint64_t bps)
+{
+  char *rates[] = {"B", "KB", "MB", "GB", "TB"};
+  int i;
+  double style;
+#ifdef DATA
+  if (bps > 0){
+    
+    for (i=0; (bps / 1024) > 0; i++, bps /= 1024){
+      style = bps / 1024.0;
+    }
+    
+    fprintf(stderr, "SERVER RECV RATE: %10.2f %sps\n", style, rates[i]);
+
+  }
+#endif
 }
 
 int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
@@ -470,11 +490,17 @@ def DEBUG
     } 
     
     if (timer){
-#ifdef DATA
-      fprintf(stderr, "SERVER recv:\t%ld bytes\n", total);
+      total = s->s_bc - total;
+      print_format_bitrate(total);
+#if 0 
+      def DATA
+      if (total > 0) {
+        fprintf(stderr, "SERVER recv:\t%ld Bps\n", total);
+      }
 #endif
       alarm(1);
       timer = 0;
+      total = s->s_bc;
       continue;
     }
 
@@ -487,18 +513,14 @@ def DEBUG
           fprintf(stderr, "%s: FD %d ISSET\n", __func__, c->c_fd);
 #endif    
           if(read(c->c_fd, &rr, sizeof(rr))){
-            total += rr;
-#if 0 
-            def DATA
-            fprintf(stderr, "SERVER recv:\t%ld bytes\n", total);
-#endif
+            s->s_bc += rr;
           }
         }
       }
     }
   }
 
-  s->s_bc = total;
+  //s->s_bc = total;
   
   i = 0;
   do {
