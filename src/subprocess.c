@@ -45,7 +45,7 @@ void destroy_child_sp(struct u_child *c)
   }
 }
 
-struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s))
+struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s, int cfd))
 {
   int pipefd[2];
   pid_t cpid;
@@ -88,7 +88,7 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
   close(pipefd[0]); /*close read end in child*/
 
   /*in child use exit not return*/ 
-  (*call)(s);
+  (*call)(s, pipefd[1]);
 
   exit(EX_OK);
   return NULL;

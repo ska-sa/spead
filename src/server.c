@@ -27,6 +27,7 @@
 
 
 static volatile int run = 1;
+static volatile int timer = 0;
 
 int sub_time(struct timeval *delta, struct timeval *alpha, struct timeval *beta)
 {
@@ -74,6 +75,11 @@ void print_time(struct timeval *result, int bytes)
 void handle_us(int signum) 
 {
   run = 0;
+}
+
+void timer_us(int signum) 
+{
+  timer = 1;
 }
 
 int register_signals_us()
@@ -232,7 +238,7 @@ void shutdown_server_us(struct u_server *s)
 #endif
 } 
 
-int worker_task_us(struct u_server *s)
+int worker_task_us(struct u_server *s, int cfd)
 {
   struct spead_packet *p;
   struct spead_heap_store *hs;
@@ -251,6 +257,7 @@ int worker_task_us(struct u_server *s)
   rcount = 0;
   bcount = 0;
   p      = NULL;
+  o      = NULL;
   pid    = getpid();
 
   if (s == NULL || s->s_hs == NULL)
@@ -291,15 +298,15 @@ int worker_task_us(struct u_server *s)
 
     nread = recvfrom(s->s_fd, p->data, SPEAD_MAX_PACKET_LEN, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
     if (nread <= 0){
-#ifdef DEBUG
+#if DEBUG>1
       fprintf(stderr, "%s: rcount [%lu] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
 #endif
       if (push_hash_o(hs->s_list, o) < 0){
 #ifdef DEBUG
-      fprintf(stderr, "%s: cannot push object!\n", __func__);
+        fprintf(stderr, "%s: cannot push object!\n", __func__);
 #endif
       }
-      continue;
+      break;
     }
 
     bcount += nread;
@@ -310,12 +317,14 @@ int worker_task_us(struct u_server *s)
 #endif
       if (push_hash_o(hs->s_list, o) < 0){
 #ifdef DEBUG
-      fprintf(stderr, "%s: cannot push object!\n", __func__);
+        fprintf(stderr, "%s: cannot push object!\n", __func__);
 #endif
       }
 
-      continue; 
+      //continue; 
     }
+
+    write(cfd, &nread, sizeof(nread));
 
     gettimeofday(&now, NULL);
 //    sub_time(&delta, &now, &prev);
@@ -323,8 +332,10 @@ int worker_task_us(struct u_server *s)
 #endif
   }
 
+  close(cfd);
+  
 #ifdef DEBUG
-  fprintf(stderr, "%s:\tCHILD[%d]: exiting with bytes: %lu\n", __func__, getpid(), bcount);
+  fprintf(stderr, "\tCHILD[%d]: exiting with bytes: %lu\n", getpid(), bcount);
 #endif
 
   return 0;
@@ -352,12 +363,23 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 {
   struct spead_heap_store *hs;
   struct u_child *c;
-  int status, i, hi_fd;
+  int status, i, hi_fd, rtn;
   fd_set ins;
   pid_t sp;
   sigset_t empty_mask;
+  uint64_t rr, total;
+#if 0
+  struct timespec ts;
+#endif
+  struct sigaction sa;
 
   hs = NULL;
+  rr = 0;
+  total = 0;
+#if 0
+  ts.tv_sec = 1;
+  ts.tv_nsec = 0;
+#endif
   
   if (s == NULL || hashes < 1 || hashsize < 1)
     return -1;
@@ -378,7 +400,6 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
   fprintf(stderr, "\tworkers:\t%ld\n", s->s_cpus);
 #endif
 
-#if 1
   do {
 
     c = fork_child_sp(s, &worker_task_us);
@@ -404,14 +425,21 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 def DEBUG
   fprintf(stderr, "%s: PARENT about to loop\n", __func__);
 #endif
+
+  sigfillset(&sa.sa_mask);
+  sa.sa_handler   = timer_us;
+  sa.sa_flags     = 0;
+
+  sigaction(SIGALRM, &sa, NULL);
   
   sigemptyset(&empty_mask);
+
+  alarm(1);
 
   hi_fd = 0;
 
   while(run) {
 
-#if 1
     FD_ZERO(&ins);
     
     for (i=0; i<s->s_cpus; i++){
@@ -425,8 +453,9 @@ def DEBUG
         }
       }
     }
-
-    if (pselect(hi_fd + 1, &ins, (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask) < 0){
+    
+    rtn = pselect(hi_fd + 1, &ins, (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask);
+    if (rtn < 0){
       switch(errno){
         case EAGAIN:
         case EINTR:
@@ -436,26 +465,52 @@ def DEBUG
           fprintf(stderr, "%s: pselect error\n", __func__);
 #endif    
           run = 0;
-          break;
+          continue;
+      }
+    } 
+    
+    if (timer){
+#ifdef DATA
+      fprintf(stderr, "SERVER recv:\t%ld bytes\n", total);
+#endif
+      alarm(1);
+      timer = 0;
+      continue;
+    }
+
+    for (i=0; i<s->s_cpus; i++){
+      c = s->s_cs[i];
+      if (c != NULL){
+        if (FD_ISSET(c->c_fd, &ins)){
+          
+#if DEBUG>1
+          fprintf(stderr, "%s: FD %d ISSET\n", __func__, c->c_fd);
+#endif    
+          if(read(c->c_fd, &rr, sizeof(rr))){
+            total += rr;
+#if 0 
+            def DATA
+            fprintf(stderr, "SERVER recv:\t%ld bytes\n", total);
+#endif
+          }
+        }
       }
     }
-#endif
-      
   }
 
-#endif
-
+  s->s_bc = total;
+  
   i = 0;
   do {
     
     sp = waitpid(-1, &status, 0);
 
-#ifdef DEBUG
+#if DEBUG>1
     fprintf(stderr,"%s: PARENT waitpid [%d]\n", __func__, sp);
 #endif
 
     if (WIFEXITED(status)) {
-#ifdef DEBUG
+#if DEBUG>1
       fprintf(stderr, "exited, status=%d\n", WEXITSTATUS(status));
 #endif
     } else if (WIFSIGNALED(status)) {
@@ -475,7 +530,7 @@ def DEBUG
   } while (i++ < s->s_cpus);
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: final recv count: %ld bytes\n", __func__, s->s_bc);
+  fprintf(stderr, "%s: final recv count:\t%ld bytes\n", __func__, s->s_bc);
 #endif
 
   return 0;

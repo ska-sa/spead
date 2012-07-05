@@ -6,7 +6,6 @@
 
 struct spead_heap_store{
   int64_t s_backlog;
-  int64_t s_count;
 #if 0
   struct spead_heap **s_heaps;
 #endif
@@ -16,6 +15,12 @@ struct spead_heap_store{
   struct hash_table **s_hash;
 };
 
+struct spead_api_item{
+  int i_valid;
+  int i_id;
+  uint64_t i_len;
+  unsigned char i_data[];
+};
 
 struct spead_heap *create_spead_heap();
 void destroy_spead_heap(struct spead_heap *h);

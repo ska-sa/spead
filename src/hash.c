@@ -29,12 +29,21 @@ void print_list_stats(struct hash_o_list *l, const char *func)
 struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, struct hash_o *o))
 {
   struct hash_table *t;
+  int semid;
 #if 0
   uint64_t i;
 #endif
 
   if (l == NULL || len < 0 || id < 0 || hfn == NULL)
     return NULL;
+
+  semid = create_sem((int)id);
+  if (semid < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot get sem for table\n", __func__);
+#endif
+    return NULL;
+  }
 
   t = shared_malloc(sizeof(struct hash_table));
   if (t == NULL){
@@ -51,12 +60,15 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   t->t_l          = l;
   t->t_data_count = 0;
   t->t_data_id    = (-1);
+  t->t_items      = 0;
+  t->t_semid      = semid; 
 
   t->t_os  = shared_malloc(sizeof(struct hash_o*) * len);
   if (t->t_os == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: cannot allocate hash_table object store from shared mem\n", __func__);
 #endif
+    destroy_hash_table(t);
     return NULL;
   }
 
@@ -106,8 +118,11 @@ void destroy_hash_table(struct hash_table *t)
       }
       //free(t->t_os);
     }
-    
+
+    destroy_sem(t->t_semid);
+#if DEBUG>1
     print_list_stats(t->t_l, __func__);
+#endif
 
     //free(t);
   }
@@ -132,6 +147,8 @@ def DEBUG
   fprintf(stderr, "%s: about to empty\n", __func__);
 #endif
 
+  lock_sem(ht->t_semid);
+  
   for (i=0; i<ht->t_len; i++) {
     
     o = ht->t_os[i];
@@ -162,8 +179,11 @@ def DEBUG
 
   ht->t_data_count = 0;
   ht->t_data_id    = (-1);
+  ht->t_items      = 0;
 
   memset(ht->t_os, 0, ht->t_len*sizeof(struct hash_o*));
+
+  unlock_sem(ht->t_semid);
 
   //print_list_stats(l, __func__);
 
@@ -233,7 +253,7 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
     return NULL;
   }
   
-  semid = create_sem();
+  semid = create_sem('L');
   if (semid < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: could not create semaphore for shared mem\n", __func__);
@@ -328,14 +348,17 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   
   id = (*t->t_hfn)(t, o);
 
-  /*TODO: could be a critical section*/
-  
+  lock_sem(t->t_semid);
+
   if (t->t_os[id] == NULL){
     /*simple case*/
     t->t_os[id] = o;
 #ifdef DEBUG
     fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld]\t\t(%p)\n", getpid(), t->t_id, id, o);
 #endif
+
+    unlock_sem(t->t_semid);
+
     return 0;
   }
  
@@ -347,10 +370,14 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
     to = to->o_next;
   }
   
-  if (to == NULL)
+  if (to == NULL){
+    unlock_sem(t->t_semid);
     return -1;
+  }
 
   to->o_next = o;
+
+  unlock_sem(t->t_semid);
 
 #ifdef DEBUG
   fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld] LIST pos [%d]\t(%p)\n", getpid(), t->t_id, id, i, o);
@@ -384,9 +411,9 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
 
   o->o_next = NULL;
 
-#if 0 
-def DEBUG
+#if DEBUG>1
   fprintf(stderr, "[%d] %s: poped\t\t(%p)\n", getpid(), __func__, o);
+  print_list_stats(l, __func__);
 #endif
 
   unlock_sem(l->l_semid);
@@ -405,6 +432,11 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
   o->o_next = l->l_top;
   l->l_top = o;
   l->l_len++;
+
+#if DEBUG>1
+  fprintf(stderr, "[%d] %s: pushed\t\t(%p)\n", getpid(), __func__, o);
+  print_list_stats(l, __func__);
+#endif
 
   unlock_sem(l->l_semid);
 

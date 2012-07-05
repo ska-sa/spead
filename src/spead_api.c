@@ -96,7 +96,6 @@ struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_
     return NULL;
 
   hs->s_backlog  = hash_table_count;
-  hs->s_count    = 0;
 #if 0
   hs->s_heaps    = NULL;
 #endif
@@ -123,6 +122,7 @@ struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_
 #ifdef DEBUG
     fprintf(stderr, "%s: could not get shared memory space for hash_tables\n", __func__);
 #endif
+    destroy_store_hs(hs);
     return NULL;
   }
     
@@ -146,18 +146,16 @@ struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_
 
 void destroy_store_hs(struct spead_heap_store *hs)
 {
-#if 0
   int i;
-#endif
+
   if (hs){
-#if 0
-    if (hs->s_heaps){
-      for (i=0; i<hs->s_count; i++){
-        destroy_spead_heap(hs->s_heaps[i]);
+
+    if (hs->s_hash){
+      for (i=0; i<hs->s_backlog; i++){
+        destroy_hash_table(hs->s_hash[i]);
       }
-      free(hs->s_heaps);
     }
-#endif
+
     if (hs->s_shipping)
       free(hs->s_shipping);
 
@@ -200,10 +198,9 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
     return NULL;
 
   if (ht->t_data_id < 0){
-    
-    /*TODO: could be a critical section???*/
-
+    lock_sem(ht->t_semid);
     ht->t_data_id = hid;
+    unlock_sem(ht->t_semid);
   } 
   
   if (ht->t_data_id != hid){
@@ -223,15 +220,19 @@ int process_items(struct hash_table *ht)
   int i, j, id, mode;
   int64_t iptr, off, data64;
   
+  struct spead_api_item *itm;
+
+  void *map;
+
   if (ht == NULL || ht->t_os == NULL)
     return -1;
 
 #ifdef DEBUG
-  fprintf(stderr, "--PROCESS--BEGIN---\n");
+  fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
 #endif
-
   
 
+  //map = mmap(NULL, ht->t_data_count, PROT_WRITE | PROT_READ, MAP_PRIVATE, (-1), 0);
 
 
 
@@ -267,7 +268,6 @@ int process_items(struct hash_table *ht)
 #ifdef PROCESS
             fprintf(stderr, "\tITEM_DESCRIPTOR_ID\n");
 #endif
-
             break;
           default:
             break;
@@ -276,27 +276,27 @@ int process_items(struct hash_table *ht)
 
         switch (mode){
           case SPEAD_DIRECTADDR:
-#ifdef PROCESS
-            fprintf(stderr, "\tDIRECT ADDRESSED\n");
-#endif
             off = (int64_t) SPEAD_ITEM_ADDR(iptr);
 
 #ifdef PROCESS
+            fprintf(stderr, "\tDIRECT ADDRESSED\n");
             fprintf(stderr, "\toff 0x%lx\n", off);
 #endif
+
             
+
             break;
 
           case SPEAD_IMMEDIATEADDR:
-
             /*this macro call results in the data correctly formatted*/
-            data64 = (int64_t)SPEAD_ITEM_ADDR(iptr);
+            data64 = (int64_t) SPEAD_ITEM_ADDR(iptr);
 
 #if 0
             for (k=0; k<SPEAD_ADDRLEN; k++){
               val[k] = 0xFF & (iptr >> (8*(SPEAD_ADDRLEN-k-1)));
             }
 #endif
+
 
 #ifdef PROCESS
             fprintf(stderr, "\tIMMEDIATE ADDRESSED len [%d] bytes\n", SPEAD_ADDRLEN);
@@ -315,17 +315,15 @@ int process_items(struct hash_table *ht)
 
   }
 #ifdef DEBUG
-  fprintf(stderr, "--PROCESS--END-----\n");
+  fprintf(stderr, "--PROCESS-[%d]-END-----\n", getpid());
 #endif
 
-#if 1 
   if (empty_hash_table(ht) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: error empting hash table", __func__);
 #endif
     return -1;
   }
-#endif
 
 #ifdef DEBUG
   fprintf(stderr, "%s: DONE empting hash table [%ld]\n", __func__, ht->t_id);
@@ -360,6 +358,8 @@ int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
   
   ht = get_ht_hs(hs, p->heap_cnt);
   if (ht == NULL){
+    /*TODO: we have a newer set from packet must process partial*/
+    /*or discard set at current position*/
     return -1;
   }
 
@@ -374,9 +374,15 @@ int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
 def DEBUG
   fprintf(stderr, "Packet has [%d] items\n", p->n_items);  
 #endif
+  
+  lock_sem(ht->t_semid);
 
   ht->t_data_count += p->payload_len;
+  ht->t_items      += p->n_items;
+  
+  unlock_sem(ht->t_semid);
 
+  /*have all packets by data count must process*/
   if (ht->t_data_count == p->heap_len){
 #ifdef DEBUG
     fprintf(stderr, "[%d] data_count = %ld bytes == heap_len\n", getpid(), ht->t_data_count);
@@ -493,7 +499,7 @@ int process_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
     return -1;
   } 
 
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
 #endif
 
@@ -504,7 +510,7 @@ int process_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
     
     //for (i=0; !ship_heap_hs(hs, i); i++);
 
-    return 0;
+    return -1;
   } else {
     rtn = store_packet_hs(hs, o);
   }
