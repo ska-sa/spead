@@ -360,6 +360,9 @@ int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
   if (ht == NULL){
     /*TODO: we have a newer set from packet must process partial*/
     /*or discard set at current position*/
+#ifdef DATA
+    fprintf(stderr, "%s: backlog collision", __func__);
+#endif
     return -1;
   }
 
