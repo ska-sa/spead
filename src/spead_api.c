@@ -815,3 +815,4 @@ struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid)
   return h;
 }
 #endif
+

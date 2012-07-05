@@ -16,6 +16,7 @@
 #include <sys/select.h>
 #include <sys/utsname.h>
 #include <sys/time.h>
+#include <sys/mman.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -113,8 +114,10 @@ struct u_server *create_server_us(int (*cdfn)(), long cpus)
 #endif
     return NULL;
   }
-  
+#if 0
   s = malloc(sizeof(struct u_server));
+#endif
+  s = mmap(NULL, sizeof(struct u_server), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
   if (s == NULL)
     return NULL;
   
@@ -145,7 +148,7 @@ void destroy_server_us(struct u_server *s)
     }
 
     destroy_store_hs(s->s_hs);
-    free(s);
+    munmap(s, sizeof(struct u_server));
   }
 #ifdef DEBUG
   fprintf(stderr, "%s: destroyed server\n",  __func__);
@@ -238,6 +241,42 @@ void shutdown_server_us(struct u_server *s)
 #endif
 } 
 
+int add_child_us(struct u_server *s, struct u_child *c, int size)
+{
+  if (s == NULL || c == NULL)
+    return -1;
+
+  s->s_cs = realloc(s->s_cs, sizeof(struct u_child*) * (size+1));
+  if (s->s_cs == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: logic error cannot realloc for worker list\n", __func__);
+#endif 
+    return -1;
+  }
+
+  s->s_cs[size] = c;
+  
+  return size + 1;
+}
+
+void print_format_bitrate(uint64_t bps)
+{
+  char *rates[] = {"B", "KB", "MB", "GB", "TB"};
+  int i;
+  double style;
+#ifdef DATA
+  if (bps > 0){
+    
+    for (i=0; (bps / 1024) > 0; i++, bps /= 1024){
+      style = bps / 1024.0;
+    }
+    
+    fprintf(stderr, "SERVER RECV RATE: %10.2f %sps\n", style, rates[i]);
+
+  }
+#endif
+}
+
 int worker_task_us(struct u_server *s, int cfd)
 {
   struct spead_packet *p;
@@ -311,6 +350,7 @@ int worker_task_us(struct u_server *s, int cfd)
     }
 
     bcount += nread;
+    s->s_bc += nread;
 
     if (process_packet_hs(s->s_hs, o) < 0){
 #if DEBUG>1
@@ -325,8 +365,10 @@ int worker_task_us(struct u_server *s, int cfd)
       //continue; 
     }
 
+#if 0
     if(write(cfd, &nread, sizeof(nread)) < 0)
       continue;
+#endif
 
   //  gettimeofday(&now, NULL);
 //    sub_time(&delta, &now, &prev);
@@ -343,41 +385,6 @@ int worker_task_us(struct u_server *s, int cfd)
   return 0;
 }
 
-int add_child_us(struct u_server *s, struct u_child *c, int size)
-{
-  if (s == NULL || c == NULL)
-    return -1;
-
-  s->s_cs = realloc(s->s_cs, sizeof(struct u_child*) * (size+1));
-  if (s->s_cs == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: logic error cannot realloc for worker list\n", __func__);
-#endif 
-    return -1;
-  }
-
-  s->s_cs[size] = c;
-  
-  return size + 1;
-}
-
-void print_format_bitrate(uint64_t bps)
-{
-  char *rates[] = {"B", "KB", "MB", "GB", "TB"};
-  int i;
-  double style;
-#ifdef DATA
-  if (bps > 0){
-    
-    for (i=0; (bps / 1024) > 0; i++, bps /= 1024){
-      style = bps / 1024.0;
-    }
-    
-    fprintf(stderr, "SERVER RECV RATE: %10.2f %sps\n", style, rates[i]);
-
-  }
-#endif
-}
 
 int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 {
@@ -504,6 +511,7 @@ def DEBUG
       continue;
     }
 
+#if 0
     for (i=0; i<s->s_cpus; i++){
       c = s->s_cs[i];
       if (c != NULL){
@@ -518,6 +526,8 @@ def DEBUG
         }
       }
     }
+#endif
+
   }
 
   //s->s_bc = total;
