@@ -27,6 +27,7 @@
 
 
 static volatile int run = 1;
+static volatile int timer = 0;
 
 int sub_time(struct timeval *delta, struct timeval *alpha, struct timeval *beta)
 {
@@ -74,6 +75,11 @@ void print_time(struct timeval *result, int bytes)
 void handle_us(int signum) 
 {
   run = 0;
+}
+
+void timer_us(int signum) 
+{
+  timer = 1;
 }
 
 int register_signals_us()
@@ -232,15 +238,16 @@ void shutdown_server_us(struct u_server *s)
 #endif
 } 
 
-int worker_task_us(struct u_server *s)
+int worker_task_us(struct u_server *s, int cfd)
 {
   struct spead_packet *p;
   struct spead_heap_store *hs;
   struct hash_o *o;
-
+#if 0
   struct timeval prev, now;
-  struct sockaddr_storage peer_addr;
+#endif
 
+  struct sockaddr_storage peer_addr;
   socklen_t peer_addr_len;
 
   ssize_t nread;
@@ -251,6 +258,7 @@ int worker_task_us(struct u_server *s)
   rcount = 0;
   bcount = 0;
   p      = NULL;
+  o      = NULL;
   pid    = getpid();
 
   if (s == NULL || s->s_hs == NULL)
@@ -283,7 +291,7 @@ int worker_task_us(struct u_server *s)
       continue;
     }
 
-    gettimeofday(&prev, NULL);
+    //gettimeofday(&prev, NULL);
     rcount++;
     peer_addr_len = sizeof(struct sockaddr_storage); 
 
@@ -291,15 +299,15 @@ int worker_task_us(struct u_server *s)
 
     nread = recvfrom(s->s_fd, p->data, SPEAD_MAX_PACKET_LEN, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
     if (nread <= 0){
-#ifdef DEBUG
+#if DEBUG>1
       fprintf(stderr, "%s: rcount [%lu] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
 #endif
       if (push_hash_o(hs->s_list, o) < 0){
 #ifdef DEBUG
-      fprintf(stderr, "%s: cannot push object!\n", __func__);
+        fprintf(stderr, "%s: cannot push object!\n", __func__);
 #endif
       }
-      continue;
+      break;
     }
 
     bcount += nread;
@@ -310,21 +318,26 @@ int worker_task_us(struct u_server *s)
 #endif
       if (push_hash_o(hs->s_list, o) < 0){
 #ifdef DEBUG
-      fprintf(stderr, "%s: cannot push object!\n", __func__);
+        fprintf(stderr, "%s: cannot push object!\n", __func__);
 #endif
       }
 
-      continue; 
+      //continue; 
     }
 
-    gettimeofday(&now, NULL);
+    if(write(cfd, &nread, sizeof(nread)) < 0)
+      continue;
+
+  //  gettimeofday(&now, NULL);
 //    sub_time(&delta, &now, &prev);
 //    print_time(&delta, nread);
 #endif
   }
 
+  close(cfd);
+  
 #ifdef DEBUG
-  fprintf(stderr, "%s:\tCHILD[%d]: exiting with bytes: %lu\n", __func__, getpid(), bcount);
+  fprintf(stderr, "\tCHILD[%d]: exiting with bytes: %lu\n", getpid(), bcount);
 #endif
 
   return 0;
@@ -348,16 +361,45 @@ int add_child_us(struct u_server *s, struct u_child *c, int size)
   return size + 1;
 }
 
+void print_format_bitrate(uint64_t bps)
+{
+  char *rates[] = {"B", "KB", "MB", "GB", "TB"};
+  int i;
+  double style;
+#ifdef DATA
+  if (bps > 0){
+    
+    for (i=0; (bps / 1024) > 0; i++, bps /= 1024){
+      style = bps / 1024.0;
+    }
+    
+    fprintf(stderr, "SERVER RECV RATE: %10.2f %sps\n", style, rates[i]);
+
+  }
+#endif
+}
+
 int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 {
   struct spead_heap_store *hs;
   struct u_child *c;
-  int status, i, hi_fd;
+  int status, i, hi_fd, rtn;
   fd_set ins;
   pid_t sp;
   sigset_t empty_mask;
+  uint64_t rr, total;
+#if 0
+  struct timespec ts;
+#endif
+  struct sigaction sa;
 
   hs = NULL;
+  rr = 0;
+  total = 0;
+#if 0
+  ts.tv_sec = 1;
+  ts.tv_nsec = 0;
+#endif
   
   if (s == NULL || hashes < 1 || hashsize < 1)
     return -1;
@@ -378,7 +420,6 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
   fprintf(stderr, "\tworkers:\t%ld\n", s->s_cpus);
 #endif
 
-#if 1
   do {
 
     c = fork_child_sp(s, &worker_task_us);
@@ -404,14 +445,21 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 def DEBUG
   fprintf(stderr, "%s: PARENT about to loop\n", __func__);
 #endif
+
+  sigfillset(&sa.sa_mask);
+  sa.sa_handler   = timer_us;
+  sa.sa_flags     = 0;
+
+  sigaction(SIGALRM, &sa, NULL);
   
   sigemptyset(&empty_mask);
+
+  alarm(1);
 
   hi_fd = 0;
 
   while(run) {
 
-#if 1
     FD_ZERO(&ins);
     
     for (i=0; i<s->s_cpus; i++){
@@ -425,8 +473,9 @@ def DEBUG
         }
       }
     }
-
-    if (pselect(hi_fd + 1, &ins, (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask) < 0){
+    
+    rtn = pselect(hi_fd + 1, &ins, (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask);
+    if (rtn < 0){
       switch(errno){
         case EAGAIN:
         case EINTR:
@@ -436,26 +485,54 @@ def DEBUG
           fprintf(stderr, "%s: pselect error\n", __func__);
 #endif    
           run = 0;
-          break;
+          continue;
+      }
+    } 
+    
+    if (timer){
+      total = s->s_bc - total;
+      print_format_bitrate(total);
+#if 0 
+      def DATA
+      if (total > 0) {
+        fprintf(stderr, "SERVER recv:\t%ld Bps\n", total);
+      }
+#endif
+      alarm(1);
+      timer = 0;
+      total = s->s_bc;
+      continue;
+    }
+
+    for (i=0; i<s->s_cpus; i++){
+      c = s->s_cs[i];
+      if (c != NULL){
+        if (FD_ISSET(c->c_fd, &ins)){
+          
+#if DEBUG>1
+          fprintf(stderr, "%s: FD %d ISSET\n", __func__, c->c_fd);
+#endif    
+          if(read(c->c_fd, &rr, sizeof(rr))){
+            s->s_bc += rr;
+          }
+        }
       }
     }
-#endif
-      
   }
 
-#endif
-
+  //s->s_bc = total;
+  
   i = 0;
   do {
     
     sp = waitpid(-1, &status, 0);
 
-#ifdef DEBUG
+#if DEBUG>1
     fprintf(stderr,"%s: PARENT waitpid [%d]\n", __func__, sp);
 #endif
 
     if (WIFEXITED(status)) {
-#ifdef DEBUG
+#if DEBUG>1
       fprintf(stderr, "exited, status=%d\n", WEXITSTATUS(status));
 #endif
     } else if (WIFSIGNALED(status)) {
@@ -475,7 +552,7 @@ def DEBUG
   } while (i++ < s->s_cpus);
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: final recv count: %ld bytes\n", __func__, s->s_bc);
+  fprintf(stderr, "%s: final recv count:\t%ld bytes\n", __func__, s->s_bc);
 #endif
 
   return 0;
@@ -569,7 +646,7 @@ int main(int argc, char *argv[])
 
         /*switches*/  
         case 'h':
-          fprintf(stderr, "usage:\n\t%s -w [workers (d:%ld)] -p [port (d:%s)] -b [buffers (d:%ld)] -l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
+          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
           return EX_OK;
 
         /*settings*/

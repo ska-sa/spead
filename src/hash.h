@@ -37,10 +37,12 @@ void *get_data_hash_o(struct hash_o *o);
 
 
 struct hash_table {
+  int           t_semid;
   uint64_t      t_id;
   uint64_t      t_len;
   uint64_t      t_data_count;
-  int64_t      t_data_id;
+  int64_t       t_data_id;
+  uint64_t      t_items;
   struct hash_o_list *t_l;
   struct hash_o **t_os;
 

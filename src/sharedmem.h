@@ -21,7 +21,7 @@ int create_shared_mem(uint64_t size);
 void destroy_shared_mem();
 void *shared_malloc(size_t size);
 
-int create_sem();
+int create_sem(int c);
 int lock_sem(int semid);
 int unlock_sem(int semid);
 

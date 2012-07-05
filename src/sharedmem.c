@@ -157,7 +157,7 @@ void shared_free(void *ptr)
 }
 #endif
 
-int create_sem()
+int create_sem(int c)
 {
   int semid, i, ready;
   union semun arg;
@@ -165,7 +165,10 @@ int create_sem()
   struct sembuf sb;
   key_t key;
 
-  key = ftok(KEYPATH, 'B');
+  if (c < 0)
+    return -1;
+
+  key = ftok(KEYPATH, c);
   if (key < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: ftok error: %s\n", __func__, strerror(errno));
