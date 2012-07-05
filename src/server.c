@@ -624,7 +624,7 @@ int main(int argc, char *argv[])
 
         /*switches*/  
         case 'h':
-          fprintf(stderr, "usage:\n\t%s -w [workers (d:%ld)] -p [port (d:%s)] -b [buffers (d:%ld)] -l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
+          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
           return EX_OK;
 
         /*settings*/

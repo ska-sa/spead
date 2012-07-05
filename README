@@ -13,7 +13,7 @@ Workers refer to subprocesses used to capture and process UDP packets. Defaults 
 
 Port (duh)
 
-Buffers can be thought of as hash tables where packets will be inserted with are backed by linked lists.
+Buffers can be thought of as hash tables where packets will be inserted which are backed by linked lists.
   b defines the amount of the hash tables 
   l defines the length of the hash tables
 
