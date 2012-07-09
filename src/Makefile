@@ -42,5 +42,5 @@ test-hash: sharedmem.c hash.c
 test-shm: sharedmem.c
 	$(CC) $(CFLAGS) -DTEST_SHARED_MEM -o $@ $^
 
-test-mutex: mutex-test.c
+test-mutex: mutex.c
 	$(CC) $(CFLAGS) $(INC) -o $@ $^
