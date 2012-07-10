@@ -7,8 +7,8 @@
 
 
 EXE = spead 
-SRC = sharedmem.c hash.c avltree.c subprocess.c spead_packet.c spead_api.c server.c
-HDR = sharedmem.h hash.h avltree.h spead_packet.h spead_api.h server.h
+SRC = mutex.c sharedmem.c hash.c avltree.c subprocess.c spead_packet.c spead_api.c server.c
+HDR = mutex.h sharedmem.h hash.h avltree.h spead_packet.h spead_api.h server.h
 
 # CFLAGS += -DSTANDALONE
 #CFLAGS += -DDEBUG=2
@@ -17,6 +17,7 @@ CFLAGS += -DDEBUG
 CFLAGS += -DDATA
 CFLAGS += -ggdb
 CFLAGS += -O3
+#CFLAGS += -O2
 CFLAGS += -Wall
 
 
@@ -43,4 +44,4 @@ test-shm: sharedmem.c
 	$(CC) $(CFLAGS) -DTEST_SHARED_MEM -o $@ $^
 
 test-mutex: mutex.c
-	$(CC) $(CFLAGS) $(INC) -o $@ $^
+	$(CC) $(CFLAGS) $(INC) -DTEST_MUTEX -o $@ $^

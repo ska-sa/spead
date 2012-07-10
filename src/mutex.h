@@ -4,20 +4,12 @@
 #define cpu_relax() \
   __asm__ __volatile__ ( "pause\n" : : : "memory")
 
-#define LOCK_PREFIX \
-    ".section .smp_lock,\"a\"\n" \
-    ".balign 4\n" \
-    ".long 671f - .\n" \
-    ".previous\n" \
-    "671:"
-
-typedef volatile int mutex;
+typedef int mutex;
 
 static inline mutex cmpxchg(mutex *ptr, mutex old, mutex new)
 {
   mutex ret;
-  
-  asm volatile(LOCK_PREFIX "cmpxchgl %2,%1"
+  asm volatile("lock\n" "cmpxchgl %2,%1\n"
               : "=a" (ret), "+m" (*(mutex *)ptr)
               : "r" (new), "0" (old)
               : "memory");
@@ -27,14 +19,18 @@ static inline mutex cmpxchg(mutex *ptr, mutex old, mutex new)
 
 static inline mutex xchg(mutex *ptr, mutex x)
 {
-  asm volatile("xchgl %0,%1"
+  asm volatile("lock\n" "xchgl %0,%1\n"
               :"=r" (x), "+m" (*(mutex*)ptr)
               :"0" (x)
               :"memory");
-
   return x;
 }
 
+
+void lock_mutex(mutex *m);
+void unlock_mutex(mutex *m);
+
+#if 0
 static inline mutex atomic_dec(mutex *ptr)
 {
   mutex ret;
@@ -45,7 +41,7 @@ static inline mutex atomic_dec(mutex *ptr)
 
   return ret;
 }
-
+#endif
 
 #endif
 

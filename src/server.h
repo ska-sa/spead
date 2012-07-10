@@ -4,11 +4,12 @@
 #define UDP_SERVER_H
 
 #include "spead_api.h"
+#include "mutex.h"
 
 #define PORT      "8888"
 
 struct u_server {
-  int s_fu;
+  mutex s_m;
   long s_cpus;
   struct u_child **s_cs;
   int s_fd;

@@ -26,6 +26,7 @@
 #include "server.h"
 #include "hash.h"
 #include "sharedmem.h"
+#include "mutex.h"
 
 
 static volatile int run = 1;
@@ -125,11 +126,9 @@ struct u_server *create_server_us(int (*cdfn)(), long cpus)
   s->s_fd   = 0;
   s->s_bc   = 0;
   s->s_cpus = cpus;
-  s->s_cs  = NULL;
-  s->s_hs  = NULL;
-  s->s_fu  = 0;
-
-  
+  s->s_cs   = NULL;
+  s->s_hs   = NULL;
+  s->s_m    = 0;
 
 #endif
   return s;
@@ -354,7 +353,9 @@ int worker_task_us(struct u_server *s, int cfd)
     }
 
     bcount += nread;
+    lock_mutex(&(s->s_m));
     s->s_bc += nread;
+    unlock_mutex(&(s->s_m));
 
    // if (process_packet_hs(s->s_hs, o) < 0){
 #if DEBUG>1
