@@ -68,10 +68,10 @@ void print_time(struct timeval *result, uint64_t bytes)
   us = result->tv_sec*1000*1000 + result->tv_usec;
   //bpus = bytes / us * 1000 * 1000 / 1024 / 1024;
   bpus = (bytes / us) * 1000 * 1000;
-  print_format_bitrate(bpus);
+  print_format_bitrate('R', bpus);
 
 #ifdef DATA
-  fprintf(stderr, "[%d] component time: %lu.%06lds B/s: %ld\n", getpid(), result->tv_sec, result->tv_usec, bpus);
+  fprintf(stderr, "RUNTIME\t[%d]:\t%lu.%06lds\n", getpid(), result->tv_sec, result->tv_usec);
 #endif
 }
 
@@ -163,7 +163,7 @@ int startup_server_us(struct u_server *s, char *port)
 {
   struct addrinfo hints;
   struct addrinfo *res, *rp;
-  int reuse_addr;
+  uint64_t reuse_addr;
 
   if (s == NULL || port == NULL)
     return -1;
@@ -206,7 +206,7 @@ int startup_server_us(struct u_server *s, char *port)
   reuse_addr   = 1;
   setsockopt(s->s_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
 
-  reuse_addr = 700*1024*1024;
+  reuse_addr = 1024*1024*1024;
   if (setsockopt(s->s_fd, SOL_SOCKET, SO_RCVBUF, &reuse_addr, sizeof(reuse_addr)) < 0){
 #ifdef DEBUG
     fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
@@ -263,11 +263,12 @@ int add_child_us(struct u_server *s, struct u_child *c, int size)
   return size + 1;
 }
 
-void print_format_bitrate(uint64_t bps)
+void print_format_bitrate(char x, uint64_t bps)
 {
   char *rates[] = {"B", "KB", "MB", "GB", "TB"};
   int i;
   double style;
+
 #ifdef DATA
   if (bps > 0){
     
@@ -275,7 +276,20 @@ void print_format_bitrate(uint64_t bps)
       style = bps / 1024.0;
     }
     
-    fprintf(stderr, "SERVER RECV RATE: %10.6f %sps\n", style, rates[i]);
+    switch(x){
+
+      case 'T':
+        fprintf(stderr, "TOTAL\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
+
+        break;
+
+      case 'R':
+
+        fprintf(stderr, "RATE\t[%d]:\t%10.9f %sps\n", getpid(), style, rates[i]);
+
+        break;
+
+    }
 
   }
 #endif
@@ -400,8 +414,8 @@ int worker_task_us(struct u_server *s, int cfd)
   close(cfd);
   
 #ifdef DEBUG
-  fprintf(stderr, "\tCHILD[%d]: exiting with bytes: %lu\n", getpid(), bcount);
-  print_format_bitrate(bcount);
+  //fprintf(stderr, "\tCHILD[%d]: exiting with bytes: %lu\n", getpid(), bcount);
+  print_format_bitrate('T', bcount);
 #endif
 
   return 0;
@@ -522,7 +536,7 @@ def DEBUG
       lock_mutex(&(s->s_m));
       total = s->s_bc - total;
       unlock_mutex(&(s->s_m));
-      print_format_bitrate(total);
+      print_format_bitrate('R', total);
 #if 0 
       def DATA
       if (total > 0) {
@@ -588,8 +602,8 @@ def DEBUG
   } while (i++ < s->s_cpus);
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: final recv count:\t%ld bytes\n", __func__, s->s_bc);
-  print_format_bitrate(s->s_bc);
+  //fprintf(stderr, "%s: final recv count:\t%ld bytes\n", __func__, s->s_bc);
+  print_format_bitrate('T', s->s_bc);
 #endif
 
   return 0;
