@@ -357,7 +357,7 @@ int worker_task_us(struct u_server *s, int cfd)
     s->s_bc += nread;
     unlock_mutex(&(s->s_m));
 
-   // if (process_packet_hs(s->s_hs, o) < 0){
+    //if (process_packet_hs(s->s_hs, o) < 0){
 #if DEBUG>1
       fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
 #endif
@@ -368,7 +368,7 @@ int worker_task_us(struct u_server *s, int cfd)
       }
 
       //continue; 
-   // }
+    //}
 
 #if 0
     if(write(cfd, &nread, sizeof(nread)) < 0)

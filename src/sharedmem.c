@@ -158,6 +158,7 @@ void shared_free(void *ptr)
 }
 #endif
 
+#if 0
 int create_sem(int c)
 {
   int semid, i, ready;
@@ -289,7 +290,7 @@ void destroy_sem(int semid)
 
   }
 }
-
+#endif
 
 #ifdef TEST_SHARED_MEM
 #ifdef DEBUG
