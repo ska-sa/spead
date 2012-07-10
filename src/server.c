@@ -60,7 +60,7 @@ int sub_time(struct timeval *delta, struct timeval *alpha, struct timeval *beta)
   return 0;
 }
 
-void print_time(struct timeval *result, int bytes)
+void print_time(struct timeval *result, uint64_t bytes)
 {
   int64_t us;
   int64_t bpus;
@@ -68,6 +68,7 @@ void print_time(struct timeval *result, int bytes)
   us = result->tv_sec*1000*1000 + result->tv_usec;
   //bpus = bytes / us * 1000 * 1000 / 1024 / 1024;
   bpus = (bytes / us) * 1000 * 1000;
+  print_format_bitrate(bpus);
 
 #ifdef DATA
   fprintf(stderr, "[%d] component time: %lu.%06lds B/s: %ld\n", getpid(), result->tv_sec, result->tv_usec, bpus);
@@ -274,7 +275,7 @@ void print_format_bitrate(uint64_t bps)
       style = bps / 1024.0;
     }
     
-    fprintf(stderr, "SERVER RECV RATE: %10.2f %sps\n", style, rates[i]);
+    fprintf(stderr, "SERVER RECV RATE: %10.6f %sps\n", style, rates[i]);
 
   }
 #endif
@@ -285,8 +286,8 @@ int worker_task_us(struct u_server *s, int cfd)
   struct spead_packet *p;
   struct spead_heap_store *hs;
   struct hash_o *o;
-#if 0
-  struct timeval prev, now;
+#if 1
+  struct timeval prev, now, delta;
 #endif
 
   struct sockaddr_storage peer_addr;
@@ -316,6 +317,8 @@ int worker_task_us(struct u_server *s, int cfd)
   if (p == NULL)
     return -1;
 
+  gettimeofday(&prev, NULL);
+
   while (run) {
 
 #if 0
@@ -340,11 +343,10 @@ int worker_task_us(struct u_server *s, int cfd)
     }
 #endif
 
-    //gettimeofday(&prev, NULL);
     rcount++;
     peer_addr_len = sizeof(struct sockaddr_storage); 
 
-    bzero(p, sizeof(struct spead_packet));
+    //bzero(p, sizeof(struct spead_packet));
 
     nread = recvfrom(s->s_fd, p->data, SPEAD_MAX_PACKET_LEN, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
     if (nread <= 0){
@@ -361,7 +363,6 @@ int worker_task_us(struct u_server *s, int cfd)
       break;
     }
 
-    bcount += nread;
     lock_mutex(&(s->s_m));
     s->s_bc += nread;
     unlock_mutex(&(s->s_m));
@@ -386,10 +387,15 @@ int worker_task_us(struct u_server *s, int cfd)
       continue;
 #endif
 
-  //  gettimeofday(&now, NULL);
-//    sub_time(&delta, &now, &prev);
-//    print_time(&delta, nread);
+    
+    
+    bcount += nread;
+
   }
+
+  gettimeofday(&now, NULL);
+  sub_time(&delta, &now, &prev);
+  print_time(&delta, bcount);
 
   close(cfd);
   
@@ -583,6 +589,7 @@ def DEBUG
 
 #ifdef DEBUG
   fprintf(stderr, "%s: final recv count:\t%ld bytes\n", __func__, s->s_bc);
+  print_format_bitrate(s->s_bc);
 #endif
 
   return 0;
