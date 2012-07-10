@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
+#include <asm-generic/mman.h>
 #include <linux/futex.h>
 #include <sys/time.h>
 #include <sys/syscall.h>
@@ -126,7 +127,7 @@ int main(int argc, char *argv[])
 
   fprintf(stderr, "sizeof (unsigned long) %ldbytes\nsizeof (mutex) %ldbytes\n", sizeof(unsigned long), sizeof(mutex));
 
-  v = mmap(NULL, sizeof(unsigned long) + sizeof(mutex) , PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, (-1), 0);
+  v = mmap(NULL, sizeof(unsigned long) + sizeof(mutex) , PROT_READ | PROT_WRITE | PROT_SEM | PROT_EXEC, MAP_ANONYMOUS | MAP_SHARED, (-1), 0);
   if (v == NULL)
     return 1;
 
@@ -173,6 +174,7 @@ int main(int argc, char *argv[])
         lock_mutex(key);
         (*v)++;
         unlock_mutex(key);
+        usleep(1);
       }
 
       exit(EX_OK);
