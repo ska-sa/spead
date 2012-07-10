@@ -5,6 +5,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <limits.h>
 
 #include <linux/futex.h>
 #include <sys/time.h>
@@ -72,8 +73,7 @@ static inline void arch_local_irq_restore(unsigned long flags)
 
 void lock_mutex(mutex *m)
 {
-  mutex c;
-  volatile int i;
+  int c, i;
       
   for (i=0; i<100; i++){
     c = cmpxchg(m, 0, 1);
@@ -95,18 +95,24 @@ void lock_mutex(mutex *m)
 
 void unlock_mutex(mutex *m)
 {
-  volatile int i;
+  int i;
   
-  if (*m == 2){
-    *m = 0;
-  } else if (xchg(m, 0) == 1){
+  if ((*m) == 2){                 /*contended case*/
+    (*m) = 0;                     /*set mutex to free*/
+  } else if (xchg(m, 0) == 1){  /*uncontended case dec mutex*/
+#if 0 
+  def DEBUG
+    fprintf(stderr, "xchg from 1 to 0 unlocked\n");
+#endif
+
     return;
   }
   
   for (i=0; i<200; i++){
-    if (*m){
-      if (cmpxchg(m, 1, 2))
+    if ((*m)){
+      if (cmpxchg(m, 1, 2)){
         return;
+      }
     }
     cpu_relax();
   }
@@ -118,35 +124,39 @@ void unlock_mutex(mutex *m)
 
 int main(int argc, char *argv[])
 {
-#define CHILD 10
+#define CHILD 300
   int i, j;
   pid_t cpid;
   unsigned long *v;
   mutex *key;
 
-  fprintf(stderr, "sizeof (unsigned long) %ldbytes\nsizeof (mutex) %ldbytes\n", sizeof(unsigned long), sizeof(mutex));
-
-  v = mmap(NULL, sizeof(unsigned long) + sizeof(mutex) , PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, (-1), 0);
-  if (v == NULL)
+  key = mmap(NULL, sizeof(unsigned long) + sizeof(mutex), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, (-1), 0);
+  if (key == NULL)
     return 1;
+  
+  bzero((void*)key, sizeof(unsigned long) + sizeof(mutex));
 
-  key = (mutex *)(v + sizeof(unsigned long));
+  v = (unsigned long *)(key + sizeof(mutex));
 
   *v   = 0;
   *key = 0;
 
 #if 0
   *v = cmpxchg(key, 0, 1);
-
+  fprintf(stderr, "cmpxchgq return %ld key %ld\n", *v, *key);
+  *v = cmpxchg(key, 1, 2);
+  fprintf(stderr, "cmpxchgq return %ld key %ld\n", *v, *key);
+  *v = cmpxchg(key, 0, 1);
+  fprintf(stderr, "cmpxchgq return %ld key %ld\n", *v, *key);
+  *v = cmpxchg(key, 2, 0);
   fprintf(stderr, "cmpxchgq return %ld key %ld\n", *v, *key);
 
   *v = xchg(key, 5);
-
   fprintf(stderr, "xchgq return %ld key %ld\n", *v, *key);
-
+#if 0
   *v = atomic_dec(key);
-
   fprintf(stderr, "atomic_dec return %ld key %ld\n", *v, *key);
+#endif
 #endif
 
   
@@ -167,11 +177,12 @@ int main(int argc, char *argv[])
       /*THIS IS A CHILD*/
       fprintf(stderr, "CHILD [%d] writing\n", mypid);
 
-      //pause();
 
-      for (i=0; i<1000; i++){
+      for (i=0; i<10000; i++){
         lock_mutex(key);
-        (*v)++;
+        int temp = *v;
+        temp++;
+        *v = temp;
         unlock_mutex(key);
       }
 
@@ -190,7 +201,7 @@ int main(int argc, char *argv[])
   fprintf(stderr, "PARENT VALUE [%ld]\n", *v);
 
 #endif
-  munmap(v, sizeof(unsigned long) + sizeof(mutex));
+  munmap((void*) key, sizeof(unsigned long) + sizeof(mutex));
   return 0;
 }
 
