@@ -223,7 +223,7 @@ int startup_server_us(struct u_server *s, char *port)
   freeaddrinfo(res);
 
 #ifdef DEBUG
-  fprintf(stderr,"\tserver pid:\t%d\n\tport:\t\t%s\n", getpid(), port);
+  fprintf(stderr,"\tserver pid:\t%d\n\tport:\t\t%s\n\tnice:\t\t%d\n", getpid(), port, nice(0));
 #endif
 
   return 0;
@@ -395,6 +395,7 @@ int worker_task_us(struct u_server *s, int cfd)
   
 #ifdef DEBUG
   fprintf(stderr, "\tCHILD[%d]: exiting with bytes: %lu\n", getpid(), bcount);
+  print_format_bitrate(bcount);
 #endif
 
   return 0;
