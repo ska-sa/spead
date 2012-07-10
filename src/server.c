@@ -512,7 +512,9 @@ def DEBUG
     } 
     
     if (timer){
+      lock_mutex(&(s->s_m));
       total = s->s_bc - total;
+      unlock_mutex(&(s->s_m));
       print_format_bitrate(total);
 #if 0 
       def DATA
@@ -522,7 +524,9 @@ def DEBUG
 #endif
       alarm(1);
       timer = 0;
+      lock_mutex(&(s->s_m));
       total = s->s_bc;
+      unlock_mutex(&(s->s_m));
       continue;
     }
 
