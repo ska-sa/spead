@@ -311,10 +311,14 @@ int worker_task_us(struct u_server *s, int cfd)
 #ifdef DEBUG
   fprintf(stderr, "\t  CHILD\t\t[%d]\n", pid);
 #endif
+  
+  p = malloc(sizeof(struct spead_packet));
+  if (p == NULL)
+    return -1;
 
   while (run) {
 
-#if 1
+#if 0
     o = pop_hash_o(hs->s_list);
     if (o == NULL){
       //run = 0;
@@ -322,7 +326,9 @@ int worker_task_us(struct u_server *s, int cfd)
       //sleep(1);
       continue;
     }
+#endif
 
+#if 0
     p = get_data_hash_o(o);
     if (p == NULL){
       if (push_hash_o(hs->s_list, o) < 0){
@@ -332,6 +338,7 @@ int worker_task_us(struct u_server *s, int cfd)
       }
       continue;
     }
+#endif
 
     //gettimeofday(&prev, NULL);
     rcount++;
@@ -344,11 +351,13 @@ int worker_task_us(struct u_server *s, int cfd)
 #if DEBUG>1
       fprintf(stderr, "%s: rcount [%lu] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
 #endif
+#if 0
       if (push_hash_o(hs->s_list, o) < 0){
 #ifdef DEBUG
         fprintf(stderr, "%s: cannot push object!\n", __func__);
 #endif
       }
+#endif
       break;
     }
 
@@ -357,7 +366,8 @@ int worker_task_us(struct u_server *s, int cfd)
     s->s_bc += nread;
     unlock_mutex(&(s->s_m));
 
-    //if (process_packet_hs(s->s_hs, o) < 0){
+#if 0
+    if (process_packet_hs(s->s_hs, o) < 0){
 #if DEBUG>1
       fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
 #endif
@@ -368,7 +378,8 @@ int worker_task_us(struct u_server *s, int cfd)
       }
 
       //continue; 
-    //}
+    }
+#endif
 
 #if 0
     if(write(cfd, &nread, sizeof(nread)) < 0)
@@ -378,7 +389,6 @@ int worker_task_us(struct u_server *s, int cfd)
   //  gettimeofday(&now, NULL);
 //    sub_time(&delta, &now, &prev);
 //    print_time(&delta, nread);
-#endif
   }
 
   close(cfd);
