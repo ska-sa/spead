@@ -15,62 +15,6 @@
 
 #include "mutex.h"
 
-static pid_t mypid;
-
-#if 0 
-#define IRQ_DISABLED 0
-#define IRQ_ENABLED  1
-
-static inline unsigned long native_save_fl(void)
-{
-	unsigned long flags;
-
-	/*
-	 * "=rm" is safe here, because "pop" adjusts the stack before
-	 * it evaluates its effective address -- this is part of the
-	 * documented behavior of the "pop" instruction.
-	 */
-	asm volatile("# __raw_save_flags\n\t"
-		     "pushf ; pop %0"
-		     : "=rm" (flags)
-		     : /* no input */
-		     : "memory");
-
-	return flags;
-}
-
-static inline void native_restore_fl(unsigned long flags)
-{
-	asm volatile("push %0 ; popf"
-		     : /* no output */
-		     :"g" (flags)
-		     :"memory", "cc");
-}
-
-static inline unsigned long arch_local_irq_save(void)
-{
-	unsigned long flags;
-	flags = native_save_fl();
-	native_restore_fl(IRQ_DISABLED);
-	return flags;
-}
-
-static inline void arch_local_irq_restore(unsigned long flags)
-{
-  native_restore_fl(flags);
-}
-
-#define irq_restore(flags)			\
-	do {						\
-		arch_local_irq_restore(flags);		\
-	} while (0)
-#define irq_save(flags)			\
-	do {						\
-		flags = arch_local_irq_save();	\
-	} while (0)
-#endif
-
-
 void lock_mutex(mutex *m)
 {
   int c, i;
@@ -97,14 +41,9 @@ void unlock_mutex(mutex *m)
 {
   int i;
   
-  if ((*m) == 2){                 /*contended case*/
-    (*m) = 0;                     /*set mutex to free*/
-  } else if (xchg(m, 0) == 1){  /*uncontended case dec mutex*/
-#if 0 
-  def DEBUG
-    fprintf(stderr, "xchg from 1 to 0 unlocked\n");
-#endif
-
+  if ((*m) == 2){                 
+    (*m) = 0;                    
+  } else if (xchg(m, 0) == 1){ 
     return;
   }
   
@@ -122,9 +61,10 @@ void unlock_mutex(mutex *m)
   return;
 }
 
+#ifdef TEST_MUTEX
 int main(int argc, char *argv[])
 {
-#define CHILD 300
+#define CHILD 30
   int i, j;
   pid_t cpid;
   unsigned long *v;
@@ -159,8 +99,6 @@ int main(int argc, char *argv[])
 #endif
 #endif
 
-  
-
 #if 1
   for (j=0; j<CHILD; j++){
 
@@ -172,13 +110,12 @@ int main(int argc, char *argv[])
     }
 
     if (!cpid){
-      mypid = getpid();
 
       /*THIS IS A CHILD*/
-      fprintf(stderr, "CHILD [%d] writing\n", mypid);
+      fprintf(stderr, "CHILD [%d] writing\n", getpid());
 
 
-      for (i=0; i<10000; i++){
+      for (i=0; i<100000; i++){
         lock_mutex(key);
         int temp = *v;
         temp++;
@@ -189,13 +126,11 @@ int main(int argc, char *argv[])
       exit(EX_OK);
     }
 
-    //fprintf(stderr, "PARENT [%d] forked child [%d]\n", getpid(), cpid);
   }
 
   i=0;
   do {
     fprintf(stderr, "parent collected child [%d]\n", wait(NULL));
-    //wait(NULL);
   } while(i++ < CHILD);
 
   fprintf(stderr, "PARENT VALUE [%ld]\n", *v);
@@ -204,4 +139,4 @@ int main(int argc, char *argv[])
   munmap((void*) key, sizeof(unsigned long) + sizeof(mutex));
   return 0;
 }
-
+#endif
