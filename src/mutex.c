@@ -167,11 +167,11 @@ int main(int argc, char *argv[])
       /*THIS IS A CHILD*/
       fprintf(stderr, "CHILD [%d] writing\n", getpid());
 
-      lock_mutex(key);
       for (i=0; i<1000; i++){
+        lock_mutex(key);
         (*v)++;
+        unlock_mutex(key);
       }
-      unlock_mutex(key);
 
       exit(EX_OK);
     }
