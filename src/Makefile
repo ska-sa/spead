@@ -16,7 +16,7 @@ CFLAGS += -DPROCESS
 CFLAGS += -DDEBUG
 CFLAGS += -DDATA
 CFLAGS += -ggdb
-#CFLAGS += -O3
+CFLAGS += -O3
 CFLAGS += -Wall
 
 

@@ -12,12 +12,7 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 
-#define LOCK_PREFIX \
-    ".section .smp_lock,\"a\"\n" \
-    ".balign 4\n" \
-    ".long 671f - .\n" \
-    ".previous\n" \
-    "671:"
+#include "mutex.h"
 
 static pid_t mypid;
 
@@ -74,89 +69,68 @@ static inline void arch_local_irq_restore(unsigned long flags)
 	} while (0)
 #endif
 
-static inline unsigned long cmpxchg(volatile void *ptr, volatile unsigned long old, volatile unsigned long new)
+
+void lock_mutex(mutex *m)
 {
-  volatile unsigned long ret, flags;
+  mutex c;
+  volatile int i;
+      
+  for (i=0; i<100; i++){
+    c = cmpxchg(m, 0, 1);
+    if (!c)
+      return;
+    cpu_relax();
+  }
   
-  //irq_save(flags);
+  if (c == 1)
+    c = xchg(m, 2);
 
-  asm volatile(LOCK_PREFIX "cmpxchgq %2,%1"
-              : "=a" (ret), "+m" (*(unsigned long *)ptr)
-              : "r" (new), "0" (old)
-              : "memory");
-
-  //irq_restore(flags);
-   
-  return ret;
-}
-
-static inline unsigned long xchg(volatile void *ptr, volatile unsigned long x)
-{
-  volatile unsigned long flags;
-  //irq_save(flags);
-  asm volatile("xchgq %0,%1"
-              :"=r" (x), "+m" (*(unsigned long*)ptr)
-              :"0" (x)
-              :"memory");
-
-  //irq_restore(flags);
-  return x;
-}
-
-static inline unsigned long atomic_dec(volatile void *ptr)
-{
-  volatile unsigned long ret, flags;
-
-  //irq_save(flags);
-  ret = *(unsigned long*)ptr;
-  asm volatile(LOCK_PREFIX "decl %0"
-              : "+m" (*(unsigned long*)ptr));
-
-  //irq_restore(flags);
-  return ret;
-}
-
-void lock_mutex(unsigned long *key)
-{
-  volatile unsigned long c;
-  c = 0;
+  while (c){
+    syscall(SYS_futex, m, FUTEX_WAIT, 2, NULL, NULL, 0);
+    c = xchg(m, 2);
+  }
   
-  if ((c = cmpxchg(key, 0, 1)) != 0){
-
-    if (c != 2){
-      c = xchg(key, 2);
-    }
-
-    while (c != 0){
-      syscall(SYS_futex, key, FUTEX_WAIT, 2, NULL, NULL, 0);
-      c = xchg(key, 2);
-    }
-  } 
-
+  return;
 }
 
-void unlock_mutex(unsigned long *key)
+void unlock_mutex(mutex *m)
 {
-  if (atomic_dec(key) != 1){
-    *(key) = 0;
-    syscall(SYS_futex, key, FUTEX_WAKE, 1, NULL, NULL, 0);
-  } 
+  volatile int i;
+  
+  if (*m == 2){
+    *m = 0;
+  } else if (xchg(m, 0) == 1){
+    return;
+  }
+  
+  for (i=0; i<200; i++){
+    if (*m){
+      if (cmpxchg(m, 1, 2))
+        return;
+    }
+    cpu_relax();
+  }
+    
+  syscall(SYS_futex, m, FUTEX_WAKE, 1, NULL, NULL, 0);
+  
+  return;
 }
 
 int main(int argc, char *argv[])
 {
-#define CHILD 3
+#define CHILD 10
   int i, j;
   pid_t cpid;
-  unsigned long *v, *key;
+  unsigned long *v;
+  mutex *key;
 
-  fprintf(stderr, "sizeof (unsigned long) %ldbytes\nsizeof (uint64_t) %ldbytes\n", sizeof(unsigned long), sizeof(uint64_t));
+  fprintf(stderr, "sizeof (unsigned long) %ldbytes\nsizeof (mutex) %ldbytes\n", sizeof(unsigned long), sizeof(mutex));
 
-  v = mmap(NULL, sizeof(unsigned long)*2, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, (-1), 0);
+  v = mmap(NULL, sizeof(unsigned long) + sizeof(mutex) , PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, (-1), 0);
   if (v == NULL)
     return 1;
 
-  key = v + sizeof(unsigned long);
+  key = (mutex *)(v + sizeof(unsigned long));
 
   *v   = 0;
   *key = 0;
@@ -216,7 +190,7 @@ int main(int argc, char *argv[])
   fprintf(stderr, "PARENT VALUE [%ld]\n", *v);
 
 #endif
-  munmap(v, sizeof(unsigned long)*2);
+  munmap(v, sizeof(unsigned long) + sizeof(mutex));
   return 0;
 }
 
