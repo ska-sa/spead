@@ -71,7 +71,7 @@ void print_time(struct timeval *result, uint64_t bytes)
   print_format_bitrate('R', bpus);
 
 #ifdef DATA
-  fprintf(stderr, "RTIME\t[%d]:\t%lu.%06lds\n", getpid(), result->tv_sec, result->tv_usec);
+  fprintf(stderr, "RTIME\t[%d]:\t%3lu.%06ld seconds\n", getpid(), result->tv_sec, result->tv_usec);
 #endif
 }
 
