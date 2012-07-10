@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "mutex.h"
+
 struct hash_table;
 
 struct hash_o_list {
@@ -11,7 +13,7 @@ struct hash_o_list {
   struct hash_o *l_top;
   void *(*l_create)();
   void (*l_destroy)(void *data);
-  int l_semid;
+  mutex l_m;
 };
 
 /*create a list of objects each with element size*/
@@ -37,7 +39,7 @@ void *get_data_hash_o(struct hash_o *o);
 
 
 struct hash_table {
-  int           t_semid;
+  mutex         t_m;
   uint64_t      t_id;
   uint64_t      t_len;
   uint64_t      t_data_count;
