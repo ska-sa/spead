@@ -71,7 +71,7 @@ void print_time(struct timeval *result, uint64_t bytes)
   print_format_bitrate('R', bpus);
 
 #ifdef DATA
-  fprintf(stderr, "RUNTIME\t[%d]:\t%lu.%06lds\n", getpid(), result->tv_sec, result->tv_usec);
+  fprintf(stderr, "RTIME\t[%d]:\t%lu.%06lds\n", getpid(), result->tv_sec, result->tv_usec);
 #endif
 }
 
@@ -185,7 +185,7 @@ int startup_server_us(struct u_server *s, char *port)
   }
 
   for (rp = res; rp != NULL; rp = rp->ai_next) {
-#ifdef DEBUG
+#if DEBUG>1
     fprintf(stderr, "%s: res (%p) with: %d\n", __func__, rp, rp->ai_protocol);
 #endif
     if (rp->ai_family == AF_INET6)
@@ -224,7 +224,7 @@ int startup_server_us(struct u_server *s, char *port)
   freeaddrinfo(res);
 
 #ifdef DEBUG
-  fprintf(stderr,"\tserver pid:\t%d\n\tport:\t\t%s\n\tnice:\t\t%d\n", getpid(), port, nice(0));
+  fprintf(stderr,"\tSERVER:\t\t[%d]\n\tport:\t\t%s\n\tnice:\t\t%d\n", getpid(), port, nice(0));
 #endif
 
   return 0;
@@ -286,6 +286,16 @@ void print_format_bitrate(char x, uint64_t bps)
       case 'R':
 
         fprintf(stderr, "RATE\t[%d]:\t%10.9f %sps\n", getpid(), style, rates[i]);
+
+        break;
+
+        fprintf(stderr, "RATE\t[%d]:\t%10.9f %sps\n", getpid(), style, rates[i]);
+
+        break;
+
+      case 'D':
+
+        fprintf(stderr, "DATA\t[%d]:\t%10.9f %s\n", getpid(), style, rates[i]);
 
         break;
 
@@ -407,6 +417,8 @@ int worker_task_us(struct u_server *s, int cfd)
 
   }
 
+  
+  lock_mutex(&(s->s_m));
   gettimeofday(&now, NULL);
   sub_time(&delta, &now, &prev);
   print_time(&delta, bcount);
@@ -417,6 +429,7 @@ int worker_task_us(struct u_server *s, int cfd)
   //fprintf(stderr, "\tCHILD[%d]: exiting with bytes: %lu\n", getpid(), bcount);
   print_format_bitrate('T', bcount);
 #endif
+  unlock_mutex(&(s->s_m));
 
   return 0;
 }

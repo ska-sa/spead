@@ -89,8 +89,8 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   }
 #endif
 
-#ifdef DEBUG
-  fprintf(stderr, "HAVE HASH TABLE[%ld] can hash [%ld] objects\n", id, len);
+#if DEBUG>1
+  fprintf(stderr, "HT[%ld/%ld] ", id, len);
 #endif
 
   //print_list_stats(t->t_l, __func__);
@@ -303,7 +303,7 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
     l->l_top  = o;
   }
 
-  print_list_stats(l, __func__);
+  //print_list_stats(l, __func__);
 
   return l;
 }

@@ -13,6 +13,7 @@
 
 
 #include "sharedmem.h"
+#include "server.h"
 
 #define KEYPATH     "/dev/null"
 #define MAX_RETRIES 10
@@ -99,7 +100,8 @@ int create_shared_mem(uint64_t size)
   m_area->m_ptr  = ptr;
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: shared memory or size [%ld] created shared_malloc now available\n", __func__, size);
+  //fprintf(stderr, "%s: shared memory or size [%ld] created shared_malloc now available\n", __func__, size);
+  print_format_bitrate('D', size);
 #endif
 
   return 0;

@@ -113,7 +113,7 @@ struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_
     return NULL;
   }
 
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: created spead packet bank of size [%ld]\n", __func__, list_len);
 #endif
 
@@ -137,8 +137,8 @@ struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_
     }
   }
 
-#ifdef DEBUG
-  fprintf(stderr, "%s: created spead packet hash table of size [%ld]\n", __func__, list_len);
+#if DEBUG>1
+  fprintf(stderr, "%s: created [%ld] spead packet hash tables of size [%ld]\n", __func__, hash_table_count, hash_table_size);
 #endif
 
   return hs;
