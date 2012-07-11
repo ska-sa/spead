@@ -268,6 +268,8 @@ void print_format_bitrate(char x, uint64_t bps)
   char *rates[] = {"B", "KB", "MB", "GB", "TB"};
   int i;
   double style;
+  
+  bps *= 8;
 
 #ifdef DATA
   if (bps > 0){
