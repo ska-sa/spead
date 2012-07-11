@@ -231,8 +231,8 @@ int process_items(struct hash_table *ht)
   if (ht == NULL || ht->t_os == NULL)
     return -1;
 
-#ifdef DATA
-      fprintf(stderr, "HEAP CNT [%ld]\n", ht->t_data_id); 
+#if DEBUG>1
+  fprintf(stderr, "HEAP CNT [%ld]\n", ht->t_data_id); 
 #endif
 
 #ifdef DEBUG

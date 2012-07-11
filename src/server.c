@@ -327,7 +327,7 @@ int worker_task_us(struct u_server *s, int cfd)
   fprintf(stderr, "\t  CHILD\t\t[%d]\n", pid);
 #endif
   
-#if 0
+#ifdef RATE
   p = malloc(sizeof(struct spead_packet));
   if (p == NULL)
     return -1;
@@ -337,7 +337,7 @@ int worker_task_us(struct u_server *s, int cfd)
 
   while (run) {
 
-#if 1
+#ifndef RATE
     o = pop_hash_o(hs->s_list);
     if (o == NULL){
       //run = 0;
@@ -347,7 +347,7 @@ int worker_task_us(struct u_server *s, int cfd)
     }
 #endif
 
-#if 1
+#ifndef RATE
     p = get_data_hash_o(o);
     if (p == NULL){
       if (push_hash_o(hs->s_list, o) < 0){
@@ -369,7 +369,7 @@ int worker_task_us(struct u_server *s, int cfd)
 #if DEBUG>1
       fprintf(stderr, "%s: rcount [%lu] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
 #endif
-#if 1
+#ifndef RATE
       if (push_hash_o(hs->s_list, o) < 0){
 #ifdef DEBUG
         fprintf(stderr, "%s: cannot push object!\n", __func__);
@@ -383,7 +383,7 @@ int worker_task_us(struct u_server *s, int cfd)
     s->s_bc += nread;
     unlock_mutex(&(s->s_m));
 
-#if 1
+#ifndef RATE
     if (process_packet_hs(s->s_hs, o) < 0){
 #if DEBUG>1
       fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
@@ -393,7 +393,6 @@ int worker_task_us(struct u_server *s, int cfd)
         fprintf(stderr, "%s: cannot push object!\n", __func__);
 #endif
       }
-
       //continue; 
     }
 #endif
