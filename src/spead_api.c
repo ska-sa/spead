@@ -231,6 +231,10 @@ int process_items(struct hash_table *ht)
   if (ht == NULL || ht->t_os == NULL)
     return -1;
 
+#ifdef DATA
+      fprintf(stderr, "HEAP CNT [%ld]\n", ht->t_data_id); 
+#endif
+
 #ifdef DEBUG
   fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
 #endif
@@ -251,6 +255,7 @@ int process_items(struct hash_table *ht)
       p = get_data_hash_o(o);
       if (p == NULL)
         continue;
+
 
       for (j=0; j<p->n_items; j++){
         /*items start from 1, 0 is the header*/ 
