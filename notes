@@ -2,8 +2,59 @@ consider increasing /proc/sys/kernel/shmmax
 
 sudo sh -c "echo $[1000*1024*1024] > /proc/sys/kernel/shmmax"
 
+ITEM_DESCRIPTOR SPEAD ID [0x5]
+  provide meta data for incomming spead stream
+  can be issued at any time including during a stream
+  could contain a STREAM_CONTROL item with value 1 for item descriptor reissue
+  item descriptors are self contained spead packets with spead header
+  they contain at least the following items
+
+  ItemDescriptorID 
+      - [0x0014] shape 1 uint immediate address
+      - num code to id the item we are describing bitwidth (ItemPointerWidth - HeapAddressWidth-1)
+
+  ItemDescriptorName 
+      - [0x0010] shape 1xN char array immediate or direct address
+      - A short string nameing the variable contained in this item
+
+  ItemDescriptorDescription 
+      - [0x0011] shape 1xN char array immediate or direct address
+      - A ASCII string explaining the variables use and packing scheme
+
+  ItemDescriptorType
+      - [0x0013] shape 1xN binary packed direct addressed
+      - Binary vector representing the data type (signed or unsigned int, float, string, boolean etc) 
+        and number of bits per value.
+      - Contains the unpack string for parser how to unpack the payload
+      - Can contain one or more unpack directives with each directive referring to a consecutive data
+        type in the payload
+      - each directive has the following form: unpack_type[bit_length|ItemIdentifier]
+        unpacktype
+          0 0x0030 interpret remaining XX bits as an ItemIdentifier
+                   e.g. can ref another item allowing hierarchical constructs where the bit_length or 
+                   ItemIdentifier field has the same size as your SPEAD flavour's ItemIdentifierWidth
+          i 0x0069 signed integer
+          u 0x0075 unsigned integer
+          f 0x0066 IEEE float
+          c 0x0063 ASCII character
+          b 0x0062 boolean
+
+  ItemDescriptorShape
+      - [0x0012] shape 1xN binary packed
+      - A binary vector representing the size along each dimension
+
+  ItemDescriptorDType
+      - [0x0015] shape 1xN string representation of numpy dtype
+      - OPTIONAL string specifying the shape and type of this item using numpy dtype string syntax??
+
+
+
+STREAM_CONTROL SPEAD ID  [0x6]
 
 Create c api for spead
+
+
+Observations of the PySPEAD impl
 
 itemgroups 
   have items with names
