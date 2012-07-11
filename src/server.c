@@ -268,8 +268,9 @@ void print_format_bitrate(char x, uint64_t bps)
   char *rates[] = {"B", "KB", "MB", "GB", "TB"};
   int i;
   double style;
+  uint64_t bitsps;
   
-  bps *= 8;
+  bitsps = bps * 8;
 
 #ifdef DATA
   if (bps > 0){
@@ -285,11 +286,11 @@ void print_format_bitrate(char x, uint64_t bps)
         break;
 
       case 'R':
-        fprintf(stderr, "RATE\t[%d]:\t%10.9f %sps\n", getpid(), style, rates[i]);
+        fprintf(stderr, "RATE\t[%d]:\t%10.6f %sps %ld\n", getpid(), style, rates[i], bitsps);
         break;
 
       case 'D':
-        fprintf(stderr, "DATA\t[%d]:\t%10.9f %s\n", getpid(), style, rates[i]);
+        fprintf(stderr, "DATA\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
         break;
 
     }
