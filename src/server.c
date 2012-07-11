@@ -275,8 +275,8 @@ void print_format_bitrate(char x, uint64_t bps)
 #ifdef DATA
   if (bps > 0){
     
-    for (i=0; (bps / 1024) > 0; i++, bps /= 1024){
-      style = bps / 1024.0;
+    for (i=0; (bitsps / 1024) > 0; i++, bitsps /= 1024){
+      style = bitsps / 1024.0;
     }
     
     switch(x){
