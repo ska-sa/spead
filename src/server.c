@@ -265,7 +265,7 @@ int add_child_us(struct u_server *s, struct u_child *c, int size)
 
 void print_format_bitrate(char x, uint64_t bps)
 {
-  char *rates[] = {"B", "KB", "MB", "GB", "TB"};
+  char *rates[] = {"b", "kb", "mb", "gb", "tb"};
   int i;
   double style;
   uint64_t bitsps;
