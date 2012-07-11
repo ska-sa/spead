@@ -281,14 +281,10 @@ int process_items(struct hash_table *ht)
         switch (mode){
           case SPEAD_DIRECTADDR:
             off = (int64_t) SPEAD_ITEM_ADDR(iptr);
-
 #ifdef PROCESS
             fprintf(stderr, "\tDIRECT ADDRESSED\n");
             fprintf(stderr, "\toff 0x%lx\n", off);
 #endif
-
-            
-
             break;
 
           case SPEAD_IMMEDIATEADDR:
@@ -301,13 +297,10 @@ int process_items(struct hash_table *ht)
             }
 #endif
 
-
 #ifdef PROCESS
             fprintf(stderr, "\tIMMEDIATE ADDRESSED len [%d] bytes\n", SPEAD_ADDRLEN);
             fprintf(stderr, "\tdata: 0x%lx\n", data64);
 #endif
-            
-
             break;
 
         }
@@ -385,9 +378,13 @@ def DEBUG
 #if 0
   lock_sem(ht->t_semid);
 #endif
+  
+  lock_mutex(&(ht->t_m));
 
   ht->t_data_count += p->payload_len;
   ht->t_items      += p->n_items;
+
+  unlock_mutex(&(ht->t_m));
 
 #if 0  
   unlock_sem(ht->t_semid);
@@ -490,7 +487,6 @@ int process_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
 #endif 
     return -1;
   }
-
   
   if (spead_packet_unpack_header(p) == SPEAD_ERR){
 #ifdef DEBUG
@@ -528,9 +524,6 @@ int process_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
 
   return rtn;
 }
-
-
-
 
 
 

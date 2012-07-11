@@ -151,6 +151,8 @@ def DEBUG
   fprintf(stderr, "%s: about to empty\n", __func__);
 #endif
 
+  lock_mutex(&(ht->t_m));
+
 #if 0
   lock_sem(ht->t_semid);
 #endif
@@ -192,6 +194,8 @@ def DEBUG
 #if 0
   unlock_sem(ht->t_semid);
 #endif
+
+  unlock_mutex(&(ht->t_m));
 
   //print_list_stats(l, __func__);
 
@@ -363,6 +367,7 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
 #if 0
   lock_sem(t->t_semid);
 #endif
+  lock_mutex(&(t->t_m));
 
   if (t->t_os[id] == NULL){
     /*simple case*/
@@ -374,6 +379,7 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
 #if 0
     unlock_sem(t->t_semid);
 #endif
+    unlock_mutex(&(t->t_m));
 
     return 0;
   }
@@ -390,6 +396,7 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
 #if 0
     unlock_sem(t->t_semid);
 #endif
+    unlock_mutex(&(t->t_m));
     return -1;
   }
 
@@ -401,6 +408,7 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
 #if 0
   unlock_sem(t->t_semid);
 #endif
+  unlock_mutex(&(t->t_m));
 
   return 0;
 }

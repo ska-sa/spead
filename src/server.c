@@ -280,27 +280,17 @@ void print_format_bitrate(char x, uint64_t bps)
 
       case 'T':
         fprintf(stderr, "TOTAL\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
-
         break;
 
       case 'R':
-
         fprintf(stderr, "RATE\t[%d]:\t%10.9f %sps\n", getpid(), style, rates[i]);
-
-        break;
-
-        fprintf(stderr, "RATE\t[%d]:\t%10.9f %sps\n", getpid(), style, rates[i]);
-
         break;
 
       case 'D':
-
         fprintf(stderr, "DATA\t[%d]:\t%10.9f %s\n", getpid(), style, rates[i]);
-
         break;
 
     }
-
   }
 #endif
 }
@@ -337,15 +327,17 @@ int worker_task_us(struct u_server *s, int cfd)
   fprintf(stderr, "\t  CHILD\t\t[%d]\n", pid);
 #endif
   
+#if 0
   p = malloc(sizeof(struct spead_packet));
   if (p == NULL)
     return -1;
+#endif
 
   gettimeofday(&prev, NULL);
 
   while (run) {
 
-#if 0
+#if 1
     o = pop_hash_o(hs->s_list);
     if (o == NULL){
       //run = 0;
@@ -355,7 +347,7 @@ int worker_task_us(struct u_server *s, int cfd)
     }
 #endif
 
-#if 0
+#if 1
     p = get_data_hash_o(o);
     if (p == NULL){
       if (push_hash_o(hs->s_list, o) < 0){
@@ -377,7 +369,7 @@ int worker_task_us(struct u_server *s, int cfd)
 #if DEBUG>1
       fprintf(stderr, "%s: rcount [%lu] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
 #endif
-#if 0
+#if 1
       if (push_hash_o(hs->s_list, o) < 0){
 #ifdef DEBUG
         fprintf(stderr, "%s: cannot push object!\n", __func__);
@@ -391,7 +383,7 @@ int worker_task_us(struct u_server *s, int cfd)
     s->s_bc += nread;
     unlock_mutex(&(s->s_m));
 
-#if 0
+#if 1
     if (process_packet_hs(s->s_hs, o) < 0){
 #if DEBUG>1
       fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
@@ -410,8 +402,6 @@ int worker_task_us(struct u_server *s, int cfd)
     if(write(cfd, &nread, sizeof(nread)) < 0)
       continue;
 #endif
-
-    
     
     bcount += nread;
 
@@ -427,8 +417,8 @@ int worker_task_us(struct u_server *s, int cfd)
   
 #ifdef DEBUG
   //fprintf(stderr, "\tCHILD[%d]: exiting with bytes: %lu\n", getpid(), bcount);
-  print_format_bitrate('T', bcount);
 #endif
+  print_format_bitrate('T', bcount);
   unlock_mutex(&(s->s_m));
 
   return 0;
@@ -616,8 +606,8 @@ def DEBUG
 
 #ifdef DEBUG
   //fprintf(stderr, "%s: final recv count:\t%ld bytes\n", __func__, s->s_bc);
-  print_format_bitrate('T', s->s_bc);
 #endif
+  print_format_bitrate('T', s->s_bc);
 
   return 0;
 }
