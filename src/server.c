@@ -67,8 +67,8 @@ void print_time(struct timeval *result, uint64_t bytes)
 
   us = result->tv_sec*1000*1000 + result->tv_usec;
   //bpus = bytes / us * 1000 * 1000 / 1024 / 1024;
-  bpus = (bytes / us) * 1000 * 1000;
-  print_format_bitrate('R', bpus);
+  //bpus = (bytes / us) * 1000 * 1000;
+  //print_format_bitrate('R', bpus);
 
 #ifdef DATA
   fprintf(stderr, "RTIME\t[%d]:\t%3lu.%06ld seconds\n", getpid(), result->tv_sec, result->tv_usec);
@@ -265,12 +265,13 @@ int add_child_us(struct u_server *s, struct u_child *c, int size)
 
 void print_format_bitrate(char x, uint64_t bps)
 {
-  char *rates[] = {"b", "kb", "mb", "gb", "tb"};
+  char *rates[] = {"bits", "kbits", "mbits", "gbits", "tbits"};
   int i;
   double style;
   uint64_t bitsps;
   
   bitsps = bps * 8;
+  bps = bitsps;
 
 #ifdef DATA
   if (bps > 0){
@@ -286,7 +287,7 @@ void print_format_bitrate(char x, uint64_t bps)
         break;
 
       case 'R':
-        fprintf(stderr, "RATE\t[%d]:\t%10.6f %sps %ld\n", getpid(), style, rates[i], bitsps);
+        fprintf(stderr, "RATE\t[%d]:\t%10.6f %sps %ld bps\n", getpid(), style, rates[i], bps);
         break;
 
       case 'D':
