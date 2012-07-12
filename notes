@@ -47,9 +47,8 @@ ITEM_DESCRIPTOR SPEAD ID [0x5]
       - [0x0015] shape 1xN string representation of numpy dtype
       - OPTIONAL string specifying the shape and type of this item using numpy dtype string syntax??
 
-
-
 STREAM_CONTROL SPEAD ID  [0x6]
+
 
 Create c api for spead
 

@@ -219,9 +219,19 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
 
 int process_items(struct hash_table *ht)
 {
+#define S_END             0
+#define S_MODE            1
+#define S_MODE_IMMEDIATE  2
+#define S_MODE_DIRECT     3
+#define S_GET_PACKET      4
+#define S_NEXT_PACKET     5
+#define S_GET_ITEM        6
+#define S_NEXT_ITEM       7
+#define S_GET_OBJECT      8
+
   struct hash_o *o;
   struct spead_packet *p;
-  int i, j, id, mode;
+  int i, j, id, mode, state;
   int64_t iptr, off, data64;
   
   struct spead_api_item *itm;
@@ -238,34 +248,78 @@ int process_items(struct hash_table *ht)
 #ifdef DEBUG
   fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
 #endif
-  
 
   //map = mmap(NULL, ht->t_data_count, PROT_WRITE | PROT_READ, MAP_PRIVATE, (-1), 0);
 
+  i = 0;
+  j = 0;
+  state = S_GET_OBJECT;
 
+  while (state){
 
-  for (i=0; i < ht->t_len; i++){
-    
-    o = ht->t_os[i];
-    if (o == NULL)
-      continue;
+    switch (state){
 
-    do {
+      case S_GET_OBJECT:
+        if (i < ht->t_len){
+          o = ht->t_os[i];
+          if (o == NULL){
+            i++;
+            j=0;
+            state = S_GET_OBJECT;
+            break;
+          } 
+          state = S_GET_PACKET;
+        } else {
+          state = S_END;
+        }
+        break;
 
-      p = get_data_hash_o(o);
-      if (p == NULL)
-        continue;
+      case S_GET_PACKET:
+        p = get_data_hash_o(o);
+        if (p == NULL){
+          state = S_NEXT_PACKET;
+          break;
+        }
+        state = S_GET_ITEM;
+        break;
 
+      case S_NEXT_PACKET:
+        if (o->o_next != NULL){
+          o = o->o_next;
+          state = S_GET_PACKET;
+        } else {
+          i++;
+          j=0;
+          state = S_GET_OBJECT;
+        }
+        break;
 
-      for (j=0; j<p->n_items; j++){
-        /*items start from 1, 0 is the header*/ 
-        iptr = SPEAD_ITEM(p->data, (j+1));
-        id   = SPEAD_ITEM_ID(iptr);
-        mode = SPEAD_ITEM_MODE(iptr);
-
+      case S_GET_ITEM:
+        if (j < p->n_items){
+          iptr = SPEAD_ITEM(p->data, (j+1));
+          id   = SPEAD_ITEM_ID(iptr);
+          mode = SPEAD_ITEM_MODE(iptr);
 #ifdef PROCESS
-        fprintf(stderr, "ITEM[%d] mode[%d] id[%d] 0x%lx\n", j, mode, id, iptr);
+          fprintf(stderr, "ITEM[%d] mode[%d] id[%d] 0x%lx\n", j, mode, id, iptr);
 #endif
+
+          //state = S_NEXT_ITEM;
+          state = S_MODE;
+        } else {
+          state = S_NEXT_PACKET;
+        }
+        
+        break;
+        
+      case S_NEXT_ITEM:
+        j++;
+        state = S_GET_ITEM;
+        break;
+
+
+      case S_MODE:
+
+        state = S_NEXT_ITEM;
 
         switch(id){
           case SPEAD_HEAP_CNT_ID:
@@ -282,38 +336,115 @@ int process_items(struct hash_table *ht)
             break;
         }
 
-
         switch (mode){
           case SPEAD_DIRECTADDR:
-            off = (int64_t) SPEAD_ITEM_ADDR(iptr);
-#ifdef PROCESS
-            fprintf(stderr, "\tDIRECT ADDRESSED\n");
-            fprintf(stderr, "\toff 0x%lx\n", off);
-#endif
+            state = S_MODE_DIRECT;
             break;
-
           case SPEAD_IMMEDIATEADDR:
-            /*this macro call results in the data correctly formatted*/
-            data64 = (int64_t) SPEAD_ITEM_ADDR(iptr);
-
-#if 0
-            for (k=0; k<SPEAD_ADDRLEN; k++){
-              val[k] = 0xFF & (iptr >> (8*(SPEAD_ADDRLEN-k-1)));
-            }
-#endif
-
-#ifdef PROCESS
-            fprintf(stderr, "\tIMMEDIATE ADDRESSED len [%d] bytes\n", SPEAD_ADDRLEN);
-            fprintf(stderr, "\tdata: 0x%lx\n", data64);
-#endif
+            state = S_MODE_IMMEDIATE;
             break;
-
         }
 
 
-      }
+        break;
 
-    } while ((o = o->o_next) != NULL);
+
+      case S_MODE_IMMEDIATE:
+        /*this macro call results in the data correctly formatted*/
+        data64 = (int64_t) SPEAD_ITEM_ADDR(iptr);
+#if 0
+        for (k=0; k<SPEAD_ADDRLEN; k++){
+          val[k] = 0xFF & (iptr >> (8*(SPEAD_ADDRLEN-k-1)));
+        }
+#endif
+#ifdef PROCESS
+        fprintf(stderr, "\tIMMEDIATE ADDRESSED len [%d] bytes\n", SPEAD_ADDRLEN);
+        fprintf(stderr, "\tdata: 0x%lx\n", data64);
+#endif
+
+        state = S_NEXT_ITEM;
+        break;
+
+
+      case S_MODE_DIRECT:
+
+        off = (int64_t) SPEAD_ITEM_ADDR(iptr);
+#ifdef PROCESS
+        fprintf(stderr, "\tDIRECT ADDRESSED\n");
+        fprintf(stderr, "\toff 0x%lx\n", off);
+#endif
+
+        state = S_NEXT_ITEM;
+        break;
+
+    }
+
+#if 0
+    for (i=0; i < ht->t_len; i++){
+
+      o = ht->t_os[i];
+      if (o == NULL)
+        continue;
+
+      do {
+        p = get_data_hash_o(o);
+        if (p == NULL)
+          continue;
+
+        for (j=0; j<p->n_items; j++){
+          /*items start from 1, 0 is the header*/ 
+          iptr = SPEAD_ITEM(p->data, (j+1));
+          id   = SPEAD_ITEM_ID(iptr);
+          mode = SPEAD_ITEM_MODE(iptr);
+
+#ifdef PROCESS
+          fprintf(stderr, "ITEM[%d] mode[%d] id[%d] 0x%lx\n", j, mode, id, iptr);
+#endif
+
+          switch(id){
+            case SPEAD_HEAP_CNT_ID:
+            case SPEAD_PAYLOAD_OFF_ID:
+            case SPEAD_PAYLOAD_LEN_ID:
+            case SPEAD_STREAM_CTRL_ID:
+              continue;
+            case SPEAD_DESCRIPTOR_ID:
+#ifdef PROCESS
+              fprintf(stderr, "\tITEM_DESCRIPTOR_ID\n");
+#endif
+              break;
+            default:
+              break;
+          }
+
+          switch (mode){
+            case SPEAD_DIRECTADDR:
+              off = (int64_t) SPEAD_ITEM_ADDR(iptr);
+#ifdef PROCESS
+              fprintf(stderr, "\tDIRECT ADDRESSED\n");
+              fprintf(stderr, "\toff 0x%lx\n", off);
+#endif
+              break;
+
+            case SPEAD_IMMEDIATEADDR:
+              /*this macro call results in the data correctly formatted*/
+              data64 = (int64_t) SPEAD_ITEM_ADDR(iptr);
+
+#if 0
+              for (k=0; k<SPEAD_ADDRLEN; k++){
+                val[k] = 0xFF & (iptr >> (8*(SPEAD_ADDRLEN-k-1)));
+              }
+#endif
+
+#ifdef PROCESS
+              fprintf(stderr, "\tIMMEDIATE ADDRESSED len [%d] bytes\n", SPEAD_ADDRLEN);
+              fprintf(stderr, "\tdata: 0x%lx\n", data64);
+#endif
+              break;
+          }
+        }
+      } while ((o = o->o_next) != NULL);
+    }
+#endif
 
   }
 #ifdef DEBUG
