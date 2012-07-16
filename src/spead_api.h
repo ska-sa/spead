@@ -20,6 +20,9 @@ struct spead_api_item{
   int i_id;
   uint64_t i_len;
   unsigned char i_data[];
+#if 0
+  unsigned char i_data[SPEAD_ADDRLEN];
+#endif
 };
 
 struct spead_heap *create_spead_heap();
