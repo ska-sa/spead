@@ -366,7 +366,7 @@ int worker_task_us(struct u_server *s, int cfd)
     rcount++;
     peer_addr_len = sizeof(struct sockaddr_storage); 
 
-    //bzero(p, sizeof(struct spead_packet));
+    bzero(p, sizeof(struct spead_packet));
 
     nread = recvfrom(s->s_fd, p->data, SPEAD_MAX_PACKET_LEN, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
     if (nread <= 0){
