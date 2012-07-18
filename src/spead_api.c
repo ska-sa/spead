@@ -218,8 +218,61 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   return ht;
 }
 
+struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
+{
+  struct spead_item_group *ig;
+  
+  if (datasize <= 0 || nitems <= 0)
+    return NULL;
+
+  ig = malloc(sizeof(struct spead_item_group));
+  if (ig == NULL)
+    return NULL;
+
+  ig->g_items = nitems;
+  ig->g_off   = 0;
+  ig->g_size  = datasize + nitems*sizeof(struct spead_api_item);
+  ig->g_map   = mmap(NULL, ig->g_size, PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, (-1), 0);
+
+  if (ig->g_map == NULL){
+    free(ig);
+    return NULL;
+  }
+  
+  return ig;
+}
+
+void destroy_item_group(struct spead_item_group *ig)
+{
+  if (ig){
+    
+    if (ig->g_map)
+      munmap(ig->g_map, ig->g_size); 
+  
+    free(ig);
+  }
+}
+
+struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size)
+{
+  struct spead_api_item *itm;
+  
+  if (ig == NULL || size <= 0 || (ig->g_off + size) > ig->g_size)
+    return NULL;
+
+  itm = (struct spead_api_item *) (ig->g_map + ig->g_off);
+  if (itm == NULL)
+    return NULL;
+
+  ig->g_off += size;
+  ig->g_items++;
+
+  return itm;
+}
+
 int process_items(struct hash_table *ht)
 {
+
 #define S_END             0
 #define S_MODE            1
 #define S_MODE_IMMEDIATE  2
@@ -230,13 +283,15 @@ int process_items(struct hash_table *ht)
 #define S_NEXT_ITEM       7
 #define S_GET_OBJECT      8
 
+  struct spead_item_group *ig;
+  struct spead_api_item   *itm;
+
   struct hash_o *o;
   struct spead_packet *p, *lp;
   int i, j, id, mode, state, lj;
   int64_t iptr, off, loff, data64;
-  void *map;
-  uint64_t maplen, mapoff;
  
+
 #if 0
   struct process_state {
     int ps_i;
@@ -258,6 +313,15 @@ int process_items(struct hash_table *ht)
 #ifdef DEBUG
   fprintf(stderr, "HEAP CNT [%ld] HEAP ITEMS [%ld] HEAP DATA [%ld bytes]\n", ht->t_data_id, ht->t_items, ht->t_data_count); 
 #endif
+
+  ig = create_item_group(ht->t_data_count, ht->t_items);
+  if (ig == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: failed to create item group\n", __func__);
+#endif
+    return -1;
+  }
+
 #ifdef DEBUG
   fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
 #endif
@@ -270,19 +334,14 @@ int process_items(struct hash_table *ht)
 
   //ps_head = ps;
   //ps      = NULL;
-#if 0
-  maplen = ht->t_data_count + ht->t_items*sizeof(struct spead_api_item);
-  map = mmap(NULL, maplen, PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, (-1), 0);
-  if (map == NULL)
-    return -1;
-  
-  mapoff = 0;
+#if 1
 #endif
 
   i      = 0;
   j      = 0;
   loff   = -1;
   lj     = 0;
+  item   = NULL;
   state  = S_GET_OBJECT;
 
   while (state){
@@ -395,6 +454,14 @@ int process_items(struct hash_table *ht)
 #ifdef PROCESS
         fprintf(stderr, "\tdata: 0x%lx\n", data64);
 #endif
+        
+        itm = new_item_from_group(ig, sizeof(struct spead_api_item) + SPEAD_ADDRLEN);
+        if (itm){
+          itm->id = id;
+          itm->i_len = SPEAD_ADDRLEN;
+          itm->i_data = data64;
+        }
+
         state = S_NEXT_ITEM;
         break;
 
@@ -429,12 +496,6 @@ int process_items(struct hash_table *ht)
 
   }
 
-#if 0
-  if (map)
-    munmap(map, maplen); 
-#endif
-
-
 #ifdef DEBUG
   fprintf(stderr, "--PROCESS-[%d]-END-----\n", getpid());
 #endif
@@ -445,6 +506,10 @@ int process_items(struct hash_table *ht)
 #endif
     return -1;
   }
+
+
+  destroy_item_group(ig);
+
 
 #ifdef DEBUG
   fprintf(stderr, "%s: DONE empting hash table [%ld]\n", __func__, ht->t_id);
@@ -461,6 +526,9 @@ int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
 #endif
   struct spead_packet *p;
   struct hash_table *ht;
+  int flag_processing;
+
+  flag_processing = 0;
 
   if (hs == NULL || o == NULL){
 #ifdef DEBUG
@@ -508,6 +576,11 @@ def DEBUG
   ht->t_data_count += p->payload_len;
   ht->t_items      += p->n_items;
 
+  if (ht->t_data_count == p->heap_len && !ht->t_processing){
+    ht->t_processing = 1;
+    flag_processing  = 1;
+  }
+
   unlock_mutex(&(ht->t_m));
 
 #if 0  
@@ -515,7 +588,7 @@ def DEBUG
 #endif
 
   /*have all packets by data count must process*/
-  if (ht->t_data_count == p->heap_len){
+  if (flag_processing){
 #ifdef DEBUG
     fprintf(stderr, "[%d] data_count = %ld bytes == heap_len\n", getpid(), ht->t_data_count);
 #endif

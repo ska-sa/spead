@@ -39,6 +39,7 @@ void *get_data_hash_o(struct hash_o *o);
 
 
 struct hash_table {
+  int           t_processing;
   mutex         t_m;
   uint64_t      t_id;
   uint64_t      t_len;

@@ -64,6 +64,7 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   t->t_data_id    = (-1);
   t->t_items      = 0;
   t->t_m          = 0; 
+  t->t_processing = 0; 
 
   t->t_os  = shared_malloc(sizeof(struct hash_o*) * len);
   if (t->t_os == NULL){
@@ -188,6 +189,7 @@ def DEBUG
   ht->t_data_count = 0;
   ht->t_data_id    = (-1);
   ht->t_items      = 0;
+  ht->t_processing = 0;
 
   memset(ht->t_os, 0, ht->t_len*sizeof(struct hash_o*));
 

@@ -25,6 +25,17 @@ struct spead_api_item{
 #endif
 };
 
+struct spead_item_group {
+  uint64_t g_items;
+  uint64_t g_size;
+  uint64_t g_off;
+  void *g_map;
+};
+
+struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems);
+void destroy_item_group(struct spead_item_group *ig);
+struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size);
+
 struct spead_heap *create_spead_heap();
 void destroy_spead_heap(struct spead_heap *h);
 #if 0
