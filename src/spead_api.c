@@ -264,7 +264,7 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
     
   if ((ig->g_off + size) > ig->g_size){
 #ifdef DEBUG
-    fprintf(stderr, "%s: parameter error (ig->g_off + size) %ld ig->g_size %ld", __func__, ig->g_off+size, ig->g_size);
+    fprintf(stderr, "%s: parameter error (ig->g_off + size) %ld ig->g_size %ld\n", __func__, ig->g_off+size, ig->g_size);
 #endif
     return NULL;
   }
@@ -493,6 +493,12 @@ int process_items(struct hash_table *ht)
           itm->i_len = sizeof(data64);
           memcpy(itm->i_data, &data64, sizeof(data64));
           itm->i_valid = 1;
+        } else {      
+#ifdef DEBUG
+          fprintf(stderr, "MALFORMED packet\n");
+#endif
+          state = S_END;
+          break;
         }
 
         state = S_NEXT_ITEM;
@@ -525,7 +531,14 @@ int process_items(struct hash_table *ht)
             }
             
             state = S_DIRECT_COPY;
+          } else {      
+#ifdef DEBUG
+            fprintf(stderr, "MALFORMED packet\n");
+#endif
+            state = S_END;
+            break;
           }
+
 
         }
 
@@ -589,6 +602,9 @@ DC_GET_PKT:
 
       case S_DIRECT_COPY:
        
+        state = S_NEXT_ITEM;
+
+        break;
 #ifdef PROCESS
         fprintf(stderr, "++++direct copy start++++\n");
         //fprintf(stderr, "\tds off: %ld ds.cc %ld i: %d p @ %p payload_len %ld\n\titm id: %d len: %ld\n", ds.off, ds.cc, ds.i, ds.p, ds.p->payload_len, itm->i_id, itm->i_len);
@@ -649,7 +665,7 @@ DC_GET_PKT:
   
 
 
-#if 0
+#if 1
   off = 0;
   uint64_t count;
 
