@@ -277,7 +277,7 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   ig->g_items++;
 
 #ifdef DEBUG
-  fprintf(stderr, "GROUP map (%p): size %ld offset: %ld\n", ig->g_map, ig->g_size, ig->g_off);
+  fprintf(stderr, "GROUP map (%p): size %ld offset: %ld data: %p\n", ig->g_map, ig->g_size, ig->g_off, itm->i_data);
 #endif
 
   return itm;
@@ -585,21 +585,20 @@ DC_GET_PKT:
 #endif
         state = S_DIRECT_COPY;
 
-
         break;
 
       case S_DIRECT_COPY:
        
 #ifdef PROCESS
         fprintf(stderr, "++++direct copy start++++\n");
-        fprintf(stderr, "\tds off: %ld ds.cc %ld i: %d p @ %p payload_len %ld\n\titm id: %d len: %ld\n", ds.off, ds.cc, ds.i, ds.p, ds.p->payload_len, itm->i_id, itm->i_len);
+        //fprintf(stderr, "\tds off: %ld ds.cc %ld i: %d p @ %p payload_len %ld\n\titm id: %d len: %ld\n", ds.off, ds.cc, ds.i, ds.p, ds.p->payload_len, itm->i_id, itm->i_len);
+        fprintf(stderr, "\tcan copy %ld\n\tpayload len %ld\n\tsource %p + %ld\n\tdestination %p + %ld\n\t", ds.cc, ds.p->payload_len, ds.p->payload, ds.off, itm->i_data, (itm->i_len-ds.cc));
 #endif
-
 
         if (ds.off + ds.cc <= ds.p->payload_len){
 #ifdef PROCESS
           fprintf(stderr, "\tDC payload in current packet [%ld] copy [%ld] bytes\n", ds.off + ds.cc, ds.cc);
-          fprintf(stderr, "\tdestination offset [%ld]\n", itm->i_len - ds.cc);
+          //fprintf(stderr, "\tdestination offset [%ld]\n", itm->i_len - ds.cc);
 #endif
 
           memcpy(itm->i_data + (itm->i_len - ds.cc), ds.p->payload + ds.off, ds.cc);
@@ -610,7 +609,7 @@ DC_GET_PKT:
         } else {
 #ifdef PROCESS
           fprintf(stderr, "\tDC payload over current packet [%ld] copy [%ld] bytes\n", ds.off + ds.cc, ds.p->payload_len - ds.off);
-          fprintf(stderr, "\tdestination offset [%ld]\n", itm->i_len - ds.cc);
+          //fprintf(stderr, "\tdestination offset [%ld]\n", itm->i_len - ds.cc);
 #endif
 
           memcpy(itm->i_data + (itm->i_len - ds.cc), ds.p->payload + ds.off, ds.p->payload_len - ds.off);
@@ -624,7 +623,7 @@ DC_GET_PKT:
 
 
 #ifdef PROCESS
-        fprintf(stderr, "-----direct copy end-----ds.cc %ld\n", ds.cc);
+        fprintf(stderr, "-----direct copy end-----still need to copy %ld bytes\n", ds.cc);
 #endif
         state = (state == DC_NEXT_PACKET) ? state : ((ps.state == S_END) ? ps.state : S_NEXT_ITEM);
         break;
@@ -652,7 +651,7 @@ DC_GET_PKT:
 
 #if 0
   off = 0;
-  uint64_t count = 0;
+  uint64_t count;
 
   while (off < ig->g_size){
   
@@ -661,14 +660,15 @@ DC_GET_PKT:
     if (itm->i_len == 0)
       goto skip;
 
+    count = 0;
 #ifdef DEBUG
-    fprintf(stderr, "ITEM id[%d] vaild [%d] len [%ld]\n\t", itm->i_id, itm->i_valid, itm->i_len);
-      
-    for (count=0; count<itm->i_len; count++){
+    fprintf(stderr, "ITEM id[%d] vaild [%d] len [%ld]\n\t0x%06x | ", itm->i_id, itm->i_valid, itm->i_len, count);
+    
+    for (;count<itm->i_len; count++){
       
       fprintf(stderr, "%02X", itm->i_data[count]);
       if ((count+1) % 20 == 0){
-        fprintf(stderr,"\n\t");
+        fprintf(stderr,"\n\t0x%06x | ", count);
       } else {
         fprintf(stderr," ");
       }
