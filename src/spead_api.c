@@ -497,7 +497,7 @@ int process_items(struct hash_table *ht)
 #ifdef DEBUG
           fprintf(stderr, "MALFORMED packet\n");
 #endif
-          state = S_END;
+          state = S_NEXT_ITEM;
           break;
         }
 
@@ -535,7 +535,7 @@ int process_items(struct hash_table *ht)
 #ifdef DEBUG
             fprintf(stderr, "MALFORMED packet\n");
 #endif
-            state = S_END;
+            state = S_NEXT_ITEM;
             break;
           }
 
