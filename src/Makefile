@@ -17,7 +17,7 @@ CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
 CFLAGS += -ggdb
-CFLAGS += -O3
+#CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
 
