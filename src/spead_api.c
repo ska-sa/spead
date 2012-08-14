@@ -601,10 +601,7 @@ DC_GET_PKT:
         break;
 
       case S_DIRECT_COPY:
-       
-        state = S_NEXT_ITEM;
 
-        break;
 #ifdef PROCESS
         fprintf(stderr, "++++direct copy start++++\n");
         //fprintf(stderr, "\tds off: %ld ds.cc %ld i: %d p @ %p payload_len %ld\n\titm id: %d len: %ld\n", ds.off, ds.cc, ds.i, ds.p, ds.p->payload_len, itm->i_id, itm->i_len);
