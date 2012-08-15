@@ -425,8 +425,7 @@ int process_items(struct hash_table *ht)
           iptr = SPEAD_ITEM(p->data, (j+1));
           id   = SPEAD_ITEM_ID(iptr);
           mode = SPEAD_ITEM_MODE(iptr);
-#if 1
-          def PROCESS
+#ifdef PROCESS
           fprintf(stderr, "@@@ITEM[%d] mode[%d] id[%d] 0x%lx\n", j, mode, id, iptr);
 #endif
           //state = S_NEXT_ITEM;
