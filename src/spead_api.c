@@ -425,9 +425,9 @@ int process_items(struct hash_table *ht)
           iptr = SPEAD_ITEM(p->data, (j+1));
           id   = SPEAD_ITEM_ID(iptr);
           mode = SPEAD_ITEM_MODE(iptr);
-#if 0
+#if 1
           def PROCESS
-          fprintf(stderr, "ITEM[%d] mode[%d] id[%d] 0x%lx\n", j, mode, id, iptr);
+          fprintf(stderr, "@@@ITEM[%d] mode[%d] id[%d] 0x%lx\n", j, mode, id, iptr);
 #endif
           //state = S_NEXT_ITEM;
           state = S_MODE;
@@ -451,7 +451,7 @@ int process_items(struct hash_table *ht)
           case SPEAD_PAYLOAD_OFF_ID:
           case SPEAD_PAYLOAD_LEN_ID:
           case SPEAD_STREAM_CTRL_ID:
-            continue;
+            continue; /*pass control back to the beginning of the loop with state S_NEXT_ITEM*/
           case SPEAD_DESCRIPTOR_ID:
 #ifdef PROCESS
             fprintf(stderr, "\tITEM_DESCRIPTOR_ID\n");
