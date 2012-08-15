@@ -11,13 +11,13 @@ SRC = mutex.c sharedmem.c hash.c avltree.c subprocess.c spead_packet.c spead_api
 HDR = mutex.h sharedmem.h hash.h avltree.h spead_packet.h spead_api.h server.h
 
 # CFLAGS += -DSTANDALONE
-#CFLAGS += -DDEBUG=2
+#CFLAGS += -DDEBUG=3
 CFLAGS += -DPROCESS
 CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
 CFLAGS += -ggdb
-CFLAGS += -O3
+#CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
 
