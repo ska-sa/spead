@@ -31,6 +31,7 @@
 
 static volatile int run = 1;
 static volatile int timer = 0;
+static volatile int child = 0;
 
 int sub_time(struct timeval *delta, struct timeval *alpha, struct timeval *beta)
 {
@@ -86,6 +87,11 @@ void timer_us(int signum)
   timer = 1;
 }
 
+void child_us(int signum)
+{
+  child = 1;
+}
+
 int register_signals_us()
 {
   struct sigaction sa;
@@ -98,6 +104,11 @@ int register_signals_us()
     return -1;
 
   if (sigaction(SIGTERM, &sa, NULL) < 0)
+    return -1;
+
+  sa.sa_handler   = child_us;
+
+  if (sigaction(SIGCHLD, &sa, NULL) < 0)
     return -1;
 
   return 0;
@@ -556,6 +567,15 @@ def DEBUG
       unlock_mutex(&(s->s_m));
       continue;
     }
+
+    if (child){      
+      sp = waitpid(-1, &status, 0);
+#ifdef DEBUG
+      fprintf(stderr,"SIGCHLD waitpid [%d]\n", __func__, sp);
+#endif
+      child = 0;
+    }
+
 
 #if 0
     for (i=0; i<s->s_cpus; i++){
