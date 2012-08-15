@@ -4,7 +4,7 @@ import numpy, spead, logging, sys, time
 logging.basicConfig(level=logging.DEBUG)
 PORT = 8888
 #SHAPE = (4096,4)
-SHAPE = (4,4)
+SHAPE = (40,4)
 
 def receive():
     print 'RX: initializing'

@@ -386,11 +386,18 @@ int process_items(struct hash_table *ht)
           ps.state = S_END;
 
           ds.cc = p->heap_len - ps.off; 
-          
+                    
           itm = new_item_from_group(ig, sizeof(struct spead_api_item) + ds.cc);
           if (itm){
             itm->i_id   = ps.id;
             itm->i_len  = ds.cc;
+
+            if (ds.off == -1){
+              ds.i   = i;
+              ds.p   = p;
+              ds.o   = o;
+              ds.off = ps.off;
+            }
           }
 
           state = S_DIRECT_COPY;
@@ -500,6 +507,14 @@ int process_items(struct hash_table *ht)
           break;
         }
 
+#if 0
+        ps.i   = i;
+        ps.j   = j;
+        ps.off = off;
+        ps.id  = id;
+        ps.p   = p;
+        ps.o   = o;
+#endif
         state = S_NEXT_ITEM;
         break;
 
