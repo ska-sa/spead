@@ -751,6 +751,7 @@ int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
 #ifdef DATA
     fprintf(stderr, "%s: backlog collision\n", __func__);
 #endif
+
     return -1;
   }
 
