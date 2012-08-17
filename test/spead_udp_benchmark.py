@@ -2,7 +2,8 @@
 import numpy, spead, logging, sys, time
 
 logging.basicConfig(level=logging.DEBUG)
-PORT = 8888
+#PORT = 8888
+PORT = 7148
 #SHAPE = (4096,4)
 SHAPE = (40,4)
 

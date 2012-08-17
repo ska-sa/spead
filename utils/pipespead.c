@@ -17,7 +17,7 @@
 #endif
 
 
-#define BUF 10000
+#define BUF 4152
 
 void usage(char *argv[])
 {
