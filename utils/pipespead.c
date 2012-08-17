@@ -1,23 +1,69 @@
 #define _GNU_SOURCE 
+#define _BSD_SOURCE 
 #include <stdio.h>
 #include <sysexits.h>
+#include <errno.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <string.h>
+#include <stdint.h>
+#include <endian.h>
+
+#include <arpa/inet.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#if 0
 #include <pcap/pcap.h>
 
 #include <netinet/ether.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
-#endif
+
 
 
 #define BUF 4152
+
+void print_data(unsigned char *buf, int rb)
+{
+#ifdef DEBUG
+  int count, count2;
+
+  count = 0;
+  fprintf(stderr, "\t\t   ");
+  for (count2=0; count2<30; count2++){
+    fprintf(stderr, "%02x ", count2);
+  }
+  fprintf(stderr,"\n\t\t   ");
+  for (count2=0; count2<30; count2++){
+    fprintf(stderr, "---");
+  }
+  fprintf(stderr,"\n\t0x%06x | ", count);
+  for (;count<rb; count++){
+
+    fprintf(stderr, "%02X", buf[count]);
+    if ((count+1) % 30 == 0){
+
+      if ((count+1) % 900 == 0){
+        fprintf(stderr, "\n\n\t\t   ");
+        for (count2=0; count2<30; count2++){
+          fprintf(stderr, "%02x ", count2);
+        }
+        fprintf(stderr,"\n\t\t   ");
+        for (count2=0; count2<30; count2++){
+          fprintf(stderr, "---");
+        }
+      }
+
+      fprintf(stderr,"\n\t0x%06x | ", count+1);
+    } else {
+      fprintf(stderr," ");
+    }
+
+  }
+  fprintf(stderr,"\n");
+#endif
+}
 
 void usage(char *argv[])
 {
@@ -178,27 +224,150 @@ int main(int argc, char *argv[])
 
   int flag;
   int skipsize;
-  unsigned char *off;
-  int count;
+  unsigned char *off = NULL;
+  //int off;
+  int count,count2;
   char ned = '\x53';
+  uint16_t ipned = htons(0x0800);
+  uint16_t len;
+  
+  struct pcap_pkthdr  *pcappkt;
+  struct ether_header *eh;
+  struct iphdr        *iph;
+  struct udphdr       *udp;
 
-  //skipsize = sizeof(struct ether_header) + sizeof(struct iphdr) + sizeof(struct udphdr);
+  int state;
+
+#define S_START   0
+#define S_READ    1
+#define S_DATA    2
+  
+  state = S_START;
+
+  skipsize = sizeof(struct ether_header);
   run = 1;  
   flag = 0;
+  rb = 0;
 
   while(run){
-  
-    rb = read(STDIN_FILENO, buf, BUF);
-    if (rb <= 0){
-      run = 0;
-      break;
+
+
+    switch (state){
+
+      case S_START:
+        rb = read(STDIN_FILENO, buf, sizeof(struct pcap_file_header));
+        if (rb <= 0){
+          run = 0;
+          break;
+        }
+
+#ifdef DEBUG
+        fprintf(stderr, "pcap hdr s:%ld read: %d bytes\n\tsnap_len: %d\n\tlink-layer-type: %d\n", sizeof(struct pcap_file_header), rb, ((struct pcap_file_header *)buf)->snaplen, ((struct pcap_file_header *)buf)->linktype);
+#endif
+        state = S_READ;
+        break;
+      
+      case S_READ:
+        rb = read(STDIN_FILENO, buf, BUF);
+        if (rb <= 0){
+          run = 0;
+          break;
+        }  
+#ifdef DEBUG
+        fprintf(stderr, "read %d bytes\n", rb);
+#endif
+        state = S_DATA;
+        break;
+
+
+      case S_DATA:
+        
+        if (rb < sizeof(struct pcap_pkthdr) + sizeof(struct ether_header)+sizeof(struct iphdr)+sizeof(struct udphdr)){
+#ifdef DEBUG
+          fprintf(stderr, "not enough data to decode\n");
+#endif
+          state = S_READ;
+          break;
+        }
+#if 0
+        pcappkt = (struct pcap_pkthdr *)(buf);
+
+        off = sizeof(struct pcap_pkthdr);
+
+#ifdef DEBUG
+        fprintf(stderr, "PCAP stuff size: 0x%x\n\tcaplen: %d\n\tlen: %d\n", off, pcappkt->caplen, pcappkt->len);
+#endif
+      
+        eh = (struct ether_header *)(buf+off);
+
+#ifdef DEBUG
+        fprintf(stderr, "ETH stuff\n\tetype: %d\n", eh->ether_type);
+#endif
+         
+        off += sizeof(struct ether_header);
+#endif
+
+        off = memmem(buf+sizeof(struct pcap_pkthdr), rb, &ipned, sizeof(ipned));
+        if (off){
+#ifdef DEBUG
+          fprintf(stderr, "eth ip packet id at 0x%lx\n", off-buf);
+#endif
+          iph = (struct iphdr*) (off+sizeof(uint16_t));
+
+#ifdef DEBUG
+          fprintf(stderr, "IP stuff start 0x%lx\n\tver: %d\n\tihl: %d\n\ttos: %d\n\ttotlen :%d\n\tid: %d\n\tfrag_off: %d\n\tttl: %d\n\tproto: %d\n\tcheck: %d\n\tsaddr: 0x%x\n\tdaddr: 0x%x\n", 
+            ((void *)iph - (void *)buf), iph->version, iph->ihl, iph->tos, iph->tot_len, iph->id, iph->frag_off, iph->ttl, iph->protocol, iph->check, iph->saddr, iph->daddr);
+#endif
+          
+          udp = (struct udphdr*)(off + sizeof(uint16_t) + iph->ihl*sizeof(uint32_t));
+#ifdef DEBUG
+          fprintf(stderr, "UDP stuff\n\tsport: %d\n\tdport: %d\n\tlen: %d\n\tchksm: 0x%x\n", ntohs(udp->source), ntohs(udp->dest), ntohs(udp->len), ntohs(udp->check));
+#endif
+
+        }
+        
+        //print_data(buf, rb);
+        
+
+        state = S_READ;
+        break;
+
+
     }
-    fprintf(stderr, "read %d bytes\n", rb);
+  
+#if 0
+    if (rb > skipsize){
+      fprintf(stderr, "ip should start at 0x%x\n", skipsize);
+    }
+
+    off = memmem(buf, rb, &ipned, sizeof(ipned));
+    if (off){
+      fprintf(stderr, "ip packet at 0x%lx\n", off-buf);
+    }
+
+    
+    count = 0;
+    fprintf(stderr,"\t0x%06x | ", count);
+    for (;count<rb; count++){
+
+      fprintf(stderr, "%02X", buf[count]);
+      if ((count+1) % 20 == 0){
+        fprintf(stderr,"\n\t0x%06x | ", count+1);
+      } else {
+        fprintf(stderr," ");
+      }
+
+    }
+    fprintf(stderr,"\n");
+
 
     off = memmem(buf, rb, &ned, 1);
 
     if (off){
-      fprintf(stderr, "found needle at %d\n", off-buf);
+      
+      len = be16toh((uint16_t)(*(off - sizeof(uint16_t)*2)));
+
+      fprintf(stderr, "found needle at 0x%lx try udp len? %d\n", off-buf, len);
 
       if (rb > (off-buf)){
         wb = sendto(sfd, off, rb-(off-buf), 0, rp->ai_addr, rp->ai_addrlen);
@@ -208,6 +377,7 @@ int main(int argc, char *argv[])
         }
       }
     }
+#endif
 
 #if 0
     switch(flag){
