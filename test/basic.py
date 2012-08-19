@@ -5,7 +5,7 @@ import spead, logging, numpy
 PORT  = 8888
 #SHAPE = (100,250)
 #SHAPE = (50,50)
-SHAPE = (10,1)
+SHAPE = (100,100)
 logging.basicConfig(level=logging.DEBUG)
 
 def send():

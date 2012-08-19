@@ -22,7 +22,7 @@
 
 
 
-#define BUF 4152
+#define BUF 20000
 
 void print_data(unsigned char *buf, int rb)
 {
@@ -65,6 +65,69 @@ void print_data(unsigned char *buf, int rb)
 #endif
 }
 
+int setup_udp_streamer(char *host, char *port, struct addrinfo **ai)
+{
+  struct addrinfo hints;
+  struct addrinfo *res, *rp;
+
+  int sfd;
+
+  uint64_t reuse_addr;
+  
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_family     = AF_UNSPEC;
+  hints.ai_socktype   = SOCK_DGRAM;
+  hints.ai_flags      = AI_PASSIVE;
+  hints.ai_protocol   = 0;
+  hints.ai_canonname  = NULL;
+  hints.ai_addr       = NULL;
+  hints.ai_next       = NULL;
+  
+  if ((reuse_addr = getaddrinfo(host, port, &hints, &res)) != 0) {
+#ifdef DEBUG
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(reuse_addr));
+#endif
+    return -1;
+  }
+
+  for (rp = res; rp != NULL; rp = rp->ai_next) {
+#if DEBUG>1
+    fprintf(stderr, "%s: res (%p) with: %d\n", __func__, rp, rp->ai_protocol);
+#endif
+    if (rp->ai_family == AF_INET6)
+      break;
+  }
+
+  rp = (rp == NULL) ? res : rp;
+
+  sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+  if (sfd < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error socket\n", __func__);
+#endif
+    freeaddrinfo(res);
+    return -1;
+  }
+
+  /*set reuse addr*/
+  reuse_addr   = 1;
+  setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
+
+  /*make the send buffer really big!*/
+  reuse_addr = 1024*1024*1024;
+  if (setsockopt(sfd, SOL_SOCKET, SO_SNDBUF, &reuse_addr, sizeof(reuse_addr)) < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
+#endif
+  }
+
+  freeaddrinfo(res);
+
+  *ai = rp;
+
+  return sfd;
+}
+
 void usage(char *argv[])
 {
   fprintf(stderr, "%s used to remove any data b4 spead magic and retransmit to UDP\n\tusage %s -[h] dst-host dst-port\n", "|SPEAD", argv[0]);
@@ -72,12 +135,13 @@ void usage(char *argv[])
 
 int main(int argc, char *argv[])
 {
-  int i, j, rb, wb, run;
+  int i, j, sfd;
   char c;
 
   char *host, *port;
 
-  unsigned char buf[BUF];
+  struct addrinfo *ai;
+
 
   /*PARAMETER STREAMER*/
   i=1;
@@ -164,66 +228,13 @@ int main(int argc, char *argv[])
   }
 
   /*UDP STREAMER SETUP*/
-  struct addrinfo hints;
-  struct addrinfo *res, *rp;
-
-  int sfd;
-
-  uint64_t reuse_addr;
-  
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family     = AF_UNSPEC;
-  hints.ai_socktype   = SOCK_DGRAM;
-  hints.ai_flags      = AI_PASSIVE;
-  hints.ai_protocol   = 0;
-  hints.ai_canonname  = NULL;
-  hints.ai_addr       = NULL;
-  hints.ai_next       = NULL;
-  
-  if ((reuse_addr = getaddrinfo(host, port, &hints, &res)) != 0) {
-#ifdef DEBUG
-    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(reuse_addr));
-#endif
-    return -1;
-  }
-
-  for (rp = res; rp != NULL; rp = rp->ai_next) {
-#if DEBUG>1
-    fprintf(stderr, "%s: res (%p) with: %d\n", __func__, rp, rp->ai_protocol);
-#endif
-    if (rp->ai_family == AF_INET6)
-      break;
-  }
-
-  rp = (rp == NULL) ? res : rp;
-
-  sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-  if (sfd < 0){
-#ifdef DEBUG
-    fprintf(stderr,"%s: error socket\n", __func__);
-#endif
-    freeaddrinfo(res);
-    return -1;
-  }
-
-  /*set reuse addr*/
-  reuse_addr   = 1;
-  setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
-
-  /*make the send buffer really big!*/
-  reuse_addr = 1024*1024*1024;
-  if (setsockopt(sfd, SOL_SOCKET, SO_SNDBUF, &reuse_addr, sizeof(reuse_addr)) < 0){
-#ifdef DEBUG
-    fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
-#endif
-  }
-
-  freeaddrinfo(res);
+  sfd = setup_udp_streamer(host, port, &ai);
+  if (sfd < 0)
+    return EX_IOERR;
 
   /*RUN LOOP*/
 
   int flag;
-  int skipsize;
   unsigned char *off = NULL;
   //int off;
   int count,count2;
@@ -231,23 +242,31 @@ int main(int argc, char *argv[])
   uint16_t ipned = htons(0x0800);
   uint16_t len;
   
+#if 0
   struct pcap_pkthdr  *pcappkt;
   struct ether_header *eh;
+#endif
   struct iphdr        *iph;
   struct udphdr       *udp;
 
   int state;
 
+  unsigned char buf[BUF];
+  int need, have, rb, wb, run, want, pos;
+
 #define S_START   0
 #define S_READ    1
-#define S_DATA    2
+#define S_PACKET  2
+#define S_DATA    3
   
   state = S_START;
 
-  skipsize = sizeof(struct ether_header);
   run = 1;  
   flag = 0;
   rb = 0;
+  need = 0;
+  want = BUF;
+  pos = 0;
 
   while(run){
 
@@ -268,7 +287,7 @@ int main(int argc, char *argv[])
         break;
       
       case S_READ:
-        rb = read(STDIN_FILENO, buf, BUF);
+        rb = read(STDIN_FILENO, buf+pos, want);
         if (rb <= 0){
           run = 0;
           break;
@@ -276,11 +295,12 @@ int main(int argc, char *argv[])
 #ifdef DEBUG
         fprintf(stderr, "read %d bytes\n", rb);
 #endif
-        state = S_DATA;
+
+        state = (need > 0)? S_DATA : S_PACKET;
         break;
 
 
-      case S_DATA:
+      case S_PACKET:
         
         if (rb < sizeof(struct pcap_pkthdr) + sizeof(struct ether_header)+sizeof(struct iphdr)+sizeof(struct udphdr)){
 #ifdef DEBUG
@@ -289,23 +309,6 @@ int main(int argc, char *argv[])
           state = S_READ;
           break;
         }
-#if 0
-        pcappkt = (struct pcap_pkthdr *)(buf);
-
-        off = sizeof(struct pcap_pkthdr);
-
-#ifdef DEBUG
-        fprintf(stderr, "PCAP stuff size: 0x%x\n\tcaplen: %d\n\tlen: %d\n", off, pcappkt->caplen, pcappkt->len);
-#endif
-      
-        eh = (struct ether_header *)(buf+off);
-
-#ifdef DEBUG
-        fprintf(stderr, "ETH stuff\n\tetype: %d\n", eh->ether_type);
-#endif
-         
-        off += sizeof(struct ether_header);
-#endif
 
         off = memmem(buf+sizeof(struct pcap_pkthdr), rb, &ipned, sizeof(ipned));
         if (off){
@@ -318,20 +321,58 @@ int main(int argc, char *argv[])
           fprintf(stderr, "IP stuff start 0x%lx\n\tver: %d\n\tihl: %d\n\ttos: %d\n\ttotlen :%d\n\tid: %d\n\tfrag_off: %d\n\tttl: %d\n\tproto: %d\n\tcheck: %d\n\tsaddr: 0x%x\n\tdaddr: 0x%x\n", 
             ((void *)iph - (void *)buf), iph->version, iph->ihl, iph->tos, iph->tot_len, iph->id, iph->frag_off, iph->ttl, iph->protocol, iph->check, iph->saddr, iph->daddr);
 #endif
+
+          if (iph->protocol == 17){
           
-          udp = (struct udphdr*)(off + sizeof(uint16_t) + iph->ihl*sizeof(uint32_t));
+            udp = (struct udphdr*)(off + sizeof(uint16_t) + iph->ihl*sizeof(uint32_t));
 #ifdef DEBUG
-          fprintf(stderr, "UDP stuff\n\tsport: %d\n\tdport: %d\n\tlen: %d\n\tchksm: 0x%x\n", ntohs(udp->source), ntohs(udp->dest), ntohs(udp->len), ntohs(udp->check));
+            fprintf(stderr, "UDP stuff\n\tsport: %d\n\tdport: %d\n\tlen: %d\n\tchksm: 0x%x\n", ntohs(udp->source), ntohs(udp->dest), ntohs(udp->len), ntohs(udp->check));
 #endif
 
+            off += sizeof(uint16_t) + iph->ihl*sizeof(uint32_t) + sizeof(struct udphdr);
+            need = ntohs(udp->len) - sizeof(struct udphdr);
+            have = rb - (off-buf);
+#ifdef DEBUG
+            fprintf(stderr, "need: %d\nhave: %d\n", need, have);
+#endif
+            
+            if (need > 0){
+              state = S_DATA;
+              break;
+            }
+
+            state = S_READ;
+            
+          }
         }
-        
-        //print_data(buf, rb);
-        
+        //print_data(buf, rb);  
 
         state = S_READ;
         break;
+        
+      case S_DATA:
+        
+         
+        if (need == have){
+          
+          wb = sendto(sfd, off, need, 0, ai->ai_addr, ai->ai_addrlen);
 
+          need = 0;
+          pos = 0;
+          want = BUF;
+
+        } else if (need < have){
+          
+#ifdef DEBUG
+          fprintf(stderr, "want %d more\n", (need-have));
+#endif
+          
+          want = need-have;
+
+        }
+        
+        state = S_READ; 
+        break;
 
     }
   
