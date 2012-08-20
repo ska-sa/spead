@@ -1,4 +1,4 @@
-CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG
 CFLAGS += -Wall
 CFLAGS += -ggdb
 CFLAGS += -O3
@@ -15,3 +15,5 @@ $(EXE): $(UTILS)
 clean:
 	$(RM) -f $(EXE) core vgcore*
 
+install: all
+	install $(EXE) /usr/local/bin
