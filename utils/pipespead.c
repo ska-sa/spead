@@ -22,7 +22,7 @@
 
 
 
-#define BUF 20000
+#define BUF 9200
 
 void print_data(unsigned char *buf, int rb)
 {
@@ -234,13 +234,12 @@ int main(int argc, char *argv[])
 
   /*RUN LOOP*/
 
-  int flag;
+  //int flag;
   unsigned char *off = NULL;
   //int off;
-  int count,count2;
-  char ned = '\x53';
+  //char ned = '\x53';
   uint16_t ipned = htons(0x0800);
-  uint16_t len;
+  //uint16_t len;
   
 #if 0
   struct pcap_pkthdr  *pcappkt;
@@ -251,7 +250,7 @@ int main(int argc, char *argv[])
 
   int state;
 
-  unsigned char buf[BUF];
+  unsigned char buf[BUF*2];
   int need, have, rb, wb, run, want, pos;
 
 #define S_START   0
@@ -262,11 +261,13 @@ int main(int argc, char *argv[])
   state = S_START;
 
   run = 1;  
-  flag = 0;
+  //flag = 0;
   rb = 0;
   need = 0;
   want = BUF;
   pos = 0;
+  have = 0;
+  off = buf;
 
   while(run){
 
@@ -292,11 +293,18 @@ int main(int argc, char *argv[])
           run = 0;
           break;
         }  
+        
 #ifdef DEBUG
-        fprintf(stderr, "read %d bytes\n", rb);
+        fprintf(stderr, "read %d bytes need: %d\n", rb, need);
 #endif
 
-        state = (need > 0)? S_DATA : S_PACKET;
+        if (need > 0){
+          have += rb;
+          state = S_DATA;
+          break;
+        }
+        
+        state =  S_PACKET;
         break;
 
 
@@ -310,7 +318,7 @@ int main(int argc, char *argv[])
           break;
         }
 
-        off = memmem(buf+sizeof(struct pcap_pkthdr), rb, &ipned, sizeof(ipned));
+        off = memmem(off+sizeof(struct pcap_pkthdr), rb, &ipned, sizeof(ipned));
         if (off){
 #ifdef DEBUG
           fprintf(stderr, "eth ip packet id at 0x%lx\n", off-buf);
@@ -333,7 +341,7 @@ int main(int argc, char *argv[])
             need = ntohs(udp->len) - sizeof(struct udphdr);
             have = rb - (off-buf);
 #ifdef DEBUG
-            fprintf(stderr, "need: %d\nhave: %d\n", need, have);
+            fprintf(stderr, "need: %d\nhave: %d off: %ld\n", need, have, off-buf);
 #endif
             
             if (need > 0){
@@ -351,23 +359,43 @@ int main(int argc, char *argv[])
         break;
         
       case S_DATA:
-        
          
-        if (need == have){
+        if (need <= have){
           
           wb = sendto(sfd, off, need, 0, ai->ai_addr, ai->ai_addrlen);
+          if (wb <= 0){
+            run =0;
+            break;
+          }
+#ifdef DEBUG
+          fprintf(stderr, "sent: %d\n", wb);
+#endif
+          //print_data(off, need);  
+
+          if (need < have){
+            off += wb;
+            have -= wb;
+            state = S_PACKET;
+            need = 0;
+#ifdef DEBUG
+            fprintf(stderr, "have more try next packet\n\toff: %ld have: %d\n", off-buf, have);
+#endif
+            break;
+          }
 
           need = 0;
           pos = 0;
           want = BUF;
+          off = buf;
 
-        } else if (need < have){
-          
-#ifdef DEBUG
-          fprintf(stderr, "want %d more\n", (need-have));
-#endif
+        } else if (need > have){
           
           want = need-have;
+          pos = rb;
+
+#ifdef DEBUG
+          fprintf(stderr, "want %d more pos %d\n", (need-have), pos);
+#endif
 
         }
         
