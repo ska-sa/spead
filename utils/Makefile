@@ -15,3 +15,5 @@ $(EXE): $(UTILS)
 clean:
 	$(RM) -f $(EXE) core vgcore*
 
+install: all
+	install $(EXE) /usr/local/bin

@@ -118,7 +118,6 @@ struct u_server *create_server_us(int (*cdfn)(), long cpus)
 {
   struct u_server *s;
 
-#if 1
   if (cdfn == NULL)
     return NULL;
 
@@ -128,9 +127,7 @@ struct u_server *create_server_us(int (*cdfn)(), long cpus)
 #endif
     return NULL;
   }
-#if 0
-  s = malloc(sizeof(struct u_server));
-#endif
+
   s = mmap(NULL, sizeof(struct u_server), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
   if (s == NULL)
     return NULL;
@@ -141,8 +138,8 @@ struct u_server *create_server_us(int (*cdfn)(), long cpus)
   s->s_cs   = NULL;
   s->s_hs   = NULL;
   s->s_m    = 0;
+  s->s_cdfn = cdfn;
 
-#endif
   return s;
 }
 
@@ -384,6 +381,7 @@ int worker_task_us(struct u_server *s, int cfd)
 #if DEBUG>1
       fprintf(stderr, "%s: rcount [%lu] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
 #endif
+
 #ifndef RATE
       if (push_hash_o(hs->s_list, o) < 0){
 #ifdef DEBUG
@@ -391,6 +389,7 @@ int worker_task_us(struct u_server *s, int cfd)
 #endif
       }
 #endif
+
       break;
     }
 
@@ -399,7 +398,7 @@ int worker_task_us(struct u_server *s, int cfd)
     unlock_mutex(&(s->s_m));
 
 #ifndef RATE
-    if (process_packet_hs(s->s_hs, o) < 0){
+    if (process_packet_hs(s, o) < 0){
 #if DEBUG>1
       fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
 #endif
@@ -500,7 +499,6 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 
   } while (i < s->s_cpus);
 
-
 #if 0
 def DEBUG
   fprintf(stderr, "%s: PARENT about to loop\n", __func__);
@@ -575,7 +573,6 @@ def DEBUG
 #endif
       child = 0;
     }
-
 
 #if 0
     for (i=0; i<s->s_cpus; i++){
