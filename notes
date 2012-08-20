@@ -1,3 +1,7 @@
+tcpdump spead to pipespead
+
+tcpdump -B 102400 -v -i eth4 -nn -U -w - -s 0 port 7148 | ssh -c arcfour 192.168.4.138 -ladam /home/adam/spead/utils/pipespead localhost 8888
+
 consider increasing /proc/sys/kernel/shmmax
 
 sudo sh -c "echo $[1000*1024*1024] > /proc/sys/kernel/shmmax"
