@@ -374,7 +374,7 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   if (t->t_os[id] == NULL){
     /*simple case*/
     t->t_os[id] = o;
-#ifdef DEBUG
+#if DEBUG>2
     fprintf(stderr, "HASH [%d][%ld][%ld] ", getpid(), t->t_id, id, o);
 #endif
 
