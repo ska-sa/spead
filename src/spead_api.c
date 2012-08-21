@@ -353,7 +353,7 @@ int process_items(struct hash_table *ht, int (*cdfn)())
     return -1;
   }
 
-#ifdef DEBUG
+#ifdef PROCESS 
   fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
 #endif
 
@@ -413,7 +413,7 @@ int process_items(struct hash_table *ht, int (*cdfn)())
           state = S_NEXT_PACKET;
           break;
         }
-#ifdef DEBUG
+#if DEBUG>2
         fprintf(stderr, "--pkt-- in o (%p) has p (%p)\n  payload_off: %ld payload_len: %ld payload: %p\n", o, p, p->payload_off, p->payload_len, p->payload);
 #endif
         state = S_GET_ITEM;
@@ -610,7 +610,7 @@ DC_GET_PKT:
           goto DC_NXT_PKT;
         }
 
-#ifdef DEBUG
+#if DEBUG>2
         fprintf(stderr, "\tDC:--pkt-- in ds.o (%p) has ds.p (%p)\n\t   payload_off: %ld payload_len: %ld payload: %p\n", ds.o, ds.p, ds.p->payload_off, ds.p->payload_len, ds.p->payload);
 #endif
         state = S_DIRECT_COPY;
@@ -661,7 +661,7 @@ DC_GET_PKT:
 
   }
 
-#ifdef DEBUG
+#ifdef PROCESS
   fprintf(stderr, "--PROCESS-[%d]-END-----\n", getpid());
 #endif
 
