@@ -12,6 +12,7 @@ struct u_server {
   long s_cpus;
   struct u_child **s_cs;
   int s_fd;
+  int s_hpcount;
   uint64_t s_bc;
   struct spead_heap_store *s_hs;
   int (*s_cdfn)();

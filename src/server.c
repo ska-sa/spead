@@ -132,13 +132,14 @@ struct u_server *create_server_us(int (*cdfn)(), long cpus)
   if (s == NULL)
     return NULL;
   
-  s->s_fd   = 0;
-  s->s_bc   = 0;
-  s->s_cpus = cpus;
-  s->s_cs   = NULL;
-  s->s_hs   = NULL;
-  s->s_m    = 0;
-  s->s_cdfn = cdfn;
+  s->s_fd      = 0;
+  s->s_bc      = 0;
+  s->s_hpcount = 0;
+  s->s_cpus    = cpus;
+  s->s_cs      = NULL;
+  s->s_hs      = NULL;
+  s->s_m       = 0;
+  s->s_cdfn    = cdfn;
 
   return s;
 }
@@ -552,6 +553,9 @@ def DEBUG
       total = s->s_bc - total;
       unlock_mutex(&(s->s_m));
       print_format_bitrate('R', total);
+#ifdef DATA
+      fprintf(stderr,"\theaps processed: %d\n", s->s_hpcount);
+#endif
 #if 0 
       def DATA
       if (total > 0) {
@@ -562,6 +566,7 @@ def DEBUG
       timer = 0;
       lock_mutex(&(s->s_m));
       total = s->s_bc;
+      s->s_hpcount = 0;
       unlock_mutex(&(s->s_m));
       continue;
     }
