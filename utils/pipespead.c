@@ -22,7 +22,7 @@
 
 
 
-#define BUF 9200
+#define BUF 92000
 
 void print_data(unsigned char *buf, int rb)
 {
@@ -121,7 +121,7 @@ int setup_udp_streamer(char *host, char *port, struct addrinfo **ai)
 #endif
   }
 
-  freeaddrinfo(res);
+  //freeaddrinfo(res);
 
   *ai = rp;
 

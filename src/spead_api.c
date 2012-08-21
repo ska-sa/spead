@@ -673,11 +673,11 @@ DC_GET_PKT:
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "[%d] %s: \033[32m DONE empting hash table [%ld] \033[0m\n", getpid(), __func__, ht->t_id);
+  fprintf(stderr, "[%d] %s:\033[32m DONE empting hash table [%ld] \033[0m\n", getpid(), __func__, ht->t_id);
 #endif
-  
 
   /*DUMP each item*/
+
 #if 0
   off = 0;
   uint64_t count;
@@ -809,7 +809,11 @@ def DEBUG
 #endif
       return -1;
     }
-
+    
+    lock_mutex(&(s->s_m));
+    s->s_hpcount++;
+    unlock_mutex(&(s->s_m));
+    
   }
  
   return 0;
