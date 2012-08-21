@@ -277,7 +277,7 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   ig->g_off += size;
   ig->g_items++;
 
-#ifdef DEBUG
+#if DEBUG>2
   fprintf(stderr, "GROUP map (%p): size %ld offset: %ld data: %p\n", ig->g_map, ig->g_size, ig->g_off, itm->i_data);
 #endif
 
@@ -673,7 +673,7 @@ DC_GET_PKT:
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: DONE empting hash table [%ld]\n", __func__, ht->t_id);
+  fprintf(stderr, "%s: \033[32m DONE empting hash table [%ld] \033[0m\n", __func__, ht->t_id);
 #endif
   
 
