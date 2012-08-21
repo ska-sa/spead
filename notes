@@ -1,3 +1,7 @@
+tcpdump spead to pipespead
+
+tcpdump -B 102400 -v -i eth4 -nn -U -w - -s 0 port 7148 | ssh -c arcfour 192.168.4.138 -ladam /home/adam/spead/utils/pipespead localhost 8888
+
 consider increasing /proc/sys/kernel/shmmax
 
 sudo sh -c "echo $[1000*1024*1024] > /proc/sys/kernel/shmmax"
@@ -167,4 +171,10 @@ Spead heap finalize
           get the offset from SPEAD_ITEM_ADDR(item ptr)
 
 
-
+  /* use setsockopt() to request that the kernel join a multicast group */
+  mreq.imr_multiaddr.s_addr=inet_addr(HELLO_GROUP);
+  mreq.imr_interface.s_addr=htonl(INADDR_ANY);
+  if (setsockopt(fd,IPPROTO_IP,IP_ADD_MEMBERSHIP,&mreq,sizeof(mreq)) < 0) {
+    perror("setsockopt");
+    exit(1);
+  }

@@ -3,7 +3,6 @@
 #ifndef UDP_SERVER_H
 #define UDP_SERVER_H
 
-#include "spead_api.h"
 #include "mutex.h"
 
 #define PORT      "8888"
@@ -15,6 +14,7 @@ struct u_server {
   int s_fd;
   uint64_t s_bc;
   struct spead_heap_store *s_hs;
+  int (*s_cdfn)();
 };
 
 struct u_child {

@@ -3,6 +3,7 @@
 
 #include "spead_packet.h"
 #include "hash.h"
+#include "server.h"
 
 struct spead_heap_store{
   int64_t s_backlog;
@@ -51,12 +52,12 @@ int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h);
 struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid);
 
 
-int process_packet_hs(struct spead_heap_store *hs, struct hash_o *o);
+int process_packet_hs(struct u_server *s, struct hash_o *o);
 
+#if 0
 int ship_heap_hs(struct spead_heap_store *hs, int64_t id); 
-
 int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h);
-
+#endif
   
 
 

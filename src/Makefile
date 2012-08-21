@@ -7,13 +7,13 @@
 
 
 EXE = spead 
-SRC = mutex.c sharedmem.c hash.c avltree.c subprocess.c spead_packet.c spead_api.c server.c
-HDR = mutex.h sharedmem.h hash.h avltree.h spead_packet.h spead_api.h server.h
+SRC = mutex.c sharedmem.c hash.c subprocess.c spead_packet.c spead_api.c server.c
+HDR = mutex.h sharedmem.h hash.h spead_packet.h spead_api.h server.h
 
 # CFLAGS += -DSTANDALONE
 #CFLAGS += -DDEBUG=3
 #CFLAGS += -DPROCESS
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
 CFLAGS += -ggdb

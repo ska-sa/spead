@@ -10,6 +10,7 @@
 #include "hash.h"
 #include "spead_api.h"
 #include "sharedmem.h"
+#include "server.h"
 
 struct spead_heap *create_spead_heap()
 {
@@ -276,14 +277,14 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   ig->g_off += size;
   ig->g_items++;
 
-#ifdef DEBUG
+#if DEBUG>2
   fprintf(stderr, "GROUP map (%p): size %ld offset: %ld data: %p\n", ig->g_map, ig->g_size, ig->g_off, itm->i_data);
 #endif
 
   return itm;
 }
 
-int process_items(struct hash_table *ht)
+int process_items(struct hash_table *ht, int (*cdfn)())
 {
 #define S_END             0
 #define S_MODE            1
@@ -295,7 +296,7 @@ int process_items(struct hash_table *ht)
 #define S_NEXT_ITEM       7
 #define S_GET_OBJECT      8
 #define S_DIRECT_COPY     9
-#define DC_NEXT_PACKET     10
+#define DC_NEXT_PACKET   10
 
   struct spead_item_group *ig;
   struct spead_api_item   *itm;
@@ -352,10 +353,12 @@ int process_items(struct hash_table *ht)
     return -1;
   }
 
-#ifdef DEBUG
+#ifdef PROCESS 
   fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
 #endif
 
+  id     = 0;
+  iptr   = 0;
   i      = 0;
   j      = 0;
   mode   = 0;
@@ -410,7 +413,7 @@ int process_items(struct hash_table *ht)
           state = S_NEXT_PACKET;
           break;
         }
-#ifdef DEBUG
+#if DEBUG>2
         fprintf(stderr, "--pkt-- in o (%p) has p (%p)\n  payload_off: %ld payload_len: %ld payload: %p\n", o, p, p->payload_off, p->payload_len, p->payload);
 #endif
         state = S_GET_ITEM;
@@ -607,7 +610,7 @@ DC_GET_PKT:
           goto DC_NXT_PKT;
         }
 
-#ifdef DEBUG
+#if DEBUG>2
         fprintf(stderr, "\tDC:--pkt-- in ds.o (%p) has ds.p (%p)\n\t   payload_off: %ld payload_len: %ld payload: %p\n", ds.o, ds.p, ds.p->payload_off, ds.p->payload_len, ds.p->payload);
 #endif
         state = S_DIRECT_COPY;
@@ -648,7 +651,6 @@ DC_GET_PKT:
 
         }
 
-
 #ifdef PROCESS
         fprintf(stderr, "-----direct copy end-----still need to copy %ld bytes\n", ds.cc);
 #endif
@@ -659,7 +661,7 @@ DC_GET_PKT:
 
   }
 
-#ifdef DEBUG
+#ifdef PROCESS
   fprintf(stderr, "--PROCESS-[%d]-END-----\n", getpid());
 #endif
 
@@ -671,12 +673,12 @@ DC_GET_PKT:
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: DONE empting hash table [%ld]\n", __func__, ht->t_id);
+  fprintf(stderr, "[%d] %s: \033[32m DONE empting hash table [%ld] \033[0m\n", getpid(), __func__, ht->t_id);
 #endif
   
 
-
-#if 1
+  /*DUMP each item*/
+#if 0
   off = 0;
   uint64_t count;
 
@@ -710,6 +712,8 @@ skip:
   }
 #endif
 
+  
+
 
 
   destroy_item_group(ig);
@@ -717,15 +721,21 @@ skip:
   return 0;
 }
 
-int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
+int store_packet_hs(struct u_server *s, struct hash_o *o)
 {
 #if 0
   struct spead_heap *h;
   int64_t id;
 #endif
-  struct spead_packet *p;
-  struct hash_table *ht;
+  struct spead_heap_store   *hs;
+  struct spead_packet       *p;
+  struct hash_table         *ht;
   int flag_processing;
+
+  if (s == NULL)
+    return -1;
+
+  hs = s->s_hs;
 
   flag_processing = 0;
 
@@ -751,6 +761,7 @@ int store_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
 #ifdef DATA
     fprintf(stderr, "%s: backlog collision\n", __func__);
 #endif
+
     return -1;
   }
 
@@ -792,7 +803,7 @@ def DEBUG
     fprintf(stderr, "[%d] data_count = %ld bytes == heap_len\n", getpid(), ht->t_data_count);
 #endif
 
-    if (process_items(ht) < 0){
+    if (process_items(ht, s->s_cdfn) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: error processing items in ht (%p)\n", __func__, ht);
 #endif
@@ -800,9 +811,85 @@ def DEBUG
     }
 
   }
+ 
+  return 0;
+}
+
+int process_packet_hs(struct u_server *s, struct hash_o *o)
+{
+  struct spead_heap_store *hs;
+  struct spead_packet *p;
+  int rtn;
+
+  if (s == NULL)
+    return -1;
+
+  hs = s->s_hs;
+
+  if (hs == NULL || o == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error invalid data\n", __func__);
+#endif 
+    return -1;
+  }
+
+  p = get_data_hash_o(o);
+  if (p == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot get packet from object (%p)\n", __func__, o);
+#endif 
+    return -1;
+  }
+  
+  if (spead_packet_unpack_header(p) == SPEAD_ERR){
+#ifdef DEBUG
+    fprintf(stderr, "%s: unable to unpack spead header for packet (%p)\n", __func__, p);
+#endif
+    return -1;
+  }
+
+#if DEBUG>1
+  fprintf(stderr, "%s: unpacked spead header for packet (%p)\n", __func__, p);
+#endif
+
+  if (spead_packet_unpack_items(p) == SPEAD_ERR){
+#ifdef DEBUG
+    fprintf(stderr, "%s: unable to unpack spead items for packet (%p)\n", __func__, p);
+#endif
+    return -1;
+  } 
+
+#if DEBUG>1
+  fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
+#endif
+
+  if (p->is_stream_ctrl_term){
+#ifdef DEBUG
+    fprintf(stderr, "%s: GOT STREAM TERMINATOR\n", __func__);
+#endif
+    
+    //for (i=0; !ship_heap_hs(hs, i); i++);
+
+    return -1;
+  } else {
+    rtn = store_packet_hs(s, o);
+  }
+
+  return rtn;
+}
 
 
+
+
+
+
+
+/***
+  This is old naive code
+  
+***/
 #if 0
+int store_packet(){
   h = get_heap_hs(hs, p->heap_cnt);
   if (h == NULL){
 #ifdef DEBUG
@@ -859,71 +946,8 @@ def DEBUG
 #endif
     }
   }
-#endif
-    
-  return 0;
 }
 
-int process_packet_hs(struct spead_heap_store *hs, struct hash_o *o)
-{
-  struct spead_packet *p;
-  int rtn;
-
-  if (hs == NULL || o == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error invalid data\n", __func__);
-#endif 
-    return -1;
-  }
-
-  p = get_data_hash_o(o);
-  if (p == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: cannot get packet from object (%p)\n", __func__, o);
-#endif 
-    return -1;
-  }
-  
-  if (spead_packet_unpack_header(p) == SPEAD_ERR){
-#ifdef DEBUG
-    fprintf(stderr, "%s: unable to unpack spead header for packet (%p)\n", __func__, p);
-#endif
-    return -1;
-  }
-
-#if DEBUG>1
-  fprintf(stderr, "%s: unpacked spead header for packet (%p)\n", __func__, p);
-#endif
-
-  if (spead_packet_unpack_items(p) == SPEAD_ERR){
-#ifdef DEBUG
-    fprintf(stderr, "%s: unable to unpack spead items for packet (%p)\n", __func__, p);
-#endif
-    return -1;
-  } 
-
-#if DEBUG>1
-  fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
-#endif
-
-  if (p->is_stream_ctrl_term){
-#ifdef DEBUG
-    fprintf(stderr, "%s: GOT STREAM TERMINATOR\n", __func__);
-#endif
-    
-    //for (i=0; !ship_heap_hs(hs, i); i++);
-
-    return -1;
-  } else {
-    rtn = store_packet_hs(hs, o);
-  }
-
-  return rtn;
-}
-
-
-
-#if 0
 int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
 {
   int64_t id;
