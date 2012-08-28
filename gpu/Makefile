@@ -2,8 +2,9 @@ CFLAGS += -DDEBUG
 #CFLAGS += -Wall
 #CFLAGS += -ggdb
 #CFLAGS += -O3
-CFLAGS  += -lcuda -lcudart
-USECUFFT = 1
+CFLAGS  += -lcufft
+#-arch=sm_20
+#USECUFFT = 1
 CC = nvcc
 
 UTILS = cudafft.cu
