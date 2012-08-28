@@ -42,10 +42,10 @@ int main(int argc, char *argv[])
   cufftHandle    plan;
   cufftComplex  *odata;
   cufftComplex  *cxdata;
-  cufftReal     *redata;
-  cufftReal     *idata;
+  cufftComplex  *redata;
+  cufftComplex  *idata;
 
-  redata = (cufftReal*)malloc(sizeof(cufftReal)*NX*BATCH); 
+  redata = (cufftComplex*)malloc(sizeof(cufftComplex)*NX*BATCH); 
   if (redata == NULL)
     return 1;
 
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     return 1;
 
   for (i=0; i<NX*BATCH; i++){
-    redata[i] = cosf(2 * PI * i / NX * BATCH);
+    redata[i].x = sinf(2 * PI * i / NX);
   }
 
 #if 0
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 #endif
 #endif
 
-  cudaMalloc((void **) &idata, sizeof(cufftReal) * NX * BATCH);
+  cudaMalloc((void **) &idata, sizeof(cufftComplex) * NX * BATCH);
   if (cudaGetLastError() != cudaSuccess){
 #ifdef DEBUG
     fprintf(stderr, "cuda err: failed to allocate\n");
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  cudaMemcpy(idata, redata, sizeof(cufftReal) * NX * BATCH, cudaMemcpyHostToDevice);
+  cudaMemcpy(idata, redata, sizeof(cufftComplex) * NX * BATCH, cudaMemcpyHostToDevice);
   if (cudaGetLastError() != cudaSuccess){
 #ifdef DEBUG
     fprintf(stderr, "cuda err: failed copy\n");
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  if (cufftPlan1d(&plan, NX, CUFFT_R2C, BATCH) != CUFFT_SUCCESS) {
+  if (cufftPlan1d(&plan, NX, CUFFT_C2C, BATCH) != CUFFT_SUCCESS) {
 #ifdef DEBUG
     fprintf(stderr, "cuda err: plan creation failed\n");
 #endif
@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
     return 1;
   }
   
-  cufftResult res = cufftExecR2C(plan, idata, odata);
+  cufftResult res = cufftExecC2C(plan, idata, odata, CUFFT_FORWARD);
   if (res != CUFFT_SUCCESS) {
 #ifdef DEBUG
     fprintf(stderr ,"CUFFT error: ExecC2C Forward failed %d\n", res);
@@ -125,8 +125,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  cudaMemcpy(cxdata, odata, sizeof(cufftReal) * NX * BATCH, cudaMemcpyDeviceToHost);
-
+  cudaMemcpy(cxdata, odata, sizeof(cufftComplex) * NX * BATCH, cudaMemcpyDeviceToHost);
 
 #if 0
   if (cufftExecC2C(plan, data, data, CUFFT_INVERSE) != CUFFT_SUCCESS) {
@@ -154,16 +153,15 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-
+  
   for (i=0; i<NX*BATCH; i++){
 #ifdef DEBUG
-    fprintf(stderr, "%d: %0.2f %0.2f\n", i, cxdata[i].x, cxdata[i].y);
+    fprintf(stderr, "%d %0.5f %0.5f %0.5f\n", i, redata[i].x, cuCabsf(cxdata[i]), atan2(cxdata[i].y, cxdata[i].x));
 #endif
   }
 #ifdef DEBUG
   fprintf(stderr, "\n");
 #endif
-
 
   cufftDestroy(plan);
   cudaFree(idata);
