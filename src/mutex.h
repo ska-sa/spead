@@ -6,12 +6,12 @@
 
 typedef int mutex;
 
-static inline mutex cmpxchg(mutex *ptr, mutex old, mutex new)
+static inline mutex cmpxchg(mutex *ptr, mutex old, mutex n)
 {
   mutex ret;
   asm volatile("lock\n" "cmpxchgl %2,%1\n"
               : "=a" (ret), "+m" (*(mutex *)ptr)
-              : "r" (new), "0" (old)
+              : "r" (n), "0" (old)
               : "memory");
    
   return ret;

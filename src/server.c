@@ -114,7 +114,7 @@ int register_signals_us()
   return 0;
 }
 
-struct u_server *create_server_us(int (*cdfn)(), long cpus)
+struct u_server *create_server_us(int (*cdfn)(struct spead_item_group *ig), long cpus)
 {
   struct u_server *s;
 
@@ -637,7 +637,7 @@ def DEBUG
   return 0;
 }
 
-int register_client_handler_server(int (*client_data_fn)(), char *port, long cpus, uint64_t hashes, uint64_t hashsize)
+int register_client_handler_server(int (*client_data_fn)(struct spead_item_group *ig), char *port, long cpus, uint64_t hashes, uint64_t hashsize)
 {
   struct u_server *s;
   
@@ -684,24 +684,22 @@ int register_client_handler_server(int (*client_data_fn)(), char *port, long cpu
 }
 
 
-int capture_client_data()
-{
-  
-  return 0;
-}
-
 int main(int argc, char *argv[])
 {
   long cpus;
   int i, j, c;
-  char *port;
+  char *port, *dylib;
   uint64_t hashes, hashsize;
+
+  int (*cbh)(struct spead_item_group *ig);
 
   i = 1;
   j = 1;
 
   hashes = 10;
   hashsize = 10;
+  
+  dylib = NULL;
 
   port = PORT;
   cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -729,6 +727,7 @@ int main(int argc, char *argv[])
           return EX_OK;
 
         /*settings*/
+        case 'd':
         case 'p':
         case 'w':
         case 'b':
@@ -743,6 +742,9 @@ int main(int argc, char *argv[])
             return EX_USAGE;
           }
           switch (c){
+            case 'd':
+              dylib = argv[i] + j;  
+              break;
             case 'p':
               port = argv[i] + j;  
               break;
@@ -772,5 +774,15 @@ int main(int argc, char *argv[])
     
   }
 
-  return register_client_handler_server(&capture_client_data , port, cpus, hashes, hashsize);
+  if (dylib != NULL){
+
+    cbh = load_api_user_module(dylib);
+    if (cbh == NULL){
+      fprintf(stderr, "Could not load user api module <%s>\n", dylib);
+      return EX_USAGE;
+    }
+
+  }
+
+  return register_client_handler_server(cbh , port, cpus, hashes, hashsize);
 }

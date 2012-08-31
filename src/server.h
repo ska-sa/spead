@@ -28,4 +28,9 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
 
 void print_format_bitrate(char x, uint64_t bps);
 
+
+/*modules api*/
+
+void *load_api_user_module(char *mod);
+
 #endif

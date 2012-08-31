@@ -7,19 +7,21 @@
 
 
 EXE = spead 
-SRC = mutex.c sharedmem.c hash.c subprocess.c spead_packet.c spead_api.c server.c
+SRC = module.c mutex.c sharedmem.c hash.c subprocess.c spead_packet.c spead_api.c server.c
 HDR = mutex.h sharedmem.h hash.h spead_packet.h spead_api.h server.h
 
 # CFLAGS += -DSTANDALONE
 #CFLAGS += -DDEBUG=3
 #CFLAGS += -DPROCESS
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
 CFLAGS += -ggdb
 CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
+
+LIB = -ldl
 
 
 OBJ = $(patsubst %.c,%.o,$(SRC))
@@ -33,7 +35,7 @@ clean:
 	$(RM) -f $(EXE) *.o core vgcore* test-*
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@ $(INC)
+	$(CC) $(LIB) $(CFLAGS) -c $< -o $@ $(INC)
 
 install: all
 	$(INSTALL) $(EXE) $(PREFIX)/sbin
