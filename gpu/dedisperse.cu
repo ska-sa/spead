@@ -5,6 +5,7 @@
 
 #include <spead_api.h>
 
+extern void print_data(unsigned char *buf, int size);
 
 int spead_api_callback(struct spead_item_group *ig)
 {
@@ -27,9 +28,12 @@ int spead_api_callback(struct spead_item_group *ig)
 
     count = 0;
 #ifdef DEBUG
-    fprintf(stderr, "ITEM id[%d] vaild [%d] len [%ld]\n\t0x%06x | ", itm->i_id, itm->i_valid, itm->i_len, count);
+    fprintf(stderr, "ITEM id[%d] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
+#endif
     
-    for (;count<itm->i_len; count++){
+    print_data(itm->i_data, itm->i_len);
+
+/*    for (;count<itm->i_len; count++){
       
       fprintf(stderr, "%02X", itm->i_data[count]);
       if ((count+1) % 20 == 0){
@@ -40,8 +44,10 @@ int spead_api_callback(struct spead_item_group *ig)
 
     }
     fprintf(stderr,"\n");
+*/
+    
 
-#endif
+
 skip:
     off += sizeof(struct spead_api_item) + itm->i_len;
     

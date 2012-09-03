@@ -3,6 +3,8 @@
 #ifndef UDP_SERVER_H
 #define UDP_SERVER_H
 
+#include <stdint.h>
+
 #include "mutex.h"
 
 #define PORT      "8888"

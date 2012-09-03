@@ -554,7 +554,8 @@ def DEBUG
       unlock_mutex(&(s->s_m));
       print_format_bitrate('R', total);
 #ifdef DATA
-      fprintf(stderr,"\theaps processed: %d\n", s->s_hpcount);
+      if (s->s_hpcount > 0)
+        fprintf(stderr,"\theaps processed: %d\n", s->s_hpcount);
 #endif
 #if 0 
       def DATA
@@ -696,10 +697,11 @@ int main(int argc, char *argv[])
   i = 1;
   j = 1;
 
-  hashes = 10;
+  hashes = 100;
   hashsize = 10;
   
   dylib = NULL;
+  cbh   = NULL;
 
   port = PORT;
   cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -723,7 +725,7 @@ int main(int argc, char *argv[])
 
         /*switches*/  
         case 'h':
-          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
+          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
           return EX_OK;
 
         /*settings*/

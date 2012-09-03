@@ -1,16 +1,4 @@
-#INC = -I$(SSLBUILD)/include,$(KATCP)
-#LIB = -lssl 
 
-#KERN = /usr/src/linux-headers-3.2.0-26-generic
-
-#INC = -I$(KERN)/include
-
-
-EXE = spead 
-SRC = module.c mutex.c sharedmem.c hash.c subprocess.c spead_packet.c spead_api.c server.c
-HDR = mutex.h sharedmem.h hash.h spead_packet.h spead_api.h server.h
-
-# CFLAGS += -DSTANDALONE
 #CFLAGS += -DDEBUG=3
 #CFLAGS += -DPROCESS
 CFLAGS += -DDEBUG
@@ -24,21 +12,40 @@ CFLAGS += -Wall
 LIB = -ldl
 
 
-OBJ = $(patsubst %.c,%.o,$(SRC))
+
+SSRC = spead_api.c
+SLIB = spead_api.so
+
+SOBJ = $(patsubst %.c,%.o,$(SSRC))
+
+$(SLIB): $(SOBJ)
+	$(CC) -o $@ $^ -shared -Wl,-x 
+
+$(SOBJ): $(SSRC)
+	$(CC) $(CFLAGS) -c $< -o $@ $(INC) -fPIC
+
+
+EXE = spead
+SRC = module.c mutex.c sharedmem.c hash.c subprocess.c spead_packet.c server.c
+HDR = mutex.h sharedmem.h hash.h spead_packet.h spead_api.h server.h
+
+OBJ  = $(patsubst %.c,%.o,$(SRC))
+
 all: $(EXE)
 
-#$(EXE): $(OBJ) $(KATCP)/libkatcp.a
-$(EXE): $(OBJ)
+$(EXE): $(OBJ) $(SLIB) $(HDR)
 	$(CC) -o $@ $^ $(LIB)
 
-clean: 
-	$(RM) -f $(EXE) *.o core vgcore* test-*
-
 %.o: %.c
-	$(CC) $(LIB) $(CFLAGS) -c $< -o $@ $(INC)
+	$(CC) $(CFLAGS) -c $< -o $@ $(INC)
+
+
 
 install: all
 	$(INSTALL) $(EXE) $(PREFIX)/sbin
+
+clean: 
+	$(RM) $(EXE) $(SLIB) *.o core vgcore* test-*
 
 test-hash: sharedmem.c hash.c
 	$(CC) $(CFLAGS) -DTEST_HASH -o $@ $^
@@ -48,3 +55,6 @@ test-shm: sharedmem.c
 
 test-mutex: mutex.c
 	$(CC) $(CFLAGS) $(INC) -DTEST_MUTEX -o $@ $^
+
+
+

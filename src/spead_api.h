@@ -5,6 +5,10 @@
 #include "hash.h"
 #include "server.h"
 
+
+void print_data(unsigned char *buf, int size);
+
+
 struct spead_heap_store{
   int64_t s_backlog;
 #if 0
@@ -37,14 +41,15 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems);
 void destroy_item_group(struct spead_item_group *ig);
 struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size);
 
+struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n);
+
+#if 0
 struct spead_heap *create_spead_heap();
 void destroy_spead_heap(struct spead_heap *h);
-#if 0
 struct spead_packet *create_spead_packet();
-#endif
 void *create_spead_packet();
 void destroy_spead_packet(void *data);
-
+#endif
 
 struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_count, uint64_t hash_table_size);
 void destroy_store_hs(struct spead_heap_store *hs);

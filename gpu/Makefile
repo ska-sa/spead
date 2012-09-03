@@ -11,7 +11,6 @@ IDIR = -I../src
 #USECUFFT = 1
 NCC = nvcc
 
-
 #gcc -shared -Wl,-x in.o -o out.so
 
 UTILS = cudafft.cu dedisperse.cu
