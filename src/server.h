@@ -3,6 +3,8 @@
 #ifndef UDP_SERVER_H
 #define UDP_SERVER_H
 
+#include <stdint.h>
+
 #include "mutex.h"
 
 #define PORT      "8888"
@@ -12,6 +14,7 @@ struct u_server {
   long s_cpus;
   struct u_child **s_cs;
   int s_fd;
+  int s_hpcount;
   uint64_t s_bc;
   struct spead_heap_store *s_hs;
   int (*s_cdfn)();
@@ -26,5 +29,10 @@ void destroy_child_sp(struct u_child *c);
 struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s, int cfd));
 
 void print_format_bitrate(char x, uint64_t bps);
+
+
+/*modules api*/
+
+void *load_api_user_module(char *mod);
 
 #endif

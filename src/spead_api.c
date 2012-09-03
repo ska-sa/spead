@@ -284,7 +284,7 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   return itm;
 }
 
-int process_items(struct hash_table *ht, int (*cdfn)())
+int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig))
 {
 #define S_END             0
 #define S_MODE            1
@@ -673,11 +673,21 @@ DC_GET_PKT:
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "[%d] %s: \033[32m DONE empting hash table [%ld] \033[0m\n", getpid(), __func__, ht->t_id);
+  fprintf(stderr, "[%d] %s:\033[32m DONE empting hash table [%ld] \033[0m\n", getpid(), __func__, ht->t_id);
 #endif
+
   
+  if (cdfn != NULL){
+    if((*cdfn)(ig) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "user callback failed\n");
+#endif
+    }
+  }
+
 
   /*DUMP each item*/
+
 #if 0
   off = 0;
   uint64_t count;
@@ -809,7 +819,11 @@ def DEBUG
 #endif
       return -1;
     }
-
+    
+    lock_mutex(&(s->s_m));
+    s->s_hpcount++;
+    unlock_mutex(&(s->s_m));
+    
   }
  
   return 0;

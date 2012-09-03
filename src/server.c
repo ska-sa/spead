@@ -114,7 +114,7 @@ int register_signals_us()
   return 0;
 }
 
-struct u_server *create_server_us(int (*cdfn)(), long cpus)
+struct u_server *create_server_us(int (*cdfn)(struct spead_item_group *ig), long cpus)
 {
   struct u_server *s;
 
@@ -132,13 +132,14 @@ struct u_server *create_server_us(int (*cdfn)(), long cpus)
   if (s == NULL)
     return NULL;
   
-  s->s_fd   = 0;
-  s->s_bc   = 0;
-  s->s_cpus = cpus;
-  s->s_cs   = NULL;
-  s->s_hs   = NULL;
-  s->s_m    = 0;
-  s->s_cdfn = cdfn;
+  s->s_fd      = 0;
+  s->s_bc      = 0;
+  s->s_hpcount = 0;
+  s->s_cpus    = cpus;
+  s->s_cs      = NULL;
+  s->s_hs      = NULL;
+  s->s_m       = 0;
+  s->s_cdfn    = cdfn;
 
   return s;
 }
@@ -552,6 +553,10 @@ def DEBUG
       total = s->s_bc - total;
       unlock_mutex(&(s->s_m));
       print_format_bitrate('R', total);
+#ifdef DATA
+      if (s->s_hpcount > 0)
+        fprintf(stderr,"\theaps processed: %d\n", s->s_hpcount);
+#endif
 #if 0 
       def DATA
       if (total > 0) {
@@ -562,6 +567,7 @@ def DEBUG
       timer = 0;
       lock_mutex(&(s->s_m));
       total = s->s_bc;
+      s->s_hpcount = 0;
       unlock_mutex(&(s->s_m));
       continue;
     }
@@ -632,7 +638,7 @@ def DEBUG
   return 0;
 }
 
-int register_client_handler_server(int (*client_data_fn)(), char *port, long cpus, uint64_t hashes, uint64_t hashsize)
+int register_client_handler_server(int (*client_data_fn)(struct spead_item_group *ig), char *port, long cpus, uint64_t hashes, uint64_t hashsize)
 {
   struct u_server *s;
   
@@ -679,24 +685,23 @@ int register_client_handler_server(int (*client_data_fn)(), char *port, long cpu
 }
 
 
-int capture_client_data()
-{
-  
-  return 0;
-}
-
 int main(int argc, char *argv[])
 {
   long cpus;
   int i, j, c;
-  char *port;
+  char *port, *dylib;
   uint64_t hashes, hashsize;
+
+  int (*cbh)(struct spead_item_group *ig);
 
   i = 1;
   j = 1;
 
-  hashes = 10;
+  hashes = 100;
   hashsize = 10;
+  
+  dylib = NULL;
+  cbh   = NULL;
 
   port = PORT;
   cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -720,10 +725,11 @@ int main(int argc, char *argv[])
 
         /*switches*/  
         case 'h':
-          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
+          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
           return EX_OK;
 
         /*settings*/
+        case 'd':
         case 'p':
         case 'w':
         case 'b':
@@ -738,6 +744,9 @@ int main(int argc, char *argv[])
             return EX_USAGE;
           }
           switch (c){
+            case 'd':
+              dylib = argv[i] + j;  
+              break;
             case 'p':
               port = argv[i] + j;  
               break;
@@ -767,5 +776,15 @@ int main(int argc, char *argv[])
     
   }
 
-  return register_client_handler_server(&capture_client_data , port, cpus, hashes, hashsize);
+  if (dylib != NULL){
+
+    cbh = load_api_user_module(dylib);
+    if (cbh == NULL){
+      fprintf(stderr, "Could not load user api module <%s>\n", dylib);
+      return EX_USAGE;
+    }
+
+  }
+
+  return register_client_handler_server(cbh , port, cpus, hashes, hashsize);
 }
