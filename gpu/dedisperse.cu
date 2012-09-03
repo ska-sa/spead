@@ -5,7 +5,6 @@
 
 #include <spead_api.h>
 
-extern void print_data(unsigned char *buf, int size);
 
 int spead_api_callback(struct spead_item_group *ig)
 {

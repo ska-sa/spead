@@ -63,10 +63,10 @@ int sub_time(struct timeval *delta, struct timeval *alpha, struct timeval *beta)
 
 void print_time(struct timeval *result, uint64_t bytes)
 {
-  int64_t us;
-  int64_t bpus;
+  //int64_t us;
+  //int64_t bpus;
 
-  us = result->tv_sec*1000*1000 + result->tv_usec;
+  //us = result->tv_sec*1000*1000 + result->tv_usec;
   //bpus = bytes / us * 1000 * 1000 / 1024 / 1024;
   //bpus = (bytes / us) * 1000 * 1000;
   //print_format_bitrate('R', bpus);
@@ -118,8 +118,10 @@ struct u_server *create_server_us(int (*cdfn)(struct spead_item_group *ig), long
 {
   struct u_server *s;
 
+#if 0
   if (cdfn == NULL)
     return NULL;
+#endif
 
   if (cpus < 1){
 #ifdef DEBUG
@@ -447,14 +449,13 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
   fd_set ins;
   pid_t sp;
   sigset_t empty_mask;
-  uint64_t rr, total;
+  uint64_t total;
 #if 0
   struct timespec ts;
 #endif
   struct sigaction sa;
 
   hs = NULL;
-  rr = 0;
   total = 0;
 #if 0
   ts.tv_sec = 1;
@@ -575,7 +576,7 @@ def DEBUG
     if (child){      
       sp = waitpid(-1, &status, 0);
 #ifdef DEBUG
-      fprintf(stderr,"SIGCHLD waitpid [%d]\n", __func__, sp);
+      fprintf(stderr,"SIGCHLD waitpid [%d]\n", sp);
 #endif
       child = 0;
     }
@@ -643,34 +644,24 @@ int register_client_handler_server(int (*client_data_fn)(struct spead_item_group
   struct u_server *s;
   
   if (register_signals_us() < 0){
-#ifdef DEBUG
     fprintf(stderr, "%s: error register signals\n", __func__);
-#endif
     return -1;
   }
 
   s = create_server_us(client_data_fn, cpus);
   if (s == NULL){
-#ifdef DEBUG
     fprintf(stderr, "%s: error could not create server\n", __func__);
-#endif
     return -1;
   }
 
-#if 1
   if (startup_server_us(s, port) < 0){
-#ifdef DEBUG
     fprintf(stderr,"%s: error in startup\n", __func__);
-#endif
     shutdown_server_us(s);
     return -1;
   }
-#endif
 
   if (spawn_workers_us(s, hashes, hashsize) < 0){ 
-#ifdef DEBUG
     fprintf(stderr,"%s: error during run\n", __func__);
-#endif
     shutdown_server_us(s);
     return -1;
   }

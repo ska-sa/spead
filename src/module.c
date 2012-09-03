@@ -38,7 +38,7 @@ void *load_api_user_module(char *mod)
   }
   
 #ifdef DEBUG
-  fprintf(stderr, "\tAPI module: %s\n", mod);
+  fprintf(stderr, "\tDATA sink:\t%s\n", mod);
 #endif
 
   dlclose(mhandle);
