@@ -11,12 +11,21 @@ CFLAGS += -Wall
 
 LIB = -ldl
 
+################
 
+EXE = spead
+
+SRC = module.c mutex.c sharedmem.c hash.c subprocess.c spead_packet.c server.c
+HDR = mutex.h sharedmem.h hash.h spead_packet.h spead_api.h server.h
+
+OBJ  = $(patsubst %.c,%.o,$(SRC))
 
 SSRC = spead_api.c
 SLIB = spead_api.so
 
 SOBJ = $(patsubst %.c,%.o,$(SSRC))
+
+all: $(EXE)
 
 $(SLIB): $(SOBJ)
 	$(CC) -o $@ $^ -shared -Wl,-x 
@@ -24,22 +33,11 @@ $(SLIB): $(SOBJ)
 $(SOBJ): $(SSRC)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC) -fPIC
 
-
-EXE = spead
-SRC = module.c mutex.c sharedmem.c hash.c subprocess.c spead_packet.c server.c
-HDR = mutex.h sharedmem.h hash.h spead_packet.h spead_api.h server.h
-
-OBJ  = $(patsubst %.c,%.o,$(SRC))
-
-all: $(EXE)
-
-$(EXE): $(OBJ) $(SLIB) $(HDR)
+$(EXE): $(OBJ) $(SLIB)
 	$(CC) -o $@ $^ $(LIB)
 
-%.o: %.c
+%.o: %.c $(HDR)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC)
-
-
 
 install: all
 	$(INSTALL) $(EXE) $(PREFIX)/sbin
