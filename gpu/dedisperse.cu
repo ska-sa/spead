@@ -32,21 +32,6 @@ int spead_api_callback(struct spead_item_group *ig)
     
     print_data(itm->i_data, itm->i_len);
 
-/*    for (;count<itm->i_len; count++){
-      
-      fprintf(stderr, "%02X", itm->i_data[count]);
-      if ((count+1) % 20 == 0){
-        fprintf(stderr,"\n\t0x%06x | ", count);
-      } else {
-        fprintf(stderr," ");
-      }
-
-    }
-    fprintf(stderr,"\n");
-*/
-    
-
-
 skip:
     off += sizeof(struct spead_api_item) + itm->i_len;
     

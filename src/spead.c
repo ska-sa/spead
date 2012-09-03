@@ -222,30 +222,32 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
 void print_data(unsigned char *buf, int size)
 {
 #ifdef DEBUG
+#define COLS 24
+#define ROWS 900
   int count, count2;
 
   count = 0;
   fprintf(stderr, "\t\t   ");
-  for (count2=0; count2<30; count2++){
+  for (count2=0; count2<COLS; count2++){
     fprintf(stderr, "%02x ", count2);
   }
   fprintf(stderr,"\n\t\t   ");
-  for (count2=0; count2<30; count2++){
+  for (count2=0; count2<COLS; count2++){
     fprintf(stderr, "---");
   }
   fprintf(stderr,"\n\t0x%06x | ", count);
   for (;count<size; count++){
 
     fprintf(stderr, "%02X", buf[count]);
-    if ((count+1) % 30 == 0){
+    if ((count+1) % COLS == 0){
 
-      if ((count+1) % 900 == 0){
+      if ((count+1) % ROWS == 0){
         fprintf(stderr, "\n\n\t\t   ");
-        for (count2=0; count2<30; count2++){
+        for (count2=0; count2<COLS; count2++){
           fprintf(stderr, "%02x ", count2);
         }
         fprintf(stderr,"\n\t\t   ");
-        for (count2=0; count2<30; count2++){
+        for (count2=0; count2<COLS; count2++){
           fprintf(stderr, "---");
         }
       }
@@ -257,6 +259,8 @@ void print_data(unsigned char *buf, int size)
 
   }
   fprintf(stderr,"\n");
+#undef COLS
+#undef ROWS
 #endif
 }
 
