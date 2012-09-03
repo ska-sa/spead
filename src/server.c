@@ -63,10 +63,10 @@ int sub_time(struct timeval *delta, struct timeval *alpha, struct timeval *beta)
 
 void print_time(struct timeval *result, uint64_t bytes)
 {
-  int64_t us;
-  int64_t bpus;
+  //int64_t us;
+  //int64_t bpus;
 
-  us = result->tv_sec*1000*1000 + result->tv_usec;
+  //us = result->tv_sec*1000*1000 + result->tv_usec;
   //bpus = bytes / us * 1000 * 1000 / 1024 / 1024;
   //bpus = (bytes / us) * 1000 * 1000;
   //print_format_bitrate('R', bpus);
@@ -114,12 +114,14 @@ int register_signals_us()
   return 0;
 }
 
-struct u_server *create_server_us(int (*cdfn)(), long cpus)
+struct u_server *create_server_us(int (*cdfn)(struct spead_item_group *ig), long cpus)
 {
   struct u_server *s;
 
+#if 0
   if (cdfn == NULL)
     return NULL;
+#endif
 
   if (cpus < 1){
 #ifdef DEBUG
@@ -281,6 +283,7 @@ void print_format_bitrate(char x, uint64_t bps)
   
   bitsps = bps * 8;
   bps = bitsps;
+  style = 0;
 
 #ifdef DATA
   if (bps > 0){
@@ -447,14 +450,13 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
   fd_set ins;
   pid_t sp;
   sigset_t empty_mask;
-  uint64_t rr, total;
+  uint64_t total;
 #if 0
   struct timespec ts;
 #endif
   struct sigaction sa;
 
   hs = NULL;
-  rr = 0;
   total = 0;
 #if 0
   ts.tv_sec = 1;
@@ -492,7 +494,7 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 
     if (add_child_us(s, c, i) < 0){
 #ifdef DEBUG
-      fprintf(stderr, "%s: could not store worker pid [%d]\n", __func__, sp);
+      fprintf(stderr, "%s: could not store worker pid [%d]\n", __func__, c->c_pid);
 #endif
       destroy_child_sp(c);
     } else
@@ -554,7 +556,8 @@ def DEBUG
       unlock_mutex(&(s->s_m));
       print_format_bitrate('R', total);
 #ifdef DATA
-      fprintf(stderr,"\theaps processed: %d\n", s->s_hpcount);
+      if (s->s_hpcount > 0)
+        fprintf(stderr,"\theaps processed: %d\n", s->s_hpcount);
 #endif
 #if 0 
       def DATA
@@ -574,7 +577,7 @@ def DEBUG
     if (child){      
       sp = waitpid(-1, &status, 0);
 #ifdef DEBUG
-      fprintf(stderr,"SIGCHLD waitpid [%d]\n", __func__, sp);
+      fprintf(stderr,"SIGCHLD waitpid [%d]\n", sp);
 #endif
       child = 0;
     }
@@ -637,39 +640,29 @@ def DEBUG
   return 0;
 }
 
-int register_client_handler_server(int (*client_data_fn)(), char *port, long cpus, uint64_t hashes, uint64_t hashsize)
+int register_client_handler_server(int (*client_data_fn)(struct spead_item_group *ig), char *port, long cpus, uint64_t hashes, uint64_t hashsize)
 {
   struct u_server *s;
   
   if (register_signals_us() < 0){
-#ifdef DEBUG
     fprintf(stderr, "%s: error register signals\n", __func__);
-#endif
     return -1;
   }
 
   s = create_server_us(client_data_fn, cpus);
   if (s == NULL){
-#ifdef DEBUG
     fprintf(stderr, "%s: error could not create server\n", __func__);
-#endif
     return -1;
   }
 
-#if 1
   if (startup_server_us(s, port) < 0){
-#ifdef DEBUG
     fprintf(stderr,"%s: error in startup\n", __func__);
-#endif
     shutdown_server_us(s);
     return -1;
   }
-#endif
 
   if (spawn_workers_us(s, hashes, hashsize) < 0){ 
-#ifdef DEBUG
     fprintf(stderr,"%s: error during run\n", __func__);
-#endif
     shutdown_server_us(s);
     return -1;
   }
@@ -684,24 +677,23 @@ int register_client_handler_server(int (*client_data_fn)(), char *port, long cpu
 }
 
 
-int capture_client_data()
-{
-  
-  return 0;
-}
-
 int main(int argc, char *argv[])
 {
   long cpus;
   int i, j, c;
-  char *port;
+  char *port, *dylib;
   uint64_t hashes, hashsize;
+
+  int (*cbh)(struct spead_item_group *ig);
 
   i = 1;
   j = 1;
 
-  hashes = 10;
+  hashes = 100;
   hashsize = 10;
+  
+  dylib = NULL;
+  cbh   = NULL;
 
   port = PORT;
   cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -725,10 +717,11 @@ int main(int argc, char *argv[])
 
         /*switches*/  
         case 'h':
-          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
+          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
           return EX_OK;
 
         /*settings*/
+        case 'd':
         case 'p':
         case 'w':
         case 'b':
@@ -743,6 +736,9 @@ int main(int argc, char *argv[])
             return EX_USAGE;
           }
           switch (c){
+            case 'd':
+              dylib = argv[i] + j;  
+              break;
             case 'p':
               port = argv[i] + j;  
               break;
@@ -772,5 +768,15 @@ int main(int argc, char *argv[])
     
   }
 
-  return register_client_handler_server(&capture_client_data , port, cpus, hashes, hashsize);
+  if (dylib != NULL){
+
+    cbh = load_api_user_module(dylib);
+    if (cbh == NULL){
+      fprintf(stderr, "Could not load user api module <%s>\n", dylib);
+      return EX_USAGE;
+    }
+
+  }
+
+  return register_client_handler_server(cbh , port, cpus, hashes, hashsize);
 }

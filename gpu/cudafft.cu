@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include <cufft.h>
@@ -35,7 +36,7 @@ __global__ void complex2real(cufftComplex *fc, float *f, int N)
 int main(int argc, char *argv[])
 {
 #define NX    256
-#define BATCH 10
+#define BATCH 100
 
   int i; 
 

@@ -1,23 +1,31 @@
 CFLAGS += -DDEBUG
+CFLAGS += --compiler-options '-fPIC' --shared -x 'c'
 #CFLAGS += -Wall
 #CFLAGS += -ggdb
 #CFLAGS += -O3
-CFLAGS  += -lcufft
+LIB = -lcufft -lspead
+
+IDIR = -I../src
+LDIR = -L../src
+
 #-arch=sm_20
 #USECUFFT = 1
-CC = nvcc
+NCC = nvcc
 
-UTILS = cudafft.cu
+#gcc -shared -Wl,-x in.o -o out.so
 
-EXE = $(patsubst %.cu,%,$(UTILS))
+UTILS = cudafft.cu dedisperse.cu
 
-all: $(EXE)
+OBJ = $(patsubst %.cu,%.so,$(UTILS))
 
-$(EXE): $(UTILS)
-	$(CC) $(CFLAGS) $< -o $@
+all: $(OBJ)
+
+%.so: %.cu
+	$(NCC) $(CFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
 
 clean:
-	$(RM) -f $(EXE) core vgcore*
+	$(RM) -f $(OBJ) core vgcore*
 
-install: all
-	install $(EXE) /usr/local/bin
+#install: all
+#	install $(EXE) /usr/local/bin
+
