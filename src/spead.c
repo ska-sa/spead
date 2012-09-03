@@ -550,8 +550,8 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
         itm = new_item_from_group(ig, sizeof(struct spead_api_item) + sizeof(data64));
         if (itm){
           itm->i_id = id;
-          itm->i_len = sizeof(data64);
-          memcpy(itm->i_data, &data64, sizeof(data64));
+          itm->i_len = sizeof(int64_t);
+          memcpy(itm->i_data, &data64, sizeof(int64_t));
           itm->i_valid = 1;
         } else {      
 #ifdef DEBUG
@@ -686,6 +686,14 @@ DC_GET_PKT:
 
           ds.off += ds.cc;
           ds.cc = 0;
+
+          itm->i_valid = 1;
+
+          if (itm->i_id == SPEAD_DESCRIPTOR_ID){
+#ifdef DEBUG
+            fprintf(stderr, "PROCESS DESCRIPTOR\n");
+#endif
+          }
 
         } else {
 #ifdef PROCESS
