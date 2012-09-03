@@ -219,6 +219,47 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   return ht;
 }
 
+void print_data(unsigned char *buf, int size)
+{
+#ifdef DEBUG
+  int count, count2;
+
+  count = 0;
+  fprintf(stderr, "\t\t   ");
+  for (count2=0; count2<30; count2++){
+    fprintf(stderr, "%02x ", count2);
+  }
+  fprintf(stderr,"\n\t\t   ");
+  for (count2=0; count2<30; count2++){
+    fprintf(stderr, "---");
+  }
+  fprintf(stderr,"\n\t0x%06x | ", count);
+  for (;count<size; count++){
+
+    fprintf(stderr, "%02X", buf[count]);
+    if ((count+1) % 30 == 0){
+
+      if ((count+1) % 900 == 0){
+        fprintf(stderr, "\n\n\t\t   ");
+        for (count2=0; count2<30; count2++){
+          fprintf(stderr, "%02x ", count2);
+        }
+        fprintf(stderr,"\n\t\t   ");
+        for (count2=0; count2<30; count2++){
+          fprintf(stderr, "---");
+        }
+      }
+
+      fprintf(stderr,"\n\t0x%06x | ", count+1);
+    } else {
+      fprintf(stderr," ");
+    }
+
+  }
+  fprintf(stderr,"\n");
+#endif
+}
+
 struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
 {
   struct spead_item_group *ig;
@@ -282,6 +323,12 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
 #endif
 
   return itm;
+}
+
+struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n)
+{
+  
+  return NULL;
 }
 
 int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig))

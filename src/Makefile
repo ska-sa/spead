@@ -9,7 +9,7 @@ CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
 
-LIB = -ldl
+LIB = -ldl -lspead -L.
 
 ################
 
@@ -20,8 +20,8 @@ HDR = mutex.h sharedmem.h hash.h spead_packet.h spead_api.h server.h
 
 OBJ  = $(patsubst %.c,%.o,$(SRC))
 
-SSRC = spead_api.c
-SLIB = spead_api.so
+SSRC = spead.c
+SLIB = libspead.so
 
 SOBJ = $(patsubst %.c,%.o,$(SSRC))
 
@@ -33,7 +33,7 @@ $(SLIB): $(SOBJ)
 $(SOBJ): $(SSRC)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC) -fPIC
 
-$(EXE): $(OBJ) $(SLIB)
+$(EXE): $(OBJ)
 	$(CC) -o $@ $^ $(LIB)
 
 %.o: %.c $(HDR)
