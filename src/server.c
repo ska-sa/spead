@@ -283,6 +283,7 @@ void print_format_bitrate(char x, uint64_t bps)
   
   bitsps = bps * 8;
   bps = bitsps;
+  style = 0;
 
 #ifdef DATA
   if (bps > 0){
@@ -493,7 +494,7 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 
     if (add_child_us(s, c, i) < 0){
 #ifdef DEBUG
-      fprintf(stderr, "%s: could not store worker pid [%d]\n", __func__, sp);
+      fprintf(stderr, "%s: could not store worker pid [%d]\n", __func__, c->c_pid);
 #endif
       destroy_child_sp(c);
     } else
