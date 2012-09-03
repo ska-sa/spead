@@ -13,7 +13,7 @@ HDR = mutex.h sharedmem.h hash.h spead_packet.h spead_api.h server.h
 # CFLAGS += -DSTANDALONE
 #CFLAGS += -DDEBUG=3
 #CFLAGS += -DPROCESS
-CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
 CFLAGS += -ggdb
