@@ -15,15 +15,17 @@ LIB = -ldl -lspead -L.
 
 EXE = spead
 
-SRC = module.c mutex.c sharedmem.c hash.c subprocess.c server.c
-HDR = mutex.h sharedmem.h hash.h spead_packet.h spead_api.h server.h
+SHDR = spead_api.h spead_packet.h
+HDR = mutex.h sharedmem.h hash.h $(SHDR) server.h
 
-OBJ  = $(patsubst %.c,%.o,$(SRC))
+SRC = module.c mutex.c sharedmem.c hash.c subprocess.c server.c
 
 SSRC = spead.c spead_packet.c
 SLIB = libspead.so
 
-SOBJ = $(patsubst %.c,%.o,$(SSRC))
+
+OBJ  = $(patsubst %.c,%.o,$(SRC))
+SOBJ = $(patsubst %.c,%.lo,$(SSRC))
 
 
 all: $(EXE)
@@ -32,7 +34,7 @@ all: $(EXE)
 $(SLIB): $(SOBJ)
 	$(CC) -o $@ $^ -shared -Wl,-x 
 
-$(SOBJ): $(SSRC)
+%.lo: %.c $(SHDR)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC) -fPIC
 
 
@@ -48,7 +50,7 @@ install: all
 	$(INSTALL) $(EXE) $(PREFIX)/sbin
 
 clean: 
-	$(RM) $(EXE) $(SLIB) *.o core vgcore* test-*
+	$(RM) $(EXE) $(SLIB) *.o *.lo core vgcore* test-*
 
 test-hash: sharedmem.c hash.c
 	$(CC) $(CFLAGS) -DTEST_HASH -o $@ $^
@@ -58,6 +60,5 @@ test-shm: sharedmem.c
 
 test-mutex: mutex.c
 	$(CC) $(CFLAGS) $(INC) -DTEST_MUTEX -o $@ $^
-
 
 
