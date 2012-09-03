@@ -33,8 +33,8 @@ $(SLIB): $(SOBJ)
 $(SOBJ): $(SSRC)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC) -fPIC
 
-$(EXE): $(OBJ)
-	$(CC) -o $@ $^ $(LIB)
+$(EXE): $(OBJ) $(SLIB)
+	$(CC) -o $@ $(OBJ) $(LIB)
 
 %.o: %.c $(HDR)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC)
