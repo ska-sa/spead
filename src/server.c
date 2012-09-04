@@ -666,7 +666,7 @@ int setup_katcp_us(struct u_server *s)
     return -1;
 
   
-  append_string_katcl(kl, KATCP_FLAG_FIRST | KATCP_FLAG_STRING, KATCP_VERSION_INFORM);
+  append_string_katcl(kl, KATCP_FLAG_FIRST | KATCP_FLAG_STRING, KATCP_VERSION_CONNECT_INFORM);
   append_string_katcl(kl, KATCP_FLAG_LAST  | KATCP_FLAG_STRING, VERSION);
   
   while (write_katcl(kl) == 0);
