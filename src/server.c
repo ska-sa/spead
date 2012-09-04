@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <netdb.h>
 #include <wait.h>
+#include <fcntl.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -21,6 +22,8 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <katcl.h>
+#include <katcp.h>
 
 #include "spead_api.h"
 #include "server.h"
@@ -142,6 +145,7 @@ struct u_server *create_server_us(int (*cdfn)(struct spead_item_group *ig), long
   s->s_hs      = NULL;
   s->s_m       = 0;
   s->s_cdfn    = cdfn;
+  s->s_kl      = NULL;
 
   return s;
 }
@@ -160,6 +164,10 @@ void destroy_server_us(struct u_server *s)
       }
 
       free(s->s_cs);
+    }
+  
+    if (s->s_kl){
+      destroy_katcl(s->s_kl, 0);
     }
 
     destroy_store_hs(s->s_hs);
@@ -640,6 +648,34 @@ def DEBUG
   return 0;
 }
 
+int setup_katcp_us(struct u_server *s)
+{
+  struct katcl_line *kl;
+  int flags;
+
+  if (s == NULL)
+    return -1;
+
+  flags = fcntl(STDOUT_FILENO, F_GETFL, NULL);
+  if (flags >= 0){
+    flags = fcntl(STDOUT_FILENO, F_SETFL, flags | O_NONBLOCK);
+  }
+
+  kl = create_katcl(STDOUT_FILENO);
+  if (kl == NULL)
+    return -1;
+
+  
+  append_string_katcl(kl, KATCP_FLAG_FIRST | KATCP_FLAG_STRING, KATCP_VERSION_INFORM);
+  append_string_katcl(kl, KATCP_FLAG_LAST  | KATCP_FLAG_STRING, VERSION);
+  
+  while (write_katcl(kl) == 0);
+
+  s->s_kl = kl;
+
+  return 0;
+}
+
 int register_client_handler_server(int (*client_data_fn)(struct spead_item_group *ig), char *port, long cpus, uint64_t hashes, uint64_t hashsize)
 {
   struct u_server *s;
@@ -656,6 +692,12 @@ int register_client_handler_server(int (*client_data_fn)(struct spead_item_group
   }
 
   if (startup_server_us(s, port) < 0){
+    fprintf(stderr,"%s: error in startup\n", __func__);
+    shutdown_server_us(s);
+    return -1;
+  }
+
+  if (setup_katcp_us(s) < 0){
     fprintf(stderr,"%s: error in startup\n", __func__);
     shutdown_server_us(s);
     return -1;

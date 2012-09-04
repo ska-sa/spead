@@ -335,8 +335,6 @@ struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n)
   return NULL;
 }
 
-int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig))
-{
 #define S_END             0
 #define S_MODE            1
 #define S_MODE_IMMEDIATE  2
@@ -349,6 +347,205 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
 #define S_DIRECT_COPY     9
 #define DC_NEXT_PACKET   10
 
+void process_descriptor_item(struct spead_api_item *itm)
+{
+  int state;
+  uint64_t hdr;
+
+  uint64_t item;
+  int i, j;
+
+  int id, mode;
+  int64_t iptr, off, lastoff, data64;
+
+
+  struct dpkt {
+    int64_t p_hc;
+    int64_t p_hl;
+    int p_nitms;
+    int p_sctrl;
+    int64_t p_plen;
+    int64_t p_poff;
+    char *data;
+    char *payload;
+  } p;
+
+  if (itm == NULL)
+    return;
+
+  p.data = (char *)itm->i_data;
+
+  state = S_GET_ITEM;
+
+  hdr = (uint64_t) SPEAD_HEADER(p.data);
+  if ((SPEAD_GET_MAGIC(hdr) != SPEAD_MAGIC) || 
+      (SPEAD_GET_VERSION(hdr) != SPEAD_VERSION) ||
+      (SPEAD_GET_ITEMSIZE(hdr) != SPEAD_ITEM_PTR_WIDTH) || 
+      (SPEAD_GET_ADDRSIZE(hdr) != SPEAD_HEAP_ADDR_WIDTH)) {
+    return;
+  }
+  p.p_nitms = SPEAD_GET_NITEMS(hdr);
+  p.payload = p.data + SPEAD_HEADERLEN + p.p_nitms * SPEAD_ITEMLEN;
+
+  // Read each raw item, starting at 1 to skip header
+  for (i=1; i <= p.p_nitms; i++) {
+    item = SPEAD_ITEM(p.data, i);
+    //printf("   %02x%02x%02x%02x%02x%02x%02x%02x\n", ((char *)&item)[0], ((char *)&item)[1], ((char *)&item)[2], ((char *)&item)[3], ((char *)&item)[4], ((char *)&item)[5], ((char *)&item)[6], ((char *)&item)[7]);
+    //printf("item%d: mode=%lld, id=%lld, val=%lld\n", i, SPEAD_ITEM_MODE(item), SPEAD_ITEM_ID(item), SPEAD_ITEM_ADDR(item));
+    switch (SPEAD_ITEM_ID(item)) {
+      case SPEAD_HEAP_CNT_ID:    p.p_hc    = (int64_t) SPEAD_ITEM_ADDR(item); break;
+      case SPEAD_HEAP_LEN_ID:    p.p_hl    = (int64_t) SPEAD_ITEM_ADDR(item); break;
+      case SPEAD_PAYLOAD_OFF_ID: p.p_poff = (int64_t) SPEAD_ITEM_ADDR(item); break;
+      case SPEAD_PAYLOAD_LEN_ID: p.p_plen = (int64_t) SPEAD_ITEM_ADDR(item); break;
+      case SPEAD_STREAM_CTRL_ID: if (SPEAD_ITEM_ADDR(item) == SPEAD_STREAM_CTRL_TERM_VAL) p.p_sctrl = 1; break;
+      default: break;
+    }
+  }
+
+  i = 0;
+  j = 0;
+  id = 0;
+  mode = 0;
+  iptr = 0;
+  lastoff = (-1);
+  off = (-1);
+
+  while(state){
+
+    switch(state) {
+      case S_GET_ITEM:
+        if (j < p.p_nitms){
+          iptr = SPEAD_ITEM(p.data, (j+1));
+          id   = SPEAD_ITEM_ID(iptr);
+          mode = SPEAD_ITEM_MODE(iptr);
+#if 0
+          def DEBUG 
+          fprintf(stderr, "@@@ITEM[%d] mode[%d] id[%d] 0x%lx\n", j, mode, id, iptr);
+#endif
+          //state = S_NEXT_ITEM;
+          state = S_MODE;
+        } else {
+          state = S_END;
+
+          if (mode == SPEAD_DIRECTADDR){
+#ifdef DEBUG
+            fprintf(stderr, "\tstart final direct copy: len: %ld\n", off - lastoff);
+#endif
+            print_data((unsigned char *)(p.payload+off), off-lastoff);
+          }
+
+        }
+        
+        break;
+        
+      case S_NEXT_ITEM:
+        j++;
+        state = S_GET_ITEM;
+        break;
+
+      case S_MODE:
+        state = S_NEXT_ITEM;
+
+        switch(id){
+          case SPEAD_HEAP_CNT_ID:
+          case SPEAD_HEAP_LEN_ID:
+          case SPEAD_PAYLOAD_OFF_ID:
+          case SPEAD_PAYLOAD_LEN_ID:
+          case SPEAD_STREAM_CTRL_ID:
+            continue; /*pass control back to the beginning of the loop with state S_NEXT_ITEM*/
+          case SPEAD_DESCRIPTOR_ID:
+#ifdef DEBUG
+            fprintf(stderr, "\tITEM_DESCRIPTOR_ID\n");
+#endif
+            break;
+          case D_NAME_ID:
+#ifdef DEBUG
+            fprintf(stderr, "NAME ID\n");
+#endif
+            break;
+          case D_DESC_ID:
+#ifdef DEBUG
+            fprintf(stderr, "DESCRIPTION ID\n");
+#endif
+            break;
+          case D_SHAPE_ID:
+#ifdef DEBUG
+            fprintf(stderr, "SHAPE ID\n");
+#endif
+            break;
+          case D_FORMAT_ID:
+#ifdef DEBUG
+            fprintf(stderr, "FORMAT ID\n");
+#endif
+            break;
+          case D_ID_ID:
+#ifdef DEBUG
+            fprintf(stderr, "ID ID\n");
+#endif
+            break;
+          case D_TYPE_ID:
+#ifdef DEBUG
+            fprintf(stderr, "TYPE ID\n");
+#endif
+            break;
+          default:
+            break;
+        }
+
+#ifdef DEBUG
+        fprintf(stderr, "ITEM[%d] mode[ %s ] id[%d or 0x%x] 0x%lx\n", j, ((mode == SPEAD_DIRECTADDR)?"DIRECT   ":"IMMEDIATE"), id, id, iptr);
+#endif
+        switch (mode){
+          case SPEAD_DIRECTADDR:
+            state = S_MODE_DIRECT;
+            break;
+          case SPEAD_IMMEDIATEADDR:
+            state = S_MODE_IMMEDIATE;
+            break;
+        }
+
+        break;
+
+      case S_MODE_IMMEDIATE:
+        /*this macro call results in the data correctly formatted*/
+        data64 = (int64_t) SPEAD_ITEM_ADDR(iptr);
+#ifdef DEBUG 
+        fprintf(stderr, "\tdata: 0x%lx | %ld\n", data64, data64);
+#endif
+        state = S_NEXT_ITEM;
+        break;
+
+      case S_MODE_DIRECT:
+        lastoff = off;
+        off = (int64_t) SPEAD_ITEM_ADDR(iptr);
+#ifdef PROCESS
+        fprintf(stderr, "\toffset: 0x%lx\n\tlastoff: 0x%lx\n", off, lastoff);
+#endif 
+        state = (lastoff > -1) ? S_DIRECT_COPY : S_NEXT_ITEM;
+        break;
+
+      case S_DIRECT_COPY:
+            
+#ifdef DEBUG
+        fprintf(stderr, "\tstart direct copy: len: %ld\n", off - lastoff);
+        print_data((unsigned char *)(p.payload+off), off-lastoff);
+#endif
+
+        state = S_NEXT_ITEM;
+        break;
+
+    }
+
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: unpacked spead items (%d) from heap %ld po %ld of %ld\n", __func__, p.p_nitms, p.p_hc, p.p_poff, p.p_hl);
+#endif
+
+}
+
+int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig))
+{
   struct spead_item_group *ig;
   struct spead_api_item   *itm;
 
@@ -693,6 +890,7 @@ DC_GET_PKT:
 #ifdef DEBUG
             fprintf(stderr, "PROCESS DESCRIPTOR\n");
 #endif
+            process_descriptor_item(itm);
           }
 
         } else {

@@ -9,7 +9,12 @@ CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
 
-LIB = -ldl -lspead -L.
+LIB = -ldl -lspead -L. -lkatcp
+
+###############
+#   VERSION   #
+GITVER = $(shell git describe --tags --dirty 2> /dev/null || echo unknown)
+CFLAGS += -DVERSION=\"$(GITVER)\"
 
 ################
 

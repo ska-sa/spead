@@ -45,6 +45,13 @@
 #define SPEAD_DESCRIPTOR_ID         0x05
 #define SPEAD_STREAM_CTRL_ID        0x06
 
+#define D_NAME_ID      0x10
+#define D_DESC_ID      0x11
+#define D_SHAPE_ID     0x12
+#define D_FORMAT_ID    0x13
+#define D_ID_ID        0x14
+#define D_TYPE_ID      0x15
+
 #define SPEAD_STREAM_CTRL_TERM_VAL  0x02
 #define SPEAD_ERR                   -1
 

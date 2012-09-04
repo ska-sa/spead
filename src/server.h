@@ -4,6 +4,7 @@
 #define UDP_SERVER_H
 
 #include <stdint.h>
+#include <katcl.h>
 
 #include "mutex.h"
 
@@ -18,6 +19,7 @@ struct u_server {
   uint64_t s_bc;
   struct spead_heap_store *s_hs;
   int (*s_cdfn)();
+  struct katcl_line *s_kl;
 };
 
 struct u_child {
