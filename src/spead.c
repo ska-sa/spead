@@ -187,17 +187,29 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   uint64_t id;
   struct hash_table *ht;
 
-  if (hs == NULL || id < 0)
+  if (hs == NULL || id < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: parameter error", __func__);
+#endif
     return NULL;
+  }
 
   id = get_id_hs(hs, hid);
   
-  if (hs->s_hash == NULL)
+  if (hs->s_hash == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: hs->s_hash is null", __func__);
+#endif
     return NULL;
+  }
 
   ht = hs->s_hash[id];
-  if (ht == NULL)
+  if (ht == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: hs->s_hash[%ld] is null", __func__, id);
+#endif
     return NULL;
+  }
 
   if (ht->t_data_id < 0){
 #if 0
