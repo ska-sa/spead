@@ -1008,7 +1008,7 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
     return -1;
   }
   
-  ht = get_ht_hs(hs, (p->heap_cnt >> 3));
+  ht = get_ht_hs(hs, p->heap_cnt);
   if (ht == NULL){
     /*TODO: we have a newer set from packet must process partial*/
     /*or discard set at current position*/
