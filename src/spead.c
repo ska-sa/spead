@@ -335,8 +335,7 @@ struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n)
   return NULL;
 }
 
-int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig))
-{
+
 #define S_END             0
 #define S_MODE            1
 #define S_MODE_IMMEDIATE  2
@@ -349,6 +348,213 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
 #define S_DIRECT_COPY     9
 #define DC_NEXT_PACKET   10
 
+void process_descriptor_item(struct spead_api_item *itm)
+{
+  int state;
+  uint64_t hdr;
+
+  uint64_t item;
+  int i, j;
+
+  int id, mode;
+  int64_t iptr, off, lastoff, data64;
+
+  struct dpkt {
+    int64_t p_hc;
+    int64_t p_hl;
+    int p_nitms;
+    int p_sctrl;
+    int64_t p_plen;
+    int64_t p_poff;
+    char *data;
+    char *payload;
+  } p;
+
+  if (itm == NULL)
+    return;
+
+  p.data = (char *)itm->i_data;
+
+  state = S_GET_ITEM;
+
+  hdr = (uint64_t) SPEAD_HEADER(p.data);
+  if ((SPEAD_GET_MAGIC(hdr) != SPEAD_MAGIC) || 
+      (SPEAD_GET_VERSION(hdr) != SPEAD_VERSION) ||
+      (SPEAD_GET_ITEMSIZE(hdr) != SPEAD_ITEM_PTR_WIDTH) || 
+      (SPEAD_GET_ADDRSIZE(hdr) != SPEAD_HEAP_ADDR_WIDTH)) {
+    return;
+  }
+  p.p_nitms = SPEAD_GET_NITEMS(hdr);
+  p.payload = p.data + SPEAD_HEADERLEN + p.p_nitms * SPEAD_ITEMLEN;
+
+  // Read each raw item, starting at 1 to skip header
+  for (i=1; i <= p.p_nitms; i++) {
+    item = SPEAD_ITEM(p.data, i);
+    //printf("   %02x%02x%02x%02x%02x%02x%02x%02x\n", ((char *)&item)[0], ((char *)&item)[1], ((char *)&item)[2], ((char *)&item)[3], ((char *)&item)[4], ((char *)&item)[5], ((char *)&item)[6], ((char *)&item)[7]);
+    //printf("item%d: mode=%lld, id=%lld, val=%lld\n", i, SPEAD_ITEM_MODE(item), SPEAD_ITEM_ID(item), SPEAD_ITEM_ADDR(item));
+    switch (SPEAD_ITEM_ID(item)) {
+      case SPEAD_HEAP_CNT_ID:    p.p_hc    = (int64_t) SPEAD_ITEM_ADDR(item); break;
+      case SPEAD_HEAP_LEN_ID:    p.p_hl    = (int64_t) SPEAD_ITEM_ADDR(item); break;
+      case SPEAD_PAYLOAD_OFF_ID: p.p_poff  = (int64_t) SPEAD_ITEM_ADDR(item); break;
+      case SPEAD_PAYLOAD_LEN_ID: p.p_plen  = (int64_t) SPEAD_ITEM_ADDR(item); break;
+      case SPEAD_STREAM_CTRL_ID: if (SPEAD_ITEM_ADDR(item) == SPEAD_STREAM_CTRL_TERM_VAL) p.p_sctrl = 1; break;
+      default: break;
+    }
+  }
+
+  i = 0;
+  j = 0;
+  id = 0;
+  mode = 0;
+  iptr = 0;
+  lastoff = (-1);
+  off = (-1);
+
+  while(state){
+
+    switch(state) {
+      case S_GET_ITEM:
+        if (j < p.p_nitms){
+          iptr = SPEAD_ITEM(p.data, (j+1));
+          id   = SPEAD_ITEM_ID(iptr);
+          mode = SPEAD_ITEM_MODE(iptr);
+#ifdef DEBUG
+          fprintf(stderr, "@@@ITEM[%d] mode[%d] id[%d or 0x%x] 0x%lx\n", j, mode, id, id, iptr);
+#endif
+          //state = S_NEXT_ITEM;
+          state = S_MODE;
+        } else {
+          state = S_END;
+
+          if (mode == SPEAD_DIRECTADDR){
+#ifdef DEBUG
+            fprintf(stderr, "--ITEM[%d] mode[ %s ] id[%d or 0x%x] 0x%lx\n", j, ((mode == SPEAD_DIRECTADDR)?"DIRECT   ":"IMMEDIATE"), id, id, iptr);
+#endif
+#ifdef DEBUG
+            fprintf(stderr, "\tstart final direct copy: len: %ld\n", off - lastoff);
+#endif
+            print_data((unsigned char *)(p.payload+off), off-lastoff);
+          }
+
+        }
+        
+        break;
+        
+      case S_NEXT_ITEM:
+        j++;
+        state = S_GET_ITEM;
+        break;
+
+      case S_MODE:
+        state = S_NEXT_ITEM;
+
+        switch(id){
+          case SPEAD_HEAP_CNT_ID:
+          case SPEAD_HEAP_LEN_ID:
+          case SPEAD_PAYLOAD_OFF_ID:
+          case SPEAD_PAYLOAD_LEN_ID:
+          case SPEAD_STREAM_CTRL_ID:
+#ifdef DEBUG
+            fprintf(stderr, "ITEM[%d] mode[ %s ] id[%d or 0x%x] 0x%lx\n", j, ((mode == SPEAD_DIRECTADDR)?"DIRECT   ":"IMMEDIATE"), id, id, iptr);
+#endif
+            continue; /*pass control back to the beginning of the loop with state S_NEXT_ITEM*/
+          case SPEAD_DESCRIPTOR_ID:
+#ifdef DEBUG
+            fprintf(stderr, "\tITEM_DESCRIPTOR_ID\n");
+#endif
+            break;
+          default:
+            break;
+        }
+        switch(id){
+          case D_NAME_ID:
+#ifdef DEBUG
+            fprintf(stderr, "NAME ID\n");
+#endif
+            break;
+          case D_DESC_ID:
+#ifdef DEBUG
+            fprintf(stderr, "DESCRIPTION ID\n");
+#endif
+            break;
+          case D_SHAPE_ID:
+#ifdef DEBUG
+            fprintf(stderr, "SHAPE ID\n");
+#endif
+            break;
+          case D_FORMAT_ID:
+#ifdef DEBUG
+            fprintf(stderr, "FORMAT ID\n");
+#endif
+            break;
+          case D_ID_ID:
+#ifdef DEBUG
+            fprintf(stderr, "ID ID\n");
+#endif
+            break;
+          case D_TYPE_ID:
+#ifdef DEBUG
+            fprintf(stderr, "TYPE ID\n");
+#endif
+            break;
+        }
+
+        switch (mode){
+          case SPEAD_DIRECTADDR:
+            state = S_MODE_DIRECT;
+            break;
+          case SPEAD_IMMEDIATEADDR:
+            state = S_MODE_IMMEDIATE;
+            break;
+        }
+
+        break;
+
+      case S_MODE_IMMEDIATE:
+#ifdef DEBUG
+        fprintf(stderr, "==ITEM[%d] mode[ %s ] id[%d or 0x%x] 0x%lx\n", j, ((mode == SPEAD_DIRECTADDR)?"DIRECT   ":"IMMEDIATE"), id, id, iptr);
+#endif
+        data64 = (int64_t) SPEAD_ITEM_ADDR(iptr);
+#ifdef DEBUG 
+        fprintf(stderr, "\tdata: 0x%lx | %ld\n", data64, data64);
+#endif
+        state = S_NEXT_ITEM;
+        break;
+
+      case S_MODE_DIRECT:
+        lastoff = off;
+        off = (int64_t) SPEAD_ITEM_ADDR(iptr);
+#ifdef PROCESS
+        fprintf(stderr, "\toffset: 0x%lx\n\tlastoff: 0x%lx\n", off, lastoff);
+#endif 
+        state = (lastoff > -1) ? S_DIRECT_COPY : S_NEXT_ITEM;
+        break;
+
+      case S_DIRECT_COPY:
+#ifdef DEBUG
+        fprintf(stderr, "++ITEM[%d] mode[ %s ] id[%d or 0x%x] 0x%lx\n", j, ((mode == SPEAD_DIRECTADDR)?"DIRECT   ":"IMMEDIATE"), id, id, iptr);
+#endif
+            
+#ifdef DEBUG
+        fprintf(stderr, "\tstart direct copy: len: %ld\n", off - lastoff);
+        print_data((unsigned char *)(p.payload+off), off-lastoff);
+#endif
+
+        state = S_NEXT_ITEM;
+        break;
+
+    }
+
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: unpacked spead items (%d) from heap %ld po %ld of %ld\n", __func__, p.p_nitms, p.p_hc, p.p_poff, p.p_hl);
+#endif
+
+}
+
+int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig))
+{
   struct spead_item_group *ig;
   struct spead_api_item   *itm;
 
@@ -464,7 +670,7 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
           state = S_NEXT_PACKET;
           break;
         }
-#if DEBUG>2
+#ifdef DEBUG
         fprintf(stderr, "--pkt-- in o (%p) has p (%p)\n  payload_off: %ld payload_len: %ld payload: %p\n", o, p, p->payload_off, p->payload_len, p->payload);
 #endif
         state = S_GET_ITEM;
@@ -554,10 +760,8 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
           memcpy(itm->i_data, &data64, sizeof(int64_t));
           itm->i_valid = 1;
         } else {      
-#ifdef DEBUG
-          fprintf(stderr, "MALFORMED packet\n");
-#endif
-          state = S_NEXT_ITEM;
+          fprintf(stderr, "\033[31mMALFORMED packet\033[0m\n");
+          state = S_NEXT_PACKET;
           break;
         }
 
@@ -600,13 +804,10 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
             
             state = S_DIRECT_COPY;
           } else {      
-#ifdef DEBUG
-            fprintf(stderr, "MALFORMED packet\n");
-#endif
-            state = S_NEXT_ITEM;
+            fprintf(stderr, "\033[31mMALFORMED packet\033[0m\n");
+            state = S_NEXT_PACKET;
             break;
           }
-
 
         }
 
@@ -673,14 +874,22 @@ DC_GET_PKT:
 #ifdef PROCESS
         fprintf(stderr, "++++direct copy start++++\n");
         //fprintf(stderr, "\tds off: %ld ds.cc %ld i: %d p @ %p payload_len %ld\n\titm id: %d len: %ld\n", ds.off, ds.cc, ds.i, ds.p, ds.p->payload_len, itm->i_id, itm->i_len);
-        fprintf(stderr, "\tcan copy %ld\n\tpayload len %ld\n\tsource %p + %ld\n\tdestination %p + %ld\n\t", ds.cc, ds.p->payload_len, ds.p->payload, ds.off, itm->i_data, (itm->i_len-ds.cc));
+        fprintf(stderr, "\tcan copy %ld\n\tpayload len %ld\n\tsource %p + %ld\n\tdestination %p + %ld\n", ds.cc, ds.p->payload_len, ds.p->payload, ds.off, itm->i_data, (itm->i_len-ds.cc));
 #endif
+
+        if (ds.cc < 0){ 
+          fprintf(stderr, "\033[31mDATA STATE ERROR\033[0m\n");
+          state = S_END;
+          break;
+        }
 
         if (ds.off + ds.cc <= ds.p->payload_len){
 #ifdef PROCESS
           fprintf(stderr, "\tDC payload in current packet [%ld] copy [%ld] bytes\n", ds.off + ds.cc, ds.cc);
           //fprintf(stderr, "\tdestination offset [%ld]\n", itm->i_len - ds.cc);
 #endif
+  
+          /*TODO: more checks*/
 
           memcpy(itm->i_data + (itm->i_len - ds.cc), ds.p->payload + ds.off, ds.cc);
 
@@ -693,6 +902,7 @@ DC_GET_PKT:
 #ifdef DEBUG
             fprintf(stderr, "PROCESS DESCRIPTOR\n");
 #endif
+            process_descriptor_item(itm);
           }
 
         } else {
@@ -700,9 +910,14 @@ DC_GET_PKT:
           fprintf(stderr, "\tDC payload over current packet [%ld] copy [%ld] bytes\n", ds.off + ds.cc, ds.p->payload_len - ds.off);
           //fprintf(stderr, "\tdestination offset [%ld]\n", itm->i_len - ds.cc);
 #endif
+          if (ds.p->payload_len - ds.off){
+            fprintf(stderr, "\033[31mDATA STATE ERROR\033[0m\n");
+            state = S_END;
+            break;
+          }
 
           memcpy(itm->i_data + (itm->i_len - ds.cc), ds.p->payload + ds.off, ds.p->payload_len - ds.off);
-          
+
           ds.cc  -= ds.p->payload_len - ds.off;
           ds.off = 0;
 
@@ -743,47 +958,6 @@ DC_GET_PKT:
 #endif
     }
   }
-
-
-  /*DUMP each item*/
-
-#if 0
-  off = 0;
-  uint64_t count;
-
-  while (off < ig->g_size){
-  
-    itm = (struct spead_api_item *) (ig->g_map + off);
-
-    if (itm->i_len == 0)
-      goto skip;
-
-    count = 0;
-#ifdef DEBUG
-    fprintf(stderr, "ITEM id[%d] vaild [%d] len [%ld]\n\t0x%06x | ", itm->i_id, itm->i_valid, itm->i_len, count);
-    
-    for (;count<itm->i_len; count++){
-      
-      fprintf(stderr, "%02X", itm->i_data[count]);
-      if ((count+1) % 20 == 0){
-        fprintf(stderr,"\n\t0x%06x | ", count);
-      } else {
-        fprintf(stderr," ");
-      }
-
-    }
-    fprintf(stderr,"\n");
-
-#endif
-skip:
-    off += sizeof(struct spead_api_item) + itm->i_len;
-    
-  }
-#endif
-
-  
-
-
 
   destroy_item_group(ig);
    
@@ -951,354 +1125,4 @@ int process_packet_hs(struct u_server *s, struct hash_o *o)
   return rtn;
 }
 
-
-
-
-
-
-
-/***
-  This is old naive code
-  
-***/
-#if 0
-int store_packet(){
-  h = get_heap_hs(hs, p->heap_cnt);
-  if (h == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: first packet for heap [%ld]\n", __func__, p->heap_cnt);
-#endif 
-    h = create_spead_heap();
-    if (h == NULL){
-#ifdef DEBUG
-      fprintf(stderr, "%s: error could not create heap\n", __func__);
-#endif 
-      return -1;
-    }
-    if (spead_heap_add_packet(h, p) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: error could not add packet to heap\n", __func__);
-#endif 
-      destroy_spead_heap(h);
-      return -1;
-    }
-    if (add_heap_hs(hs, h) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: error could not add heap to heap store\n", __func__);
-#endif 
-      destroy_spead_heap(h);
-      return -1;
-    }
-    if (spead_heap_got_all_packets(h)){
-#ifdef DEBUG
-      fprintf(stderr, "%s: COMPLETE heap about to ship\n", __func__);
-#endif 
-      id = get_id_hs(hs, h->heap_cnt);
-      if (ship_heap_hs(hs, id) < 0){
-#ifdef DEBUG
-        fprintf(stderr, "%s: error shipping heap [%ld]\n", __func__, id);
-#endif
-      }
-    }
-    return 0;
-  }
-  if (spead_heap_add_packet(h, p) < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error could not add packet to heap\n", __func__);
-#endif 
-    return -1;
-  }
-  if (spead_heap_got_all_packets(h)){
-#ifdef DEBUG
-    fprintf(stderr, "%s: COMPLETE heap about to ship\n", __func__);
-#endif 
-    id = get_id_hs(hs, h->heap_cnt);
-    if (ship_heap_hs(hs, id) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: error shipping heap [%ld]\n", __func__, id);
-#endif
-    }
-  }
-}
-
-int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
-{
-  int64_t id;
-  int i;
-
-#if 0
-  if (hs == NULL || h == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error cannot work with NULL heap store or NULL heap\n", __func__);
-#endif 
-    return -1;
-  }
-  
-  id = h->heap_cnt % hs->s_backlog;
-
-#ifdef DEBUG
-  fprintf(stderr, "%s: calculated id to [%ld]\n", __func__, id);
-#endif
-  
-  if (hs->s_count <= id) {
-    hs->s_heaps = realloc(hs->s_heaps, sizeof(struct spead_heap*) * (id + 1));
-    if (hs->s_heaps == NULL){
-#ifdef DEBUG
-      fprintf(stderr, "%s: logic error cannot realloc for heap store\n", __func__);
-#endif 
-      return -1;
-    }
-    
-    for (i = hs->s_count; i<id+1; i++)
-      hs->s_heaps[i] = NULL;
-      
-    hs->s_count = id + 1;
-  }
-
-  hs->s_heaps[id] = h;
-
-#ifdef DEBUG
-  fprintf(stderr, "%s: inserted heap [%ld] @ id: [%ld] into heap_store [sc: %ld]\n", __func__, h->heap_cnt, id, hs->s_count);
-#endif
-#endif
-
-  return id;
-}
-
-int process_heap_hs(struct spead_heap_store *hs, struct spead_heap *h)
-{
-  struct spead_packet *p;
-  struct spead_heap *th;
-  struct spead_item *itm, *itm2;
-  int i;
-
-  if (h == NULL)
-    return -1;
-
-  h = hs->s_shipping;
-  itm = h->head_item;
-
-     
-  do { 
-    
-#ifdef DEBUG
-    fprintf(stderr, "ITEM\n\tis_valid:\t%d\n\tid:\t%d\n\tlen:\t%ld\n", itm->is_valid, itm->id, itm->len);
-#endif
-
-    switch(itm->id){
-
-      case SPEAD_DESCRIPTOR_ID:
-        p = create_spead_packet();
-        if (p == NULL){
-#ifdef DEBUG
-          fprintf(stderr,"%s: cannot create temp packet\n", __func__);
-#endif
-          return -1;
-        }
-        
-        /*we have a spead packet inside itm->val*/
-        memcpy(p->data, itm->val, itm->len);
-
-        if (spead_packet_unpack_header(p) == SPEAD_ERR){
-#ifdef DEBUG
-          fprintf(stderr, "%s: unable to unpack spead header for Item Descriptor packet (%p)\n", __func__, p);
-#endif
-          break;
-        }
-
-#ifdef DEBUG
-        fprintf(stderr, "%s: unpacked spead header for Item Descriptor packet (%p)\n", __func__, p);
-#endif
-
-        if (spead_packet_unpack_items(p) == SPEAD_ERR){
-#ifdef DEBUG
-          fprintf(stderr, "%s: unable to unpack spead items for Item Descriptor packet (%p)\n", __func__, p);
-#endif
-          break;
-        } 
-
-#ifdef DEBUG
-        fprintf(stderr, "%s: unpacked spead items for Item Descriptor packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
-#endif
-
-        th = create_spead_heap();
-        if (th == NULL){
-#ifdef DEBUG
-          fprintf(stderr, "%s: unable to create Item Descriptor temp heap\n", __func__);
-#endif
-          break;
-        }
-
-        if (spead_heap_add_packet(th, p) < 0){
-#ifdef DEBUG
-          fprintf(stderr, "%s: error could not add Item Descriptor packet to heap\n", __func__);
-#endif 
-          destroy_spead_packet(p);
-          destroy_spead_heap(h);
-          return -1;
-        }
-
-        if (spead_heap_got_all_packets(th)) {
-#ifdef DEBUG
-          fprintf(stderr, "[%d] %s: COMPLETED Item Descriptor HEAP [%ld]\n", getpid(), __func__, th->heap_cnt);
-#endif
-        } else {
-#ifdef DEBUG
-          fprintf(stderr, "[%d] %s: PARTIAL Item Descriptor HEAP [%ld]\n", getpid(), __func__, th->heap_cnt);
-#endif
-        }
-
-        if (spead_heap_finalize(th) == SPEAD_ERR){
-#ifdef DEBUG
-          fprintf(stderr, "%s: error trying to finalize Item Descriptor spead heap\n", __func__);
-#endif 
-        } else {
-#ifdef DEBUG
-          fprintf(stderr, "%s: finalize Item Descriptor spead heap SUCCESS!!\n", __func__);
-#endif 
-        }
-
-        itm2 = th->head_item;
-        do {
-#ifdef DEBUG
-          fprintf(stderr, "ITEM DESCRIPTOR\n\tis_valid:\t%d\n\tid:\t%d\n\tlen:\t%ld\n\tval:\n", itm2->is_valid, itm2->id, itm2->len);
-          for(i=0; i<itm2->len; i++){
-            fprintf(stderr,"%X[%c] ", itm2->val[i], itm2->val[i]);
-          }
-          fprintf(stderr,"\n");
-#endif
-        } while((itm2 = itm2->next) != NULL);
-
-        destroy_spead_heap(th);
-        
-        break;
-      
-      default:
-        continue;
-    }
-#if 0
-    for(i=0; i<itm->len; i++){
-      fprintf(stderr,"0x%X ", itm->val[i]);
-    }
-    fprintf(stderr,"\n");
-#endif
-  } while ((itm = itm->next) != NULL);
-  
-  return 0;
-}
-
-int ship_heap_hs(struct spead_heap_store *hs, int64_t id)
-{
-  int rtn;
-
-  if (hs == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: cannot ship null heap\n", __func__);
-#endif
-    return -1;
-  }
-  
-  if (hs->s_count <= id) {
-#ifdef DEBUG
-    fprintf(stderr, "%s: ALL heaps shipped\n", __func__);
-#endif
-    return -1;
-  }
-
-#if 0
-  hs->s_shipping = hs->s_heaps[id];
-
-#ifdef DEBUG
-  fprintf(stderr, "%s:\tSHIP HEAP hs:[%ld]->[%ld]\n", __func__, id, hs->s_shipping->heap_cnt);
-#endif
-
-  hs->s_heaps[id] = NULL;
-
-  rtn = spead_heap_got_all_packets(hs->s_shipping);
-  if (rtn) {
-#ifdef DATA
-    fprintf(stderr, "[%d] %s: COMPLETED HEAP [%ld] SHIPPED rtn=[%d]\n", getpid(), __func__, hs->s_shipping->heap_cnt, rtn);
-#endif
-  } else {
-#ifdef DATA
-    fprintf(stderr, "[%d] %s: PARTIAL HEAP [%ld] SHIPPED rtn=[%d]\n", getpid(), __func__, hs->s_shipping->heap_cnt, rtn);
-#endif
-  }
-
-  if (spead_heap_finalize(hs->s_shipping) == SPEAD_ERR){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error trying to finalize spead heap\n", __func__);
-#endif 
-  } else {
-#ifdef DEBUG
-    fprintf(stderr, "%s: finalize spead heap SUCCESS!!\n", __func__);
-#endif 
-  }
-  
-  if (process_heap_hs(hs, hs->s_shipping) < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: cannot process heap\n", __func__);
-#endif
-  }
-  
-  destroy_spead_heap(hs->s_shipping);
-  
-  hs->s_shipping = NULL;
-#endif
-
-  return 0;
-}
-
-struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid)
-{
-  struct spead_heap *h;
-  int id;
-  
-  h == NULL;
-#if 0
-  if (hs == NULL || hs->s_heaps == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error cannot address requested heap\n", __func__);
-#endif 
-    return NULL;
-  }
-  
-  id = hid % hs->s_backlog;
-#if 0
-  def DEBUG
-  fprintf(stderr, "%s: calculated id to [%d]\n", __func__, id);
-#endif
-
-  if (hs->s_count <= id){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error cannot address requested heap\n", __func__);
-#endif 
-    return NULL;
-  }
-
-  h = hs->s_heaps[id];
-  if (h == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: requested heap is null\n", __func__);
-#endif 
-    return NULL;
-  }
-
-  if (h->heap_cnt != hid){
-#ifdef DEBUG
-    fprintf(stderr, "%s: heap id [%ld] not in heap store\n", __func__, h->heap_cnt);
-#endif 
-  
-    if (ship_heap_hs(hs, id) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: error shipping heap [%d]\n", __func__, id);
-#endif
-    }
-
-    return NULL;
-  }
-#endif
-  return h;
-}
-#endif
 
