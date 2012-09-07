@@ -9,8 +9,6 @@
 #include "server.h"
 #include "spead_api.h"
 
-#define CALLBACK "spead_api_callback"
-
 void *load_api_user_module(char *mod)
 {
   void *mhandle;
@@ -31,7 +29,7 @@ void *load_api_user_module(char *mod)
   cb = dlsym(mhandle, CALLBACK); 
   if (cb == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "%s: module doesn't specify (%s) (%s)\n", __func__, CALLBACK, dlerror());
+    fprintf(stderr, "%s: module doesn't implement (%s) (%s)\n", __func__, CALLBACK, dlerror());
 #endif
     dlclose(mhandle);
     return NULL;

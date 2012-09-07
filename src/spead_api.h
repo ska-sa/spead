@@ -5,6 +5,8 @@
 #include "hash.h"
 #include "server.h"
 
+#define CALLBACK "spead_api_callback"
+
 
 void print_data(unsigned char *buf, int size);
 

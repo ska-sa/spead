@@ -1,7 +1,7 @@
 
 #CFLAGS += -DDEBUG=3
 #CFLAGS += -DPROCESS
-CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
 CFLAGS += -ggdb
@@ -13,7 +13,7 @@ LIB = -ldl -lspead -L. -lkatcp
 
 ###############
 #   VERSION   #
-GITVER = $(shell git describe --tags --dirty 2> /dev/null || echo unknown)
+GITVER = $(shell git describe --tags 2> /dev/null || echo unknown)
 CFLAGS += -DVERSION=\"$(GITVER)\"
 
 ################

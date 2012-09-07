@@ -1,3 +1,16 @@
+
+?progdev bf_spead_test_2012_Sep_06_1646.bof
+?tap-start x gbe0 10.0.1.254 8888
+?wordwrite n_beng 0 0x1
+?wordwrite bf0_id 0 0x0
+?wordwrite bf0_gbe_out_port0 0 8888
+?wordwrite bf0_gbe_out_ip0 0 0x0a000168
+?wordwrite ratio 0 200
+?wordwrite control 0 0x9
+?wordwrite control 0 0x6
+
+
+
 tcpdump spead to pipespead
 
 tcpdump -B 102400 -v -i eth4 -nn -U -w - -s 0 port 7148 | ssh -c arcfour 192.168.4.138 -ladam /home/adam/spead/utils/pipespead localhost 8888
