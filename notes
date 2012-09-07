@@ -1,9 +1,9 @@
 
 ?progdev bf_spead_test_2012_Sep_06_1646.bof
-?tap-start x gbe0 10.0.1.254 8888
+?tap-start x gbe0 10.0.1.254 9999
 ?wordwrite n_beng 0 0x1
 ?wordwrite bf0_id 0 0x0
-?wordwrite bf0_gbe_out_port0 0 8888
+?wordwrite bf0_gbe_out_port0 0 9999
 ?wordwrite bf0_gbe_out_ip0 0 0x0a000168
 ?wordwrite ratio 0 200
 ?wordwrite control 0 0x9

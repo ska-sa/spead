@@ -877,12 +877,6 @@ DC_GET_PKT:
         fprintf(stderr, "\tcan copy %ld\n\tpayload len %ld\n\tsource %p + %ld\n\tdestination %p + %ld\n", ds.cc, ds.p->payload_len, ds.p->payload, ds.off, itm->i_data, (itm->i_len-ds.cc));
 #endif
 
-        if (ds.cc < 0){ 
-          fprintf(stderr, "\033[31mDATA STATE ERROR\033[0m\n");
-          state = S_END;
-          break;
-        }
-
         if (ds.off + ds.cc <= ds.p->payload_len){
 #ifdef PROCESS
           fprintf(stderr, "\tDC payload in current packet [%ld] copy [%ld] bytes\n", ds.off + ds.cc, ds.cc);
@@ -890,6 +884,11 @@ DC_GET_PKT:
 #endif
   
           /*TODO: more checks*/
+          if (ds.cc < 0){ 
+            fprintf(stderr, "\033[31mDATA STATE ERROR\033[0m\n");
+            state = S_END;
+            break;
+          }
 
           memcpy(itm->i_data + (itm->i_len - ds.cc), ds.p->payload + ds.off, ds.cc);
 
@@ -910,7 +909,7 @@ DC_GET_PKT:
           fprintf(stderr, "\tDC payload over current packet [%ld] copy [%ld] bytes\n", ds.off + ds.cc, ds.p->payload_len - ds.off);
           //fprintf(stderr, "\tdestination offset [%ld]\n", itm->i_len - ds.cc);
 #endif
-          if (ds.p->payload_len - ds.off){
+          if (ds.p->payload_len - ds.off < 0){
             fprintf(stderr, "\033[31mDATA STATE ERROR\033[0m\n");
             state = S_END;
             break;
