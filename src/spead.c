@@ -205,13 +205,9 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   }
 
   if (ht->t_data_id < 0){
-#if 0
-    lock_sem(ht->t_semid);
-#endif
+    lock_mutex(&(ht->t_m));
     ht->t_data_id = hid;
-#if 0
-    unlock_sem(ht->t_semid);
-#endif
+    unlock_mutex(&(ht->t_m));
   } 
   
   if (ht->t_data_id != hid){
@@ -341,17 +337,6 @@ struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n)
 }
 
 
-#define S_END             0
-#define S_MODE            1
-#define S_MODE_IMMEDIATE  2
-#define S_MODE_DIRECT     3
-#define S_GET_PACKET      4
-#define S_NEXT_PACKET     5
-#define S_GET_ITEM        6
-#define S_NEXT_ITEM       7
-#define S_GET_OBJECT      8
-#define S_DIRECT_COPY     9
-#define DC_NEXT_PACKET   10
 
 void process_descriptor_item(struct spead_api_item *itm)
 {
@@ -966,6 +951,13 @@ DC_GET_PKT:
   destroy_item_group(ig);
    
   return 0;
+}
+
+void print_store_stats(struct spead_heap_store *hs)
+{
+  if (hs == NULL)
+    return;
+  
 }
 
 int store_packet_hs(struct u_server *s, struct hash_o *o)
