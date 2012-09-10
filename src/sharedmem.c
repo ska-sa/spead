@@ -7,9 +7,12 @@
 
 #include <sys/types.h>
 #include <sys/ipc.h>
+#if 0
 #include <sys/shm.h>
 #include <sys/sem.h>
+#endif
 #include <sys/wait.h>
+#include <sys/mman.h>
 
 
 #include "sharedmem.h"
@@ -24,8 +27,10 @@ static struct shared_mem *m_area = NULL;
 
 int create_shared_mem(uint64_t size)
 {
+#if 0
   key_t key;
   int id;
+#endif
   void *ptr;
 
   if (m_area != NULL) {
@@ -42,6 +47,7 @@ int create_shared_mem(uint64_t size)
     return -1;
   }
 
+#if 0
   key = ftok(KEYPATH, 'A');
   if (key < 0){
 #ifdef DEBUG
@@ -73,12 +79,25 @@ int create_shared_mem(uint64_t size)
   }
 
   memset(ptr, 0, size);
+#endif
+
+  ptr = mmap(NULL, size, PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
+  if (ptr == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: mmap error %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
+  memset(ptr, 0, size);
 
   m_area = malloc(sizeof(struct shared_mem));
   if (m_area == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: could not allocate memory for shared memory store\n", __func__); 
 #endif
+
+#if 0
     if (shmdt(ptr) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: shmdt error %s\n", __func__, strerror(errno)); 
@@ -90,11 +109,14 @@ int create_shared_mem(uint64_t size)
 #endif
       return -2;
     }
+#endif
     return -1;
   }
 
+#if 0
   m_area->m_key  = key;
   m_area->m_id   = id;
+#endif
   m_area->m_size = size;
   m_area->m_off  = 0;
   m_area->m_ptr  = ptr;
@@ -104,12 +126,18 @@ int create_shared_mem(uint64_t size)
   print_format_bitrate('D', size);
 #endif
 
+
   return 0;
 }
 
 void destroy_shared_mem()
 {
   if (m_area) {
+
+    if (m_area->m_ptr == NULL){
+      munmap(m_area->m_ptr, m_area->m_size);
+    }
+#if 0
     if (shmdt(m_area->m_ptr) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: shmdt error %s\n", __func__, strerror(errno)); 
@@ -121,7 +149,7 @@ void destroy_shared_mem()
       fprintf(stderr, "%s: shmctl error %s\n", __func__, strerror(errno)); 
 #endif
     }
-    
+#endif
     free(m_area);
     m_area = NULL;
   }
