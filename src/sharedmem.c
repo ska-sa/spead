@@ -18,8 +18,8 @@
 #define KEYPATH     "/dev/null"
 #define MAX_RETRIES 10
 
-static struct shared_mem *m_area = NULL;
 
+static struct shared_mem *m_area = NULL;
 
 
 int create_shared_mem(uint64_t size)
@@ -157,140 +157,6 @@ void *shared_malloc(size_t size)
 void shared_free(void *ptr)
 {
   
-}
-#endif
-
-#if 0
-int create_sem(int c)
-{
-  int semid, i, ready;
-  union semun arg;
-  struct semid_ds buf;
-  struct sembuf sb;
-  key_t key;
-
-  if (c < 0)
-    return -1;
-
-  key = ftok(KEYPATH, c);
-  if (key < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: ftok error: %s\n", __func__, strerror(errno));
-#endif
-    return -1;
-  }
-
-  semid = semget(key, 1, IPC_CREAT | IPC_EXCL | 0666);
-  
-  if (semid < 0){ 
-    switch(errno){
-      case EEXIST: /*semaphore is already created*/
-        ready = 1;
-        semid = semget(key, 1, 0);
-        if (semid < 0){
-#ifdef DEBUG
-          fprintf(stderr, "%s: error semget %s\n", __func__, strerror(errno));
-#endif
-          return -1;
-        }
-
-        arg.buf = &buf;
-        for (i=0; i<MAX_RETRIES && !ready; i++){
-          semctl(semid, 0, IPC_STAT, arg);
-          if (arg.buf->sem_otime == 0) {
-            ready = 1;
-          } else {
-            sleep(1);
-          }
-        }
-
-        if (!ready){
-          errno = ETIME;
-#ifdef DEBUG
-          fprintf(stderr, "%s: error waiting %s\n", __func__, strerror(errno));
-#endif
-          return -1;
-        }
-
-        return semid;
-
-      default:
-#ifdef DEBUG
-        fprintf(stderr, "%s: error semget %s\n", __func__, strerror(errno));
-#endif
-        return -1;
-    }
-  }
-
-  /*set semaphore to unlocked*/
-  sb.sem_num = 0;
-  sb.sem_op  = 1;
-  sb.sem_flg = 0;
-  arg.val    = 1;
-
-  if (semop(semid, &sb, 1) < 0) {
-#ifdef DEBUG
-    fprintf(stderr, "%s: error semop %s\n", __func__, strerror(errno));
-#endif
-    semctl(semid, 0, IPC_RMID);
-    return -1;
-  }
-
-  return semid; 
-}
-
-/*test and set semaphore*/
-int lock_sem(int semid)
-{
-  struct sembuf sb;
-  
-  if (semid < 0)
-    return -1;
-
-  sb.sem_num =   0;
-  sb.sem_op  = (-1);
-  sb.sem_flg = SEM_UNDO;
-  
-  if (semop(semid, &sb, 1) < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error semop %s\n", __func__, strerror(errno));
-#endif
-    return -1;
-  }
-
-  return 0;
-}
-
-int unlock_sem(int semid)
-{
-  struct sembuf sb;
-
-  if (semid < 0)
-    return -1;
-
-  sb.sem_num = 0;
-  sb.sem_op  = 1;
-  sb.sem_flg = SEM_UNDO;
-
-  if (semop(semid, &sb, 1) < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error semop %s\n", __func__, strerror(errno));
-#endif
-    return -1;
-  }
-  
-  return 0;
-}
-
-void destroy_sem(int semid)
-{
-  if (semid > 0){
-    
-    if (semctl(semid, 0, IPC_RMID) < 0) {
-      fprintf(stderr, "%s: error semctl %s\n", __func__, strerror(errno));
-    }
-
-  }
 }
 #endif
 

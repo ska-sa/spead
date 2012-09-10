@@ -8,13 +8,15 @@
 struct hash_table;
 
 struct hash_o_list {
-  uint64_t l_len;
-  uint64_t l_olen;
+  uint64_t      l_len;
+  uint64_t      l_olen;
   struct hash_o *l_top;
-  void *(*l_create)();
-  void (*l_destroy)(void *data);
-  mutex l_m;
+  void          *(*l_create)();
+  void          (*l_destroy)(void *data);
+  mutex         l_m;
 };
+
+void print_list_stats(struct hash_o_list *l, const char *func);
 
 /*create a list of objects each with element size*/
 struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, void *(*create)(), void (*destroy)(void *data), uint64_t size);
@@ -25,7 +27,7 @@ struct hash_o *pop_hash_o(struct hash_o_list *l);
 
 
 struct hash_o {
-  void *o;
+  void          *o;
   struct hash_o *o_next;
 };
 
@@ -39,20 +41,16 @@ void *get_data_hash_o(struct hash_o *o);
 
 
 struct hash_table {
-  int           t_processing;
-  mutex         t_m;
-  uint64_t      t_id;
-  uint64_t      t_len;
-  uint64_t      t_data_count;
-  int64_t       t_data_id;
-  uint64_t      t_items;
-  struct hash_o_list *t_l;
-  struct hash_o **t_os;
-
+  int                 t_processing;
+  mutex               t_m;
+  uint64_t            t_id;
+  uint64_t            t_len;
+  uint64_t            t_data_count;
+  int64_t             t_data_id;
+  uint64_t            t_items;
+  struct hash_o_list  *t_l;
+  struct hash_o       **t_os;
   uint64_t (*t_hfn)(struct hash_table *t, struct hash_o *o);
-#if 0
-  uint64_t (*t_hfn)(struct hash_table *t, uint64_t in);
-#endif
 };
 
 

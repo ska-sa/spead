@@ -98,10 +98,6 @@ struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_
     return NULL;
 
   hs->s_backlog  = hash_table_count;
-#if 0
-  hs->s_heaps    = NULL;
-#endif
-  hs->s_shipping = NULL;
 
   hs->s_hash  = NULL;
   hs->s_list  = NULL;
@@ -158,9 +154,6 @@ void destroy_store_hs(struct spead_heap_store *hs)
       }
     }
 
-    if (hs->s_shipping)
-      free(hs->s_shipping);
-
 #if 0
     if (hs->s_hash)
       destroy_hash_table(hs->s_hash);
@@ -212,13 +205,9 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   }
 
   if (ht->t_data_id < 0){
-#if 0
-    lock_sem(ht->t_semid);
-#endif
+    lock_mutex(&(ht->t_m));
     ht->t_data_id = hid;
-#if 0
-    unlock_sem(ht->t_semid);
-#endif
+    unlock_mutex(&(ht->t_m));
   } 
   
   if (ht->t_data_id != hid){
@@ -348,17 +337,6 @@ struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n)
 }
 
 
-#define S_END             0
-#define S_MODE            1
-#define S_MODE_IMMEDIATE  2
-#define S_MODE_DIRECT     3
-#define S_GET_PACKET      4
-#define S_NEXT_PACKET     5
-#define S_GET_ITEM        6
-#define S_NEXT_ITEM       7
-#define S_GET_OBJECT      8
-#define S_DIRECT_COPY     9
-#define DC_NEXT_PACKET   10
 
 void process_descriptor_item(struct spead_api_item *itm)
 {
@@ -817,7 +795,7 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
             state = S_DIRECT_COPY;
           } else {      
             fprintf(stderr, "\033[31mMALFORMED packet\033[0m\n");
-            state = S_NEXT_PACKET;
+            state = S_END;
             break;
           }
 
@@ -975,6 +953,13 @@ DC_GET_PKT:
   return 0;
 }
 
+void print_store_stats(struct spead_heap_store *hs)
+{
+  if (hs == NULL)
+    return;
+  
+}
+
 int store_packet_hs(struct u_server *s, struct hash_o *o)
 {
 #if 0
@@ -1014,6 +999,7 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
     /*or discard set at current position*/
 #ifdef DATA
     fprintf(stderr, "%s: backlog collision\n", __func__);
+    print_store_stats(hs);
 #endif
 
     return -1;

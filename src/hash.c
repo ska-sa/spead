@@ -12,7 +12,6 @@ void print_list_stats(struct hash_o_list *l, const char *func)
 {
   uint64_t total, obt, len=0;
   
-#ifdef DEBUG
   if (l){
     
     if (l->l_top){
@@ -24,28 +23,14 @@ void print_list_stats(struct hash_o_list *l, const char *func)
 
     fprintf(stderr, "%s: object bank (%p)\n\tobjects\t\t%ld\n\tbank size\t%ld bytes\n\to->o size\t%ld bytes\n", func, l, l->l_len, total, obt);
   }
-#endif
 }
 
 struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, struct hash_o *o))
 {
   struct hash_table *t;
-#if 0
-  uint64_t i;
-#endif
 
   if (l == NULL || len < 0 || id < 0 || hfn == NULL)
     return NULL;
-
-#if 0
-  semid = create_sem((int)id);
-  if (semid < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: cannot get sem for table\n", __func__);
-#endif
-    return NULL;
-  }
-#endif
 
   t = shared_malloc(sizeof(struct hash_table));
   if (t == NULL){
@@ -77,21 +62,8 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
 
   memset(t->t_os, 0, len*sizeof(struct hash_o*));
   
-#if 0
-  for (i=0; i<len; i++){
-    t->t_os[i] = pop_hash_o(l);
-    if (t->t_os[i] == NULL){
 #ifdef DEBUG
-      fprintf(stderr, "%s: FAIL getting obejct from bank\n", __func__);
-#endif
-      destroy_hash_table(t);
-      return NULL;
-    }
-  }
-#endif
-
-#if DEBUG>1
-  fprintf(stderr, "HT[%ld/%ld] ", id, len);
+  fprintf(stderr, "HT[%ld/%ld]\n", id, len);
 #endif
 
   //print_list_stats(t->t_l, __func__);
@@ -121,9 +93,6 @@ void destroy_hash_table(struct hash_table *t)
       }
       //free(t->t_os);
     }
-#if 0
-    destroy_sem(t->t_semid);
-#endif
 
 #if DEBUG>1
     print_list_stats(t->t_l, __func__);
@@ -154,10 +123,6 @@ def DEBUG
 
   lock_mutex(&(ht->t_m));
 
-#if 0
-  lock_sem(ht->t_semid);
-#endif
-  
   for (i=0; i<ht->t_len; i++) {
     
     o = ht->t_os[i];
@@ -192,10 +157,6 @@ def DEBUG
   ht->t_processing = 0;
 
   memset(ht->t_os, 0, ht->t_len*sizeof(struct hash_o*));
-
-#if 0
-  unlock_sem(ht->t_semid);
-#endif
 
   unlock_mutex(&(ht->t_m));
 
@@ -266,27 +227,10 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
     return NULL;
   }
 
-#if 0 
-  semid = create_sem('L');
-  if (semid < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: could not create semaphore for shared mem\n", __func__);
-#endif
-    destroy_shared_mem();
-    return NULL;
-  }
-#endif
-  
-#if 0
-  l = malloc(sizeof(struct hash_o_list));
-#endif
   l = shared_malloc(sizeof(struct hash_o_list));
   if (l == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: could not allocate hash_o_list from shared memory\n", __func__);
-#endif
-#if 0
-    destroy_sem(semid);
 #endif
     destroy_shared_mem();
     return NULL;
@@ -316,11 +260,7 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
 
 void destroy_o_list(struct hash_o_list *l)
 {
-  if (l){
-#if 0
-    destroy_sem(l->l_semid);
-#endif
-  }
+
   destroy_shared_mem();
 
 #if 0
@@ -366,9 +306,6 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   
   id = (*t->t_hfn)(t, o);
 
-#if 0
-  lock_sem(t->t_semid);
-#endif
   lock_mutex(&(t->t_m));
 
   if (t->t_os[id] == NULL){
@@ -378,9 +315,6 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
     fprintf(stderr, "HASH [%d][%ld][%ld] ", getpid(), t->t_id, id, o);
 #endif
 
-#if 0
-    unlock_sem(t->t_semid);
-#endif
     unlock_mutex(&(t->t_m));
 
     return 0;
@@ -395,9 +329,6 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   }
   
   if (to == NULL){
-#if 0
-    unlock_sem(t->t_semid);
-#endif
     unlock_mutex(&(t->t_m));
     return -1;
   }
@@ -406,9 +337,6 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
 
 #ifdef DEBUG
   fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld] LIST pos [%d]\t(%p)\n", getpid(), t->t_id, id, i, o);
-#endif
-#if 0
-  unlock_sem(t->t_semid);
 #endif
   unlock_mutex(&(t->t_m));
 
@@ -423,7 +351,6 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
   if (l == NULL)
     return NULL;
 
-  //lock_sem(l->l_semid);
   lock_mutex(&(l->l_m));
 
   o = l->l_top;
@@ -431,9 +358,6 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
   if (o == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: err no more objects in bank\n", __func__);
-#endif
-#if 0
-    unlock_sem(l->l_semid);
 #endif
     unlock_mutex(&(l->l_m));
     return NULL;
@@ -449,7 +373,6 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
   print_list_stats(l, __func__);
 #endif
 
-  //unlock_sem(l->l_semid);
   unlock_mutex(&(l->l_m));
 
   return o;
@@ -461,7 +384,6 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
   if (l == NULL || o == NULL)
     return -1;
 
-  //lock_sem(l->l_semid);
   lock_mutex(&(l->l_m));
 
   o->o_next = l->l_top;
@@ -473,7 +395,6 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
   print_list_stats(l, __func__);
 #endif
 
-  //unlock_sem(l->l_semid);
   unlock_mutex(&(l->l_m));
 
   return 0;
