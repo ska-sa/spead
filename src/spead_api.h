@@ -13,11 +13,6 @@ void print_data(unsigned char *buf, int size);
 
 struct spead_heap_store{
   int64_t s_backlog;
-#if 0
-  struct spead_heap **s_heaps;
-#endif
-  struct spead_heap *s_shipping;
-  
   struct hash_o_list *s_list;
   struct hash_table **s_hash;
 };

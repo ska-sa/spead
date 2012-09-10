@@ -12,7 +12,6 @@ void print_list_stats(struct hash_o_list *l, const char *func)
 {
   uint64_t total, obt, len=0;
   
-#ifdef DEBUG
   if (l){
     
     if (l->l_top){
@@ -24,7 +23,6 @@ void print_list_stats(struct hash_o_list *l, const char *func)
 
     fprintf(stderr, "%s: object bank (%p)\n\tobjects\t\t%ld\n\tbank size\t%ld bytes\n\to->o size\t%ld bytes\n", func, l, l->l_len, total, obt);
   }
-#endif
 }
 
 struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, struct hash_o *o))

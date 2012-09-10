@@ -564,8 +564,9 @@ def DEBUG
       unlock_mutex(&(s->s_m));
       print_format_bitrate('R', total);
 #ifdef DATA
-      if (s->s_hpcount > 0)
+      if (s->s_hpcount > 0){
         fprintf(stderr,"\theaps processed: %d\n", s->s_hpcount);
+      }
 #endif
 #if 0 
       def DATA

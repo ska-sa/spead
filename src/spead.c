@@ -98,10 +98,6 @@ struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_
     return NULL;
 
   hs->s_backlog  = hash_table_count;
-#if 0
-  hs->s_heaps    = NULL;
-#endif
-  hs->s_shipping = NULL;
 
   hs->s_hash  = NULL;
   hs->s_list  = NULL;
@@ -157,9 +153,6 @@ void destroy_store_hs(struct spead_heap_store *hs)
         destroy_hash_table(hs->s_hash[i]);
       }
     }
-
-    if (hs->s_shipping)
-      free(hs->s_shipping);
 
 #if 0
     if (hs->s_hash)
@@ -817,7 +810,7 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
             state = S_DIRECT_COPY;
           } else {      
             fprintf(stderr, "\033[31mMALFORMED packet\033[0m\n");
-            state = S_NEXT_PACKET;
+            state = S_END;
             break;
           }
 
@@ -1014,6 +1007,7 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
     /*or discard set at current position*/
 #ifdef DATA
     fprintf(stderr, "%s: backlog collision\n", __func__);
+    print_store_stats(hs);
 #endif
 
     return -1;
