@@ -5,8 +5,6 @@
 #include "hash.h"
 #include "server.h"
 
-#define CALLBACK "spead_api_callback"
-
 #define S_END             0
 #define S_MODE            1
 #define S_MODE_IMMEDIATE  2

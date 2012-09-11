@@ -222,7 +222,6 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
 
 void print_data(unsigned char *buf, int size)
 {
-#ifdef DEBUG
 #define COLS 24
 #define ROWS 900
   int count, count2;
@@ -262,7 +261,6 @@ void print_data(unsigned char *buf, int size)
   fprintf(stderr,"\n");
 #undef COLS
 #undef ROWS
-#endif
 }
 
 struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
@@ -971,9 +969,16 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
   struct spead_packet       *p;
   struct hash_table         *ht;
   int flag_processing;
+  int (*cdfn)(struct spead_item_group *ig);
+  
+  cdfn = NULL;
 
   if (s == NULL)
     return -1;
+
+  if (s->s_mod){
+    cdfn = s->s_mod->m_cdfn;
+  }
 
   hs = s->s_hs;
 
@@ -1044,7 +1049,7 @@ def DEBUG
     fprintf(stderr, "[%d] data_count = %ld bytes == heap_len\n", getpid(), ht->t_data_count);
 #endif
 
-    if (process_items(ht, s->s_cdfn) < 0){
+    if (process_items(ht, cdfn) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: error processing items in ht (%p)\n", __func__, ht);
 #endif

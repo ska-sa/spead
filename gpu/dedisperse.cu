@@ -5,6 +5,19 @@
 
 #include <spead_api.h>
 
+void *spead_api_setup()
+{
+  
+
+}
+
+void spead_api_destroy(void *data)
+{
+  if (data){
+
+    
+  }
+}
 
 int spead_api_callback(struct spead_item_group *ig)
 {
@@ -12,6 +25,9 @@ int spead_api_callback(struct spead_item_group *ig)
 #ifdef DEBUG
   fprintf(stderr, "we are in the callback\n");
 #endif
+
+
+#if 0
 
   uint64_t off = 0;
   uint64_t count;
@@ -35,6 +51,7 @@ skip:
     
   }
 
+#endif
 
   return 0;
 }

@@ -117,7 +117,7 @@ int register_signals_us()
   return 0;
 }
 
-struct u_server *create_server_us(int (*cdfn)(struct spead_item_group *ig), long cpus)
+struct u_server *create_server_us(struct spead_api_module *m, long cpus)
 {
   struct u_server *s;
 
@@ -144,7 +144,7 @@ struct u_server *create_server_us(int (*cdfn)(struct spead_item_group *ig), long
   s->s_cs      = NULL;
   s->s_hs      = NULL;
   s->s_m       = 0;
-  s->s_cdfn    = cdfn;
+  s->s_mod     = m;
   s->s_kl      = NULL;
 
   return s;
@@ -169,6 +169,8 @@ void destroy_server_us(struct u_server *s)
     if (s->s_kl){
       destroy_katcl(s->s_kl, 0);
     }
+
+    unload_api_user_module(s->s_mod);
 
     destroy_store_hs(s->s_hs);
     munmap(s, sizeof(struct u_server));
@@ -677,7 +679,7 @@ int setup_katcp_us(struct u_server *s)
   return 0;
 }
 
-int register_client_handler_server(int (*client_data_fn)(struct spead_item_group *ig), char *port, long cpus, uint64_t hashes, uint64_t hashsize)
+int register_client_handler_server(struct spead_api_module *m, char *port, long cpus, uint64_t hashes, uint64_t hashsize)
 {
   struct u_server *s;
   
@@ -686,7 +688,7 @@ int register_client_handler_server(int (*client_data_fn)(struct spead_item_group
     return -1;
   }
 
-  s = create_server_us(client_data_fn, cpus);
+  s = create_server_us(m, cpus);
   if (s == NULL){
     fprintf(stderr, "%s: error could not create server\n", __func__);
     return -1;
@@ -727,16 +729,17 @@ int main(int argc, char *argv[])
   char *port, *dylib;
   uint64_t hashes, hashsize;
 
-  int (*cbh)(struct spead_item_group *ig);
+  //int (*cbh)(struct spead_item_group *ig);
+  struct spead_api_module *m;
 
   i = 1;
   j = 1;
 
-  hashes = 100;
+  hashes   = 100;
   hashsize = 10;
   
   dylib = NULL;
-  cbh   = NULL;
+  m     = NULL;
 
   port = PORT;
   cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -813,13 +816,13 @@ int main(int argc, char *argv[])
 
   if (dylib != NULL){
 
-    cbh = load_api_user_module(dylib);
-    if (cbh == NULL){
+    m = load_api_user_module(dylib);
+    if (m == NULL){
       fprintf(stderr, "Could not load user api module <%s>\n", dylib);
       return EX_USAGE;
     }
 
   }
 
-  return register_client_handler_server(cbh , port, cpus, hashes, hashsize);
+  return register_client_handler_server(m, port, cpus, hashes, hashsize);
 }

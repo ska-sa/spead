@@ -18,7 +18,7 @@ struct u_server {
   int s_hpcount;
   uint64_t s_bc;
   struct spead_heap_store *s_hs;
-  int (*s_cdfn)();
+  struct spead_api_module *s_mod;
   struct katcl_line *s_kl;
 };
 
@@ -32,9 +32,21 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
 
 void print_format_bitrate(char x, uint64_t bps);
 
-
 /*modules api*/
 
-void *load_api_user_module(char *mod);
+#define SAPI_CALLBACK "spead_api_callback"
+#define SAPI_SETUP    "spead_api_setup"
+#define SAPI_DESTROY  "spead_api_destroy"
+
+struct spead_api_module {
+  void *m_handle;
+  int (*m_cdfn)();
+  int (*m_destroy)(void *data);
+  void *m_data;
+};
+
+
+struct spead_api_module *load_api_user_module(char *mod);
+void unload_api_user_module(struct spead_api_module *m);
 
 #endif
