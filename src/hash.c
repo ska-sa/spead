@@ -51,6 +51,8 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   t->t_m          = 0; 
   t->t_processing = 0; 
 
+  lock_mutex(&(t->t_m));
+
   t->t_os  = shared_malloc(sizeof(struct hash_o*) * len);
   if (t->t_os == NULL){
 #ifdef DEBUG
@@ -67,6 +69,8 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
 #endif
 
   //print_list_stats(t->t_l, __func__);
+
+  unlock_mutex(&(t->t_m));
 
   return t;
 }
@@ -247,6 +251,8 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
   l->l_destroy = destroy;
   l->l_m       = 0;
 
+  lock_mutex(&(l->l_m));
+
   for (i=0; i<len; i++){
     o = create_hash_o(create, destroy, size);
     if (o == NULL){
@@ -256,6 +262,8 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
     o->o_next = l->l_top;
     l->l_top  = o;
   }
+
+  unlock_mutex(&(l->l_m));
 
   //print_list_stats(l, __func__);
 
