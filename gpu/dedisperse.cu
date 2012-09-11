@@ -26,9 +26,7 @@ int spead_api_callback(struct spead_item_group *ig)
       goto skip;
 
     count = 0;
-#ifdef DEBUG
     fprintf(stderr, "ITEM id[%d] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
-#endif
     
     print_data(itm->i_data, itm->i_len);
 
