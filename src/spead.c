@@ -204,11 +204,11 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
     return NULL;
   }
 
+  lock_mutex(&(ht->t_m));
   if (ht->t_data_id < 0){
-    lock_mutex(&(ht->t_m));
     ht->t_data_id = hid;
-    unlock_mutex(&(ht->t_m));
   } 
+  unlock_mutex(&(ht->t_m));
   
   if (ht->t_data_id != hid){
 #ifdef DATA
@@ -333,6 +333,7 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
 struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n)
 {
   
+
   return NULL;
 }
 
