@@ -208,7 +208,6 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   if (ht->t_data_id < 0){
     ht->t_data_id = hid;
   } 
-  unlock_mutex(&(ht->t_m));
   
   if (ht->t_data_id != hid){
 #ifdef DATA
@@ -216,6 +215,7 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
 #endif
     return NULL;
   }
+  unlock_mutex(&(ht->t_m));
 
   return ht;
 }
