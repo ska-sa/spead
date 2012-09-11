@@ -213,7 +213,11 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
   uint64_t i;
   uint64_t req_size;
 
-  req_size = (size+sizeof(struct hash_o))*len + sizeof(struct hash_o_list) + (sizeof(struct hash_table *) + sizeof(struct hash_table))*hlen + sizeof(struct hash_o *)*hsize*hlen;
+  req_size = (size + sizeof(struct hash_o)) * len 
+           + sizeof(struct hash_o_list) 
+           + (sizeof(struct hash_table *) 
+           + sizeof(struct hash_table)) * hlen 
+           + sizeof(struct hash_o *) * hsize * hlen;
 
 #if DEBUG>1
   fprintf(stderr, "REQ: (hash_o [%ld] + data size [%ld]) * len [%ld] + hash_o_list [%ld] + (hash_table [%ld] + hash_table ptr [%ld])* hlen [%ld] + hash_o ptr [%ld] * hsize [%ld]\n", sizeof(struct hash_o), size, len, sizeof(struct hash_o_list), sizeof(struct hash_table), sizeof(struct hash_table *), hlen, sizeof(struct hash_o *), hsize);
@@ -311,11 +315,12 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   if (t->t_os[id] == NULL){
     /*simple case*/
     t->t_os[id] = o;
-#if DEBUG>2
-    fprintf(stderr, "HASH [%d][%ld][%ld] ", getpid(), t->t_id, id, o);
-#endif
 
     unlock_mutex(&(t->t_m));
+
+#ifdef DEBUG
+    fprintf(stderr, "HASH [%d][%ld][%ld] ", getpid(), t->t_id, id, o);
+#endif
 
     return 0;
   }
@@ -335,10 +340,11 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
 
   to->o_next = o;
 
+  unlock_mutex(&(t->t_m));
+
 #ifdef DEBUG
   fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld] LIST pos [%d]\t(%p)\n", getpid(), t->t_id, id, i, o);
 #endif
-  unlock_mutex(&(t->t_m));
 
   return 0;
 }
@@ -356,10 +362,10 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
   o = l->l_top;
   
   if (o == NULL){
+    unlock_mutex(&(l->l_m));
 #ifdef DEBUG
     fprintf(stderr, "%s: err no more objects in bank\n", __func__);
 #endif
-    unlock_mutex(&(l->l_m));
     return NULL;
   }
 
@@ -368,12 +374,12 @@ struct hash_o *pop_hash_o(struct hash_o_list *l)
 
   o->o_next = NULL;
 
+  unlock_mutex(&(l->l_m));
+
 #if DEBUG>1
   fprintf(stderr, "[%d] %s: poped\t\t(%p)\n", getpid(), __func__, o);
   print_list_stats(l, __func__);
 #endif
-
-  unlock_mutex(&(l->l_m));
 
   return o;
 }
@@ -390,12 +396,12 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
   l->l_top = o;
   l->l_len++;
 
+  unlock_mutex(&(l->l_m));
+
 #if DEBUG>1
   fprintf(stderr, "[%d] %s: pushed\t\t(%p)\n", getpid(), __func__, o);
   print_list_stats(l, __func__);
 #endif
-
-  unlock_mutex(&(l->l_m));
 
   return 0;
 }
