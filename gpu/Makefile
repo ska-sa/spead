@@ -1,9 +1,9 @@
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 CFLAGS += --compiler-options '-fPIC' --shared -x 'c'
 #CFLAGS += -Wall
 #CFLAGS += -ggdb
 #CFLAGS += -O3
-LIB = -lcufft -lspead
+LIB = -lspead
 
 IDIR = -I../src
 LDIR = -L../src

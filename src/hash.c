@@ -64,8 +64,8 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
 
   memset(t->t_os, 0, len*sizeof(struct hash_o*));
   
-#ifdef DEBUG
-  fprintf(stderr, "HT[%ld/%ld]\n", id, len);
+#if DEBUG>1
+  fprintf(stderr, "HT[%ld/%ld] ", id, len);
 #endif
 
   //print_list_stats(t->t_l, __func__);
@@ -327,7 +327,7 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
     unlock_mutex(&(t->t_m));
 
 #ifdef DEBUG
-    fprintf(stderr, "HASH [%d][%ld][%ld] ", getpid(), t->t_id, id, o);
+    fprintf(stderr, "HASH [%d][%ld][%ld] ", getpid(), t->t_id, id);
 #endif
 
     return 0;

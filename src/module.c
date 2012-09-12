@@ -49,7 +49,7 @@ struct spead_api_module *load_api_user_module(char *mod)
     dlclose(mhandle);
     return NULL;
   }
-  destroy = dlsym(mhandle, SAPI_CALLBACK); 
+  destroy = dlsym(mhandle, SAPI_DESTROY); 
   if (destroy == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: module doesn't implement (%s) (%s)\n", __func__, SAPI_DESTROY, dlerror());

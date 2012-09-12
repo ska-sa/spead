@@ -542,7 +542,7 @@ void process_descriptor_item(struct spead_api_item *itm)
 
 }
 
-int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig))
+int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig, void *data), void *data)
 {
   struct spead_item_group *ig;
   struct spead_api_item   *itm;
@@ -940,7 +940,7 @@ DC_GET_PKT:
 
   
   if (cdfn != NULL){
-    if((*cdfn)(ig) < 0){
+    if((*cdfn)(ig, data) < 0){
 #ifdef DEBUG
       fprintf(stderr, "user callback failed\n");
 #endif
@@ -969,15 +969,18 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
   struct spead_packet       *p;
   struct hash_table         *ht;
   int flag_processing;
-  int (*cdfn)(struct spead_item_group *ig);
+  int (*cdfn)(struct spead_item_group *ig, void *data);
+  void *data;
   
   cdfn = NULL;
+  data = NULL;
 
   if (s == NULL)
     return -1;
 
   if (s->s_mod){
     cdfn = s->s_mod->m_cdfn;
+    data = s->s_mod->m_data;
   }
 
   hs = s->s_hs;
@@ -1049,7 +1052,7 @@ def DEBUG
     fprintf(stderr, "[%d] data_count = %ld bytes == heap_len\n", getpid(), ht->t_data_count);
 #endif
 
-    if (process_items(ht, cdfn) < 0){
+    if (process_items(ht, cdfn, data) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: error processing items in ht (%p)\n", __func__, ht);
 #endif
