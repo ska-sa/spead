@@ -42,6 +42,10 @@ void *spead_api_setup()
   }
 
   o->o_data = dd;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: setup complete cudaMalloc %ld bytes\n", __func__, o->o_size);
+#endif
   
   return o;
 }
