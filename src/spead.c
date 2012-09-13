@@ -211,7 +211,8 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   
   if (ht->t_data_id != hid){
 #ifdef DATA
-    fprintf(stderr, "%s: heap_cnt[%ld] maps to[%ld] / however have [%ld] at [%ld]\n", __func__, hid, id, ht->t_data_id, id);
+    fprintf(stderr, "heap_cnt[%ld] maps to[%ld] / however have [%ld] at [%ld]\n", hid, id, ht->t_data_id, id);
+    fprintf(stderr, "old heap has datacount [%ld]", ht->t_data_count);
 #endif
     unlock_mutex(&(ht->t_m));
     return NULL;
@@ -1004,6 +1005,7 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
     /*TODO: we have a newer set from packet must process partial*/
     /*or discard set at current position*/
 #ifdef DATA
+    fprintf(stderr, "new heap has size [%ld]\n", p->heap_len);
     fprintf(stderr, "%s: backlog collision\n", __func__);
     //print_store_stats(hs);
 #endif
