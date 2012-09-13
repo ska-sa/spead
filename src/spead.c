@@ -213,7 +213,7 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
 #ifdef DATA
     fprintf(stderr, "%s: heap_cnt[%ld] maps to[%ld] / however have [%ld] at [%ld]\n", __func__, hid, id, ht->t_data_id, id);
 #endif
-
+    unlock_mutex(&(ht->t_m));
     return NULL;
   }
   unlock_mutex(&(ht->t_m));
