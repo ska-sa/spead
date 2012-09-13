@@ -1,16 +1,3 @@
-?progdev bf_spead_test_2012_Sep_07_1202.bof
-?tap-start x gbe0 10.0.1.254 9999
-?wordwrite n_beng 0 0x1
-?wordwrite bf0_id 0 0x0
-?wordwrite bf0_gbe_out_port0 0 9999
-?wordwrite bf0_gbe_out_ip0 0 0x0a000168
-?wordwrite bf0_gbe_out_port1 0 9999
-?wordwrite bf0_gbe_out_ip1 0 0x0a000168
-?wordwrite ratio 0 200
-?wordwrite control 0 0x9
-?wordwrite control 0 0x6
-
-
 
 tcpdump spead to pipespead
 

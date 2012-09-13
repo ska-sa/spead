@@ -166,7 +166,7 @@ void destroy_store_hs(struct spead_heap_store *hs)
   }
 }
 
-int64_t get_id_hs(struct spead_heap_store *hs, int64_t hid)
+int64_t hash_heap_hs(struct spead_heap_store *hs, int64_t hid)
 {
   if (hs == NULL)
     return -1;
@@ -187,7 +187,7 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
     return NULL;
   }
 
-  id = get_id_hs(hs, hid);
+  id = hash_heap_hs(hs, hid);
   
   if (hs->s_hash == NULL){
 #ifdef DEBUG
@@ -211,8 +211,9 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   
   if (ht->t_data_id != hid){
 #ifdef DATA
-    fprintf(stderr, "%s: hash table [%ld] / packet set [%ld] miss match\n", __func__, hid, ht->t_data_id);
+    fprintf(stderr, "%s: heap_cnt[%ld] maps to[%ld] / however have [%ld] at [%ld]\n", __func__, hid, id, ht->t_data_id, id);
 #endif
+
     return NULL;
   }
   unlock_mutex(&(ht->t_m));
@@ -961,10 +962,6 @@ void print_store_stats(struct spead_heap_store *hs)
 
 int store_packet_hs(struct u_server *s, struct hash_o *o)
 {
-#if 0
-  struct spead_heap *h;
-  int64_t id;
-#endif
   struct spead_heap_store   *hs;
   struct spead_packet       *p;
   struct hash_table         *ht;
@@ -1008,7 +1005,7 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
     /*or discard set at current position*/
 #ifdef DATA
     fprintf(stderr, "%s: backlog collision\n", __func__);
-    print_store_stats(hs);
+    //print_store_stats(hs);
 #endif
 
     return -1;
