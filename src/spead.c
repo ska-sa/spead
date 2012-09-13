@@ -212,7 +212,7 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   if (ht->t_data_id != hid){
 #ifdef DATA
     fprintf(stderr, "heap_cnt[%ld] maps to[%ld] / however have [%ld] at [%ld]\n", hid, id, ht->t_data_id, id);
-    fprintf(stderr, "old heap has datacount [%ld]", ht->t_data_count);
+    fprintf(stderr, "old heap has datacount [%ld]\n", ht->t_data_count);
 #endif
     unlock_mutex(&(ht->t_m));
     return NULL;
