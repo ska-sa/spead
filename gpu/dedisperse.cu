@@ -75,6 +75,7 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
 {
   struct sapi_obj *o;
   cudaError_t err;
+  float2 *dd;
 
   o = data;
   
@@ -85,9 +86,7 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
     return -1; 
   }
 
-#ifdef DEBUG
-  fprintf(stderr, "%s: here\n", __func__);
-#endif
+  dd = o->o_data;
   
 #if 0
   if (o->o_size < ig->g_size){
@@ -97,10 +96,10 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
   }
 #endif
 
-  err = cudaMemcpy(o->o_data, ig->g_map, o->o_size, cudaMemcpyHostToDevice);
+  err = cudaMemcpy(dd, ig->g_map, o->o_size, cudaMemcpyHostToDevice);
   if (err != cudaSuccess){
 #ifdef DEBUG
-    fprintf(stderr, "copy failed <%s>\n", __func__, cudaGetErrorString(err));
+    fprintf(stderr, "copy failed %d <%s>\n", __func__, err, cudaGetErrorString(err));
 #endif
     return -1;  
   }
