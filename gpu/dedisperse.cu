@@ -99,7 +99,7 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
   err = cudaMemcpy(dd, ig->g_map, o->o_size, cudaMemcpyHostToDevice);
   if (err != cudaSuccess){
 #ifdef DEBUG
-    fprintf(stderr, "copy failed %d <%s>\n", __func__, err, cudaGetErrorString(err));
+    fprintf(stderr, "copy failed %d <%s>\n", err, cudaGetErrorString(err));
 #endif
     return -1;  
   }
