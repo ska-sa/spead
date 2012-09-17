@@ -175,12 +175,12 @@ int64_t hash_heap_hs(struct spead_heap_store *hs, int64_t hid)
 }
 
 
-struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
+struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, uint64_t hid)
 {
   uint64_t id;
   struct hash_table *ht;
 
-  if (hs == NULL || id < 0){
+  if (s == NULL || hs == NULL || id < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: parameter error", __func__);
 #endif
@@ -210,12 +210,28 @@ struct hash_table *get_ht_hs(struct spead_heap_store *hs, uint64_t hid)
   } 
   
   if (ht->t_data_id != hid){
-#ifdef DATA
+#ifdef DEBUG
     fprintf(stderr, "heap_cnt[%ld] maps to[%ld] / however have [%ld] at [%ld]\n", hid, id, ht->t_data_id, id);
     fprintf(stderr, "old heap has datacount [%ld]\n", ht->t_data_count);
 #endif
+   
+    if (empty_hash_table(ht) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error empting hash table", __func__);
+#endif
+      unlock_mutex(&(ht->t_m));
+      return NULL;
+    }
+
+    lock_mutex(&(s->s_m));
+    s->s_hdcount++;
+    unlock_mutex(&(s->s_m));
+
+#if 0
     unlock_mutex(&(ht->t_m));
     return NULL;
+#endif
+
   }
   unlock_mutex(&(ht->t_m));
 
@@ -1000,10 +1016,11 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
     return -1;
   }
   
-  ht = get_ht_hs(hs, p->heap_cnt);
+  ht = get_ht_hs(s, hs, p->heap_cnt);
   if (ht == NULL){
     /*TODO: we have a newer set from packet must process partial*/
     /*or discard set at current position*/
+
 #ifdef DATA
     fprintf(stderr, "new heap has size [%ld]\n", p->heap_len);
     fprintf(stderr, "%s: backlog collision\n", __func__);

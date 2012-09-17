@@ -140,6 +140,7 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus)
   s->s_fd      = 0;
   s->s_bc      = 0;
   s->s_hpcount = 0;
+  s->s_hdcount = 0;
   s->s_cpus    = cpus;
   s->s_cs      = NULL;
   s->s_hs      = NULL;
@@ -569,6 +570,9 @@ def DEBUG
       if (s->s_hpcount > 0){
         fprintf(stderr,"\theaps processed: %d\n", s->s_hpcount);
       }
+      if (s->s_hdcount > 0){
+        fprintf(stderr,"\theaps discarded: %d\n", s->s_hdcount);
+      }
 #endif
 #if 0 
       def DATA
@@ -581,6 +585,7 @@ def DEBUG
       lock_mutex(&(s->s_m));
       total = s->s_bc;
       s->s_hpcount = 0;
+      s->s_hdcount = 0;
       unlock_mutex(&(s->s_m));
       continue;
     }

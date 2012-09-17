@@ -16,6 +16,7 @@ struct u_server {
   struct u_child **s_cs;
   int s_fd;
   int s_hpcount;
+  int s_hdcount;
   uint64_t s_bc;
   struct spead_heap_store *s_hs;
   struct spead_api_module *s_mod;
