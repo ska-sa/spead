@@ -107,7 +107,7 @@ void destroy_hash_table(struct hash_table *t)
 
 }
 
-int empty_hash_table(struct hash_table *ht)
+int empty_hash_table(struct hash_table *ht, int flag)
 {
   struct hash_o_list *l;
   struct hash_o *o, *on;
@@ -124,8 +124,8 @@ int empty_hash_table(struct hash_table *ht)
 def DEBUG
   fprintf(stderr, "%s: about to empty\n", __func__);
 #endif
-
-  lock_mutex(&(ht->t_m));
+  if (flag)
+    lock_mutex(&(ht->t_m));
 
   for (i=0; i<ht->t_len; i++) {
     
@@ -162,7 +162,8 @@ def DEBUG
 
   memset(ht->t_os, 0, ht->t_len*sizeof(struct hash_o*));
 
-  unlock_mutex(&(ht->t_m));
+  if (flag)
+    unlock_mutex(&(ht->t_m));
 
   //print_list_stats(l, __func__);
 

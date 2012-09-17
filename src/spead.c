@@ -215,7 +215,8 @@ struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, ui
     fprintf(stderr, "old heap has datacount [%ld]\n", ht->t_data_count);
 #endif
    
-    if (empty_hash_table(ht) < 0){
+    
+    if (empty_hash_table(ht, 0) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: error empting hash table", __func__);
 #endif
@@ -233,6 +234,7 @@ struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, ui
 #endif
 
   }
+
   unlock_mutex(&(ht->t_m));
 
   return ht;
@@ -945,7 +947,7 @@ DC_GET_PKT:
   fprintf(stderr, "--PROCESS-[%d]-END-----\n", getpid());
 #endif
 
-  if (empty_hash_table(ht) < 0){
+  if (empty_hash_table(ht, 1) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: error empting hash table", __func__);
 #endif
