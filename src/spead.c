@@ -617,6 +617,7 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
 #ifdef DEBUG
     fprintf(stderr, "%s: failed to create item group\n", __func__);
 #endif
+    unlock_mutex(&(ht->t_m));
     return -1;
   }
 

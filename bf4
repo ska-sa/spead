@@ -1,5 +1,6 @@
 ###MAX####
-?progdev r_2b4_2a_2012_Sep_14_1151.bof 
+66
+?progdev r_2b4_2a_8k_2012_Sep_17_1508.bof 
 ?tap-start x gbe0 10.0.1.254 9999
 ?wordwrite n_beng 0 0x2
 ?wordwrite bf0_id 0 0x0
@@ -24,6 +25,7 @@
 ?wordwrite control 0 0x9
 ?wordwrite control 0 0x6
 
+220
 ?tap-start x gbe0 10.0.3.254 9999
 ?wordwrite n_beng 0 0x2
 ?wordwrite bf0_id 0 0x0
@@ -48,6 +50,30 @@
 ?wordwrite control 0 0x9
 ?wordwrite control 0 0x6
 
+123
+?tap-start x gbe0 10.0.2.254 9999
+?wordwrite n_beng 0 0x2
+?wordwrite bf0_id 0 0x0
+?wordwrite bf1_id 0 0x1
+?wordwrite ratio 0 100
+?wordwrite bf0_gbe_out_port0 0 9999
+?wordwrite bf0_gbe_out_ip0 0 0x0a00026a
+?wordwrite bf0_gbe_out_port1 0 9999
+?wordwrite bf0_gbe_out_ip1 0 0x0a00026a
+?wordwrite bf0_gbe_out_port2 0 9999
+?wordwrite bf0_gbe_out_ip2 0 0x0a00026a
+?wordwrite bf0_gbe_out_port3 0 9999
+?wordwrite bf0_gbe_out_ip3 0 0x0a00026a
+?wordwrite bf1_gbe_out_port0 0 9999
+?wordwrite bf1_gbe_out_ip0 0 0x0a00026a
+?wordwrite bf1_gbe_out_port1 0 9999
+?wordwrite bf1_gbe_out_ip1 0 0x0a00026a
+?wordwrite bf1_gbe_out_port2 0 9999
+?wordwrite bf1_gbe_out_ip2 0 0x0a00026a
+?wordwrite bf1_gbe_out_port3 0 9999
+?wordwrite bf1_gbe_out_ip3 0 0x0a00026a
+?wordwrite control 0 0x9
+?wordwrite control 0 0x6
 
 ###MIN###
 ?progdev r_1b4_2012_Sep_12_1643.bof
