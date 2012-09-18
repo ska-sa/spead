@@ -976,7 +976,6 @@ void print_store_stats(struct spead_heap_store *hs)
 {
   if (hs == NULL)
     return;
-  
 }
 
 int store_packet_hs(struct u_server *s, struct hash_o *o)
@@ -1020,8 +1019,10 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
   
   ht = get_ht_hs(s, hs, p->heap_cnt);
   if (ht == NULL){
-    /*TODO: we have a newer set from packet must process partial*/
+    /*we have a newer set from packet must process partial*/
     /*or discard set at current position*/
+    /*will never get here since if there is a hash clash*/
+    /*we empty hash table and then return fresh*/
 
 #ifdef DATA
     fprintf(stderr, "new heap has size [%ld]\n", p->heap_len);
