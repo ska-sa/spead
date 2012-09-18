@@ -1068,6 +1068,10 @@ def DEBUG
 
     unlock_mutex(&(ht->t_m));
 
+    lock_mutex(&(s->s_m));
+    s->s_hpcount++;
+    unlock_mutex(&(s->s_m));
+
 #ifdef DEBUG
     fprintf(stderr, "[%d] %s:\033[32m DONE empting hash table [%ld] \033[0m\n", getpid(), __func__, ht->t_id);
 #endif
@@ -1082,9 +1086,6 @@ def DEBUG
 
     destroy_item_group(ig);
     
-    lock_mutex(&(s->s_m));
-    s->s_hpcount++;
-    unlock_mutex(&(s->s_m));
     
   } else {
     unlock_mutex(&(ht->t_m));
