@@ -608,6 +608,14 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
 
   lock_mutex(&(ht->t_m));
 
+  if (ht->t_data_id < 0){
+#ifdef DATA
+    fprintf(stderr, "table has been emptied !!!!!\n");
+#endif
+    unlock_mutex(&(ht->t_m));
+    return -1;
+  }
+
 #ifdef DEBUG
   fprintf(stderr, "HEAP CNT [%ld] HEAP ITEMS [%ld] HEAP DATA [%ld bytes]\n", ht->t_data_id, ht->t_items, ht->t_data_count); 
 #endif
@@ -1049,10 +1057,6 @@ def DEBUG
   fprintf(stderr, "Packet has [%d] items\n", p->n_items);  
 #endif
   
-#if 0
-  lock_sem(ht->t_semid);
-#endif
-  
   lock_mutex(&(ht->t_m));
 
   ht->t_data_count += p->payload_len;
@@ -1064,10 +1068,6 @@ def DEBUG
   }
 
   unlock_mutex(&(ht->t_m));
-
-#if 0  
-  unlock_sem(ht->t_semid);
-#endif
 
   /*have all packets by data count must process*/
   if (flag_processing){
