@@ -575,10 +575,10 @@ def DEBUG
       print_format_bitrate('R', total);
 #ifdef DATA
       if (s->s_hpcount > 0){
-        fprintf(stderr, "\theaps processed: %d\n", s->s_hpcount);
+        fprintf(stderr, "\theaps \033[32mprocessed: %d\033[0m\n", s->s_hpcount);
       }
       if (s->s_hdcount > 0){
-        fprintf(stderr, "\theaps discarded: %d\n", s->s_hdcount);
+        fprintf(stderr, "\theaps \033[31mdiscarded: %d\033[0m\n", s->s_hdcount);
       }
 #endif
 #if 0 
