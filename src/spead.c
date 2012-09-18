@@ -561,7 +561,7 @@ void process_descriptor_item(struct spead_api_item *itm)
 
 }
 
-int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig, void *data), void *data)
+struct spead_item_group *process_items(struct hash_table *ht)
 {
   struct spead_item_group *ig;
   struct spead_api_item   *itm;
@@ -604,16 +604,13 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
   ds.o     = NULL;
 
   if (ht == NULL || ht->t_os == NULL)
-    return -1;
-
-  lock_mutex(&(ht->t_m));
+    return NULL;
 
   if (ht->t_data_id < 0){
 #ifdef DATA
     fprintf(stderr, "table has been emptied !!!!!\n");
 #endif
-    unlock_mutex(&(ht->t_m));
-    return -1;
+    return NULL;
   }
 
 #ifdef DEBUG
@@ -625,8 +622,7 @@ int process_items(struct hash_table *ht, int (*cdfn)(struct spead_item_group *ig
 #ifdef DEBUG
     fprintf(stderr, "%s: failed to create item group\n", __func__);
 #endif
-    unlock_mutex(&(ht->t_m));
-    return -1;
+    return NULL;
   }
 
 #ifdef PROCESS 
@@ -953,35 +949,12 @@ DC_GET_PKT:
 
   }
 
-  unlock_mutex(&(ht->t_m));
 
 #ifdef PROCESS
   fprintf(stderr, "--PROCESS-[%d]-END-----\n", getpid());
 #endif
 
-  if (empty_hash_table(ht, 1) < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error empting hash table", __func__);
-#endif
-    return -1;
-  }
-
-#ifdef DEBUG
-  fprintf(stderr, "[%d] %s:\033[32m DONE empting hash table [%ld] \033[0m\n", getpid(), __func__, ht->t_id);
-#endif
-
-  
-  if (cdfn != NULL){
-    if((*cdfn)(ig, data) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "user callback failed\n");
-#endif
-    }
-  }
-
-  destroy_item_group(ig);
-   
-  return 0;
+  return ig;
 }
 
 void print_store_stats(struct spead_heap_store *hs)
@@ -998,9 +971,11 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
   int flag_processing;
   int (*cdfn)(struct spead_item_group *ig, void *data);
   void *data;
+  struct spead_item_group *ig;
   
   cdfn = NULL;
   data = NULL;
+  ig   = NULL;
 
   if (s == NULL)
     return -1;
@@ -1067,26 +1042,54 @@ def DEBUG
     flag_processing  = 1;
   }
 
-  unlock_mutex(&(ht->t_m));
-
   /*have all packets by data count must process*/
   if (flag_processing){
 #ifdef DEBUG
     fprintf(stderr, "[%d] data_count = %ld bytes == heap_len\n", getpid(), ht->t_data_count);
 #endif
 
-    if (process_items(ht, cdfn, data) < 0){
+    ig = process_items(ht);
+    if (ig == NULL){
 #ifdef DEBUG
       fprintf(stderr, "%s: error processing items in ht (%p)\n", __func__, ht);
 #endif
+      unlock_mutex(&(ht->t_m));
       return -1;
     }
+
+    if (empty_hash_table(ht, 0) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error empting hash table", __func__);
+#endif
+      unlock_mutex(&(ht->t_m));
+      destroy_item_group(ig);
+      return -1;
+    }
+
+    unlock_mutex(&(ht->t_m));
+
+#ifdef DEBUG
+    fprintf(stderr, "[%d] %s:\033[32m DONE empting hash table [%ld] \033[0m\n", getpid(), __func__, ht->t_id);
+#endif
+
+    if (cdfn != NULL){
+      if((*cdfn)(ig, data) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "user callback failed\n");
+#endif
+      }
+    }
+
+    destroy_item_group(ig);
     
     lock_mutex(&(s->s_m));
     s->s_hpcount++;
     unlock_mutex(&(s->s_m));
     
+  } else {
+    unlock_mutex(&(ht->t_m));
   }
+
  
   return 0;
 }
