@@ -181,7 +181,7 @@ void destroy_server_us(struct u_server *s)
 #endif
 }
 
-int startup_server_us(struct u_server *s, char *port)
+int startup_server_us(struct u_server *s, char *port, int broadcast)
 {
   struct addrinfo hints;
   struct addrinfo *res, *rp;
@@ -230,6 +230,13 @@ int startup_server_us(struct u_server *s, char *port)
 
   reuse_addr = 1024*1024*1024;
   if (setsockopt(s->s_fd, SOL_SOCKET, SO_RCVBUF, &reuse_addr, sizeof(reuse_addr)) < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
+#endif
+  }
+
+  reuse_addr = 1;
+  if (setsockopt(s->s_fd, SOL_SOCKET, SO_BROADCAST, &reuse_addr, sizeof(reuse_addr)) < 0){
 #ifdef DEBUG
     fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
 #endif
@@ -685,7 +692,7 @@ int setup_katcp_us(struct u_server *s)
   return 0;
 }
 
-int register_client_handler_server(struct spead_api_module *m, char *port, long cpus, uint64_t hashes, uint64_t hashsize)
+int register_client_handler_server(struct spead_api_module *m, char *port, long cpus, uint64_t hashes, uint64_t hashsize, int broadcast)
 {
   struct u_server *s;
   
@@ -700,7 +707,7 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
     return -1;
   }
 
-  if (startup_server_us(s, port) < 0){
+  if (startup_server_us(s, port, broadcast) < 0){
     fprintf(stderr,"%s: error in startup\n", __func__);
     shutdown_server_us(s);
     return -1;
@@ -731,7 +738,7 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
 int main(int argc, char *argv[])
 {
   long cpus;
-  int i, j, c;
+  int i, j, c, broadcast;
   char *port, *dylib;
   uint64_t hashes, hashsize;
 
@@ -740,6 +747,7 @@ int main(int argc, char *argv[])
 
   i = 1;
   j = 1;
+  broadcast = 0;
 
   hashes   = 100;
   hashsize = 10;
@@ -768,8 +776,13 @@ int main(int argc, char *argv[])
           break;
 
         /*switches*/  
+        case 'x':
+          j++;
+          broadcast = 1;
+          break;
+
         case 'h':
-          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\n", argv[0], cpus, port, hashes, hashsize);
+          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\t\t-x (enable receive from broadcast)\n\n", argv[0], cpus, port, hashes, hashsize);
           return EX_OK;
 
         /*settings*/
@@ -830,5 +843,5 @@ int main(int argc, char *argv[])
 
   }
 
-  return register_client_handler_server(m, port, cpus, hashes, hashsize);
+  return register_client_handler_server(m, port, cpus, hashes, hashsize, broadcast);
 }
