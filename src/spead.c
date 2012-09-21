@@ -166,79 +166,6 @@ void destroy_store_hs(struct spead_heap_store *hs)
   }
 }
 
-int64_t hash_heap_hs(struct spead_heap_store *hs, int64_t hid)
-{
-  if (hs == NULL)
-    return -1;
-
-  return hid % hs->s_backlog;
-}
-
-
-struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, uint64_t hid)
-{
-  uint64_t id;
-  struct hash_table *ht;
-
-  if (s == NULL || hs == NULL || id < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: parameter error", __func__);
-#endif
-    return NULL;
-  }
-
-  id = hash_heap_hs(hs, hid);
-  
-  if (hs->s_hash == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: hs->s_hash is null", __func__);
-#endif
-    return NULL;
-  }
-
-  ht = hs->s_hash[id];
-  if (ht == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: hs->s_hash[%ld] is null", __func__, id);
-#endif
-    return NULL;
-  }
-
-  lock_mutex(&(ht->t_m));
-  if (ht->t_data_id < 0){
-    ht->t_data_id = hid;
-  } 
-  
-  if (ht->t_data_id != hid){
-#ifdef DEBUG
-    fprintf(stderr, "heap_cnt[%ld] maps to[%ld] / however have [%ld] at [%ld]\n", hid, id, ht->t_data_id, id);
-    fprintf(stderr, "old heap has datacount [%ld]\n", ht->t_data_count);
-#endif
-   
-    if (empty_hash_table(ht, 0) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: error empting hash table", __func__);
-#endif
-      unlock_mutex(&(ht->t_m));
-      return NULL;
-    }
-
-    lock_mutex(&(s->s_m));
-    s->s_hdcount++;
-    unlock_mutex(&(s->s_m));
-
-#if 0
-    unlock_mutex(&(ht->t_m));
-    return NULL;
-#endif
-
-  }
-
-  unlock_mutex(&(ht->t_m));
-
-  return ht;
-}
-
 void print_data(unsigned char *buf, int size)
 {
 #define COLS 24
@@ -961,6 +888,80 @@ void print_store_stats(struct spead_heap_store *hs)
 {
   if (hs == NULL)
     return;
+}
+
+
+int64_t hash_heap_hs(struct spead_heap_store *hs, int64_t hid)
+{
+  if (hs == NULL)
+    return -1;
+
+  return hid % hs->s_backlog;
+}
+
+
+struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, uint64_t hid)
+{
+  uint64_t id;
+  struct hash_table *ht;
+
+  if (s == NULL || hs == NULL || id < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: parameter error", __func__);
+#endif
+    return NULL;
+  }
+
+  id = hash_heap_hs(hs, hid);
+  
+  if (hs->s_hash == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: hs->s_hash is null", __func__);
+#endif
+    return NULL;
+  }
+
+  ht = hs->s_hash[id];
+  if (ht == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: hs->s_hash[%ld] is null", __func__, id);
+#endif
+    return NULL;
+  }
+
+  lock_mutex(&(ht->t_m));
+  if (ht->t_data_id < 0){
+    ht->t_data_id = hid;
+  } 
+  
+  if (ht->t_data_id != hid){
+#ifdef DEBUG
+    fprintf(stderr, "heap_cnt[%ld] maps to[%ld] / however have [%ld] at [%ld]\n", hid, id, ht->t_data_id, id);
+    fprintf(stderr, "old heap has datacount [%ld]\n", ht->t_data_count);
+#endif
+   
+    if (empty_hash_table(ht, 0) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error empting hash table", __func__);
+#endif
+      unlock_mutex(&(ht->t_m));
+      return NULL;
+    }
+
+    lock_mutex(&(s->s_m));
+    s->s_hdcount++;
+    unlock_mutex(&(s->s_m));
+
+#if 0
+    unlock_mutex(&(ht->t_m));
+    return NULL;
+#endif
+
+  }
+
+  unlock_mutex(&(ht->t_m));
+
+  return ht;
 }
 
 int store_packet_hs(struct u_server *s, struct hash_o *o)
