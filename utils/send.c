@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
   udp->len    = htons(SIZE - (off + sizeof(struct udphdr)));
   udp->check  = 0;
 
-  ip->check  = csum((unsigned short*)buf, sizeof(struct iphdr) + sizeof(struct udphdr));
+  //ip->check  = csum((unsigned short*)buf, sizeof(struct iphdr) + sizeof(struct udphdr));
 
 
   //fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_UDP);
@@ -108,13 +108,15 @@ int main(int argc, char *argv[])
     dst.sin_port = htons(i);
     udp->dest    = dst.sin_port;
 
+    ip->check  = csum((unsigned short*)buf, sizeof(struct iphdr) + sizeof(struct udphdr));
+
     if (i > 65000)
       i = 0;
     else
       i++;
 
     if(sendto(fd, buf, SIZE, 0, (struct sockaddr *)&dst, sizeof(dst)) < 0){
-      perror("sendto() error");
+      fprintf("error sendto");
       exit(-1);
     } else {
       //fprintf(stderr, "sent packet\n");
