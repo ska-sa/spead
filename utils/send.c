@@ -29,7 +29,7 @@ unsigned short csum(unsigned short *buf, int nwords)
 
 int main(int argc, char *argv[])
 {
-  int reuse_addr, off, fd;
+  int reuse_addr, off, fd, i;
   
   unsigned char buf[SIZE];
   
@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 
   
   if (argc < 2){
-    fprintf(stderr, "usage %s <DEST IP> <DST PORT>\n", argv[0]);
+    fprintf(stderr, "usage %s <DEST IP>\n", argv[0]);
     return -1;
   }
   
@@ -51,7 +51,8 @@ int main(int argc, char *argv[])
   
   udp = (struct udphdr*)(buf + off);
   
-  dst.sin_port = htons(atoi(argv[2]));
+  //dst.sin_port = htons(atoi(argv[2]));
+
   dst.sin_addr.s_addr = inet_addr(argv[1]);
 
   ip->ihl     = 5;
@@ -65,8 +66,8 @@ int main(int argc, char *argv[])
   ip->daddr   = dst.sin_addr.s_addr;
 
 
-  udp->source = dst.sin_port;
-  udp->dest   = dst.sin_port;
+  udp->source = 0;//dst.sin_port;
+  //udp->dest   = dst.sin_port;
   udp->len    = htons(SIZE - (off + sizeof(struct udphdr)));
   udp->check  = 0;
 
@@ -99,14 +100,27 @@ int main(int argc, char *argv[])
     return -1;
   }
 #endif
+  
+  i = 0;
 
   while (1){
+    
+    dst.sin_port = htons(i);
+    udp->dest    = dst.sin_port;
+
+    if (i > 65000)
+      i = 0;
+    else
+      i++;
+
     if(sendto(fd, buf, SIZE, 0, (struct sockaddr *)&dst, sizeof(dst)) < 0){
       perror("sendto() error");
       exit(-1);
     } else {
       //fprintf(stderr, "sent packet\n");
     }
+
+
   }
 
   fprintf(stderr, "done\n");
