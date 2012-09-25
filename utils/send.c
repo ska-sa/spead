@@ -100,15 +100,14 @@ int main(int argc, char *argv[])
   }
 #endif
 
-  if(sendto(fd, buf, SIZE, 0, (struct sockaddr *)&dst, sizeof(dst)) < 0){
-    perror("sendto() error");
-    exit(-1);
-  } else {
-  
-    fprintf(stderr, "sent packet\n");
-
+  while (1){
+    if(sendto(fd, buf, SIZE, 0, (struct sockaddr *)&dst, sizeof(dst)) < 0){
+      perror("sendto() error");
+      exit(-1);
+    } else {
+      //fprintf(stderr, "sent packet\n");
+    }
   }
-
 
   fprintf(stderr, "done\n");
 
