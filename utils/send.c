@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
       i++;
 
     if(sendto(fd, buf, SIZE, 0, (struct sockaddr *)&dst, sizeof(dst)) < 0){
-      fprintf("error sendto");
+      fprintf(stderr, "error sendto");
       exit(-1);
     } else {
       //fprintf(stderr, "sent packet\n");

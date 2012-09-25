@@ -319,13 +319,13 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   
   id = (*t->t_hfn)(t, o);
 
-  lock_mutex(&(t->t_m));
+  //lock_mutex(&(t->t_m));
 
   if (t->t_os[id] == NULL){
     /*simple case*/
     t->t_os[id] = o;
 
-    unlock_mutex(&(t->t_m));
+    //unlock_mutex(&(t->t_m));
 
 #ifdef DEBUG
     fprintf(stderr, "HASH [%d][%ld][%ld] ", getpid(), t->t_id, id);
@@ -343,13 +343,13 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   }
   
   if (to == NULL){
-    unlock_mutex(&(t->t_m));
+    //unlock_mutex(&(t->t_m));
     return -1;
   }
 
   to->o_next = o;
 
-  unlock_mutex(&(t->t_m));
+  //unlock_mutex(&(t->t_m));
 
 #ifdef DEBUG
   fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld] LIST pos [%d]\t(%p)\n", getpid(), t->t_id, id, i, o);

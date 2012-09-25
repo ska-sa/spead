@@ -959,7 +959,7 @@ struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, ui
 
   }
 
-  unlock_mutex(&(ht->t_m));
+  //unlock_mutex(&(ht->t_m));
 
   return ht;
 }
@@ -1006,6 +1006,7 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
   }
   
   ht = get_ht_hs(s, hs, p->heap_cnt);
+  /*NOTE: if we return null the mutex is not set*/
   if (ht == NULL){
     /*we have a newer set from packet must process partial*/
     /*or discard set at current position*/
@@ -1021,6 +1022,8 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
     return -1;
   }
 
+  /*NOTE: if we return the mutex is set*/
+
   if (add_o_ht(ht, o) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: could not add packet to hash table [%ld]\n", __func__, p->heap_cnt);
@@ -1033,7 +1036,7 @@ def DEBUG
   fprintf(stderr, "Packet has [%d] items\n", p->n_items);  
 #endif
   
-  lock_mutex(&(ht->t_m));
+  //lock_mutex(&(ht->t_m));
 
   ht->t_data_count += p->payload_len;
   ht->t_items      += p->n_items;
@@ -1087,12 +1090,11 @@ def DEBUG
 
     destroy_item_group(ig);
     
-    
-  } else {
+  }
+  else {
     unlock_mutex(&(ht->t_m));
   }
 
- 
   return 0;
 }
 
