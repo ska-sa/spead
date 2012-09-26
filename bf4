@@ -1,3 +1,59 @@
+?progdev r_4b4_2a_2012_Sep_26_1532.bof
+?tap-start x gbe0 10.0.3.254 9999
+?wordwrite dest_gbe0 0 0x0a000369
+?wordwrite dest_gbe0 1 9999
+?wordwrite dest_gbe0 2 0x0a000369
+?wordwrite dest_gbe0 3 9999
+?wordwrite dest_gbe0 4 0x0a000369
+?wordwrite dest_gbe0 5 9999
+?wordwrite dest_gbe0 6 0x0a000369
+?wordwrite dest_gbe0 7 9999
+?wordwrite dest_gbe0 8 0x0a000369
+?wordwrite dest_gbe0 9 9999
+?wordwrite dest_gbe0 10 0x0a000369
+?wordwrite dest_gbe0 11 9999
+?wordwrite dest_gbe0 12 0x0a000369
+?wordwrite dest_gbe0 13 9999
+?wordwrite dest_gbe0 14 0x0a000369
+?wordwrite dest_gbe0 15 9999
+
+?tap-start y gbe1 10.0.1.254 9999
+?wordwrite dest_gbe1 0 0x0a000168
+?wordwrite dest_gbe1 1 9999
+?wordwrite dest_gbe1 2 0x0a000168
+?wordwrite dest_gbe1 3 9999
+?wordwrite dest_gbe1 4 0x0a000168
+?wordwrite dest_gbe1 5 9999
+?wordwrite dest_gbe1 6 0x0a000168
+?wordwrite dest_gbe1 7 9999
+?wordwrite dest_gbe1 8 0x0a000168
+?wordwrite dest_gbe1 9 9999
+?wordwrite dest_gbe1 10 0x0a000168
+?wordwrite dest_gbe1 11 9999
+?wordwrite dest_gbe1 12 0x0a000168
+?wordwrite dest_gbe1 13 9999
+?wordwrite dest_gbe1 14 0x0a000168
+?wordwrite dest_gbe1 15 9999
+
+?wordwrite n_beng_per_group 0 0x4
+
+?wordwrite ratio 0 100
+
+?wordwrite group_idx_bf0 0 0x0
+?wordwrite group_idx_bf1 0 0x1
+?wordwrite group_idx_bf2 0 0x2
+?wordwrite group_idx_bf3 0 0x3
+
+?wordwrite group_id_bf0 0 0x0
+?wordwrite group_id_bf1 0 0x0
+?wordwrite group_id_bf2 0 0x0
+?wordwrite group_id_bf3 0 0x0
+
+?wordwrite control 0 0x9
+?wordwrite control 0 0x6
+
+
+
 roach220
 ?progdev r_4b4_2a_2012_Sep_21_1036.bof
 

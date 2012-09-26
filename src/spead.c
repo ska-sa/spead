@@ -353,7 +353,7 @@ void process_descriptor_item(struct spead_api_item *itm)
           iptr = SPEAD_ITEM(p.data, (j+1));
           id   = SPEAD_ITEM_ID(iptr);
           mode = SPEAD_ITEM_MODE(iptr);
-#ifdef DEBUG
+#ifdef PROCESS 
           fprintf(stderr, "@@@ITEM[%d] mode[%d] id[%d or 0x%x] 0x%lx\n", j, mode, id, id, iptr);
 #endif
           //state = S_NEXT_ITEM;
@@ -362,10 +362,10 @@ void process_descriptor_item(struct spead_api_item *itm)
           state = S_END;
 
           if (mode == SPEAD_DIRECTADDR){
-#ifdef DEBUG
+#ifdef PROCESS
             fprintf(stderr, "--ITEM[%d] mode[ %s ] id[%d or 0x%x] 0x%lx\n", j, ((mode == SPEAD_DIRECTADDR)?"DIRECT   ":"IMMEDIATE"), id, id, iptr);
 #endif
-#ifdef DEBUG
+#ifdef PROCESS
             fprintf(stderr, "\tstart final direct copy: len: %ld\n", off - lastoff);
 #endif
             print_data((unsigned char *)(p.payload+off), off-lastoff);
@@ -389,12 +389,12 @@ void process_descriptor_item(struct spead_api_item *itm)
           case SPEAD_PAYLOAD_OFF_ID:
           case SPEAD_PAYLOAD_LEN_ID:
           case SPEAD_STREAM_CTRL_ID:
-#ifdef DEBUG
+#ifdef PROCESS
             fprintf(stderr, "ITEM[%d] mode[ %s ] id[%d or 0x%x] 0x%lx\n", j, ((mode == SPEAD_DIRECTADDR)?"DIRECT   ":"IMMEDIATE"), id, id, iptr);
 #endif
             continue; /*pass control back to the beginning of the loop with state S_NEXT_ITEM*/
           case SPEAD_DESCRIPTOR_ID:
-#ifdef DEBUG
+#ifdef PROCESS
             fprintf(stderr, "\tITEM_DESCRIPTOR_ID\n");
 #endif
             break;
@@ -403,32 +403,32 @@ void process_descriptor_item(struct spead_api_item *itm)
         }
         switch(id){
           case D_NAME_ID:
-#ifdef DEBUG
+#ifdef PROCESS
             fprintf(stderr, "NAME ID\n");
 #endif
             break;
           case D_DESC_ID:
-#ifdef DEBUG
+#ifdef PROCESS
             fprintf(stderr, "DESCRIPTION ID\n");
 #endif
             break;
           case D_SHAPE_ID:
-#ifdef DEBUG
+#ifdef PROCESS
             fprintf(stderr, "SHAPE ID\n");
 #endif
             break;
           case D_FORMAT_ID:
-#ifdef DEBUG
+#ifdef PROCESS
             fprintf(stderr, "FORMAT ID\n");
 #endif
             break;
           case D_ID_ID:
-#ifdef DEBUG
+#ifdef PROCESS
             fprintf(stderr, "ID ID\n");
 #endif
             break;
           case D_TYPE_ID:
-#ifdef DEBUG
+#ifdef PROCESS
             fprintf(stderr, "TYPE ID\n");
 #endif
             break;
@@ -446,11 +446,11 @@ void process_descriptor_item(struct spead_api_item *itm)
         break;
 
       case S_MODE_IMMEDIATE:
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "==ITEM[%d] mode[ %s ] id[%d or 0x%x] 0x%lx\n", j, ((mode == SPEAD_DIRECTADDR)?"DIRECT   ":"IMMEDIATE"), id, id, iptr);
 #endif
         data64 = (int64_t) SPEAD_ITEM_ADDR(iptr);
-#ifdef DEBUG 
+#ifdef PROCESS
         fprintf(stderr, "\tdata: 0x%lx | %ld\n", data64, data64);
 #endif
         state = S_NEXT_ITEM;
@@ -470,7 +470,7 @@ void process_descriptor_item(struct spead_api_item *itm)
         fprintf(stderr, "++ITEM[%d] mode[ %s ] id[%d or 0x%x] 0x%lx\n", j, ((mode == SPEAD_DIRECTADDR)?"DIRECT   ":"IMMEDIATE"), id, id, iptr);
 #endif
             
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "\tstart direct copy: len: %ld\n", off - lastoff);
         print_data((unsigned char *)(p.payload+off), off-lastoff);
 #endif
