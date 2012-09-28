@@ -440,6 +440,10 @@ int worker_task_us(struct u_server *s, int cfd)
     
     bcount += nread;
 
+#ifdef DEBUG
+    fflush(stderr);
+#endif
+
   }
 
   
@@ -568,19 +572,18 @@ def DEBUG
       }
     } 
     
+#ifdef DATA
     if (timer){
       lock_mutex(&(s->s_m));
       total = s->s_bc - total;
       unlock_mutex(&(s->s_m));
       print_format_bitrate('R', total);
-#ifdef DATA
       if (s->s_hpcount > 0){
         fprintf(stderr, "\theaps \033[32mprocessed: %d\033[0m\n", s->s_hpcount);
       }
       if (s->s_hdcount > 0){
         fprintf(stderr, "\theaps \033[31mdiscarded: %d\033[0m\n", s->s_hdcount);
       }
-#endif
 #if 0 
       def DATA
       if (total > 0) {
@@ -596,6 +599,7 @@ def DEBUG
       unlock_mutex(&(s->s_m));
       continue;
     }
+#endif
 
     if (child){      
       sp = waitpid(-1, &status, 0);
@@ -670,11 +674,12 @@ int setup_katcp_us(struct u_server *s)
 
   if (s == NULL)
     return -1;
-
+#ifndef DEBUG
   flags = fcntl(STDOUT_FILENO, F_GETFL, NULL);
   if (flags >= 0){
     flags = fcntl(STDOUT_FILENO, F_SETFL, flags | O_NONBLOCK);
   }
+#endif
 
   kl = create_katcl(STDOUT_FILENO);
   if (kl == NULL)
