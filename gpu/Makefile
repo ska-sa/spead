@@ -11,6 +11,7 @@ LDIR = -L../src
 #-arch=sm_20
 #USECUFFT = 1
 NCC = nvcc
+CC  = gcc
 
 #gcc -shared -Wl,-x in.o -o out.so
 
@@ -24,7 +25,10 @@ all: $(OBJ)
 	$(NCC) $(CFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
 
 clean:
-	$(RM) -f $(OBJ) core vgcore*
+	$(RM) -f $(OBJ) core vgcore* ocl
+
+ocl: ocldd.c
+	$(CC) $< -o $@ -ggdb -DDEBUG -lOpenCL
 
 #install: all
 #	install $(EXE) /usr/local/bin

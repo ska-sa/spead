@@ -14,7 +14,7 @@
 
 
 #define SIZE  100
-
+#define CL_SUCCESS   0
 
 //NVIDIA's code follows
 //license issues probably prevent you from using this, but shouldn't take long
@@ -205,6 +205,7 @@ int main(int argc, char *argv[])
 
   size_t workGroupSize[1];
 
+
   char *fc, *fpath = "vadd.cl";
   int fd;
   struct stat fs;
@@ -236,73 +237,160 @@ int main(int argc, char *argv[])
 
 
   err = oclGetPlatformID(&platform);
+#ifdef DEBUG
+  fprintf(stderr, "oclGetPlatformID returns %s\n", oclErrorString(err));
+#endif
+
   err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
-  
+#ifdef DEBUG
+  fprintf(stderr, "clGetDeviceIDs returns %s\n", oclErrorString(err));
+#endif
+ 
   devices = malloc(sizeof(cl_device_id) * numDevices);
   if (devices == NULL)
     return -1;
 
   err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
+#ifdef DEBUG
+  fprintf(stderr, "clGetDeviceIDs returns %s\n", oclErrorString(err));
+#endif
+
+
 
   context = clCreateContext(0, 1, devices, NULL, NULL, &err);
+#ifdef DEBUG
+  fprintf(stderr, "clCreateContext returns %s\n", oclErrorString(err));
+#endif
 
   command_queue = clCreateCommandQueue(context, devices[0], 0, &err);
+#ifdef DEBUG
+  fprintf(stderr, "clCreateCommandQueue returns %s\n", oclErrorString(err));
+#endif
+
 
   program = clCreateProgramWithSource(context, 1, (const char **) &fc, &fs.st_size, &err);
+#ifdef DEBUG
+  fprintf(stderr, "clCreateProgramWithSource returns %s\n", oclErrorString(err));
+#endif
 
   err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+#ifdef DEBUG
+  fprintf(stderr, "clBuildProgram returns %s\n", oclErrorString(err));
+#endif
 
   err = clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status, NULL);
+#ifdef DEBUG
+  fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD STATUS %d\n", oclErrorString(err), build_status);
+#endif
+
 
   err = clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
+#ifdef DEBUG
+  fprintf(stderr, "clGetProgramBuildInfo returns %s\n", oclErrorString(err));
+#endif
+
+
   char build_log[ret_val_size+1];
   err = clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL);
+#ifdef DEBUG
+  fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD LOG [%s]\n", oclErrorString(err), build_log);
+#endif
+
 
   kernel = clCreateKernel(program, "vector_add", &err);
 #ifdef DEBUG
   fprintf(stderr, "clCreateKernel returns %s\n", oclErrorString(err));
 #endif
 
+  if (err != CL_SUCCESS){
+    goto clean;
+  }
+
+
   for(i=0; i<SIZE; i++)
   {
-    a[i] = 1.0f * i;
-    b[i] = 1.0f * i;
+    a[i] = 1.0f;
+    b[i] = 1.0f;
+    c[i] = 0.0f;
   }
+
+
   
   /*create a on the gpu and copy at the same time*/
   cl_a = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * SIZE, a, &err);
+#ifdef DEBUG
+  fprintf(stderr, "clCreateBuffer returns %s\n", oclErrorString(err));
+#endif
   /*create b on the gpu but dont copy yet*/
   cl_b = clCreateBuffer(context, CL_MEM_READ_ONLY                       , sizeof(float) * SIZE, NULL, &err);
-  cl_c = clCreateBuffer(context, CL_MEM_WRITE_ONLY                      , sizeof(float) * SIZE, NULL, &err);
+#ifdef DEBUG
+  fprintf(stderr, "clCreateBuffer returns %s\n", oclErrorString(err));
+#endif
+  cl_c = clCreateBuffer(context, CL_MEM_READ_WRITE                      , sizeof(float) * SIZE, NULL, &err);
+#ifdef DEBUG
+  fprintf(stderr, "clCreateBuffer returns %s\n", oclErrorString(err));
+#endif
 
   /*now copy b*/
   err = clEnqueueWriteBuffer(command_queue, cl_b, CL_TRUE, 0, sizeof(float) * SIZE, b, 0, NULL, &event);
+#ifdef DEBUG
+  fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+#endif
+
   clReleaseEvent(event);
 
   /*kernel args*/
   err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *) &cl_a);
-  err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *) &cl_b);
-  err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *) &cl_c);
+#ifdef DEBUG
+  fprintf(stderr, "clSetKernelArg returns %s\n", oclErrorString(err));
+#endif
+  err = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *) &cl_b);
+#ifdef DEBUG
+  fprintf(stderr, "clSetKernelArg returns %s\n", oclErrorString(err));
+#endif
+  err = clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *) &cl_c);
+#ifdef DEBUG
+  fprintf(stderr, "clSetKernelArg returns %s\n", oclErrorString(err));
+#endif
   
   clFinish(command_queue);
+
+
+
+  workGroupSize[0] = 1;
   
   err = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &event);
+
+#ifdef DEBUG
+  printf("clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+#endif
   
   clReleaseEvent(event);
 
   clFinish(command_queue);
 
+
+
+
+
   err = clEnqueueReadBuffer(command_queue, cl_c, CL_TRUE, 0, sizeof(float) * SIZE, &c, 0, NULL, &event);
+#ifdef DEBUG
+  fprintf(stderr, "clEnqueueReadBuffer returns %s\n", oclErrorString(err));
+#endif
 
   clReleaseEvent(event);
 
+
+  for (i=0; i<SIZE; i++){
+#ifdef DEBUG
+    fprintf(stderr, "%f ", c[i]);
+#endif
+  }
   
-  if(program)
-    clReleaseProgram(program);
-  if(kernel)
-    clReleaseKernel(kernel); 
-  if(command_queue)
-    clReleaseCommandQueue(command_queue);
+#ifdef DEBUG
+  fprintf(stderr, "\n");
+#endif
+
 
   if(cl_a)
     clReleaseMemObject(cl_a);
@@ -310,6 +398,15 @@ int main(int argc, char *argv[])
     clReleaseMemObject(cl_b);
   if(cl_c)
     clReleaseMemObject(cl_c);
+    
+clean:
+  if(program)
+    clReleaseProgram(program);
+  if(kernel)
+    clReleaseKernel(kernel); 
+  if(command_queue)
+    clReleaseCommandQueue(command_queue);
+
 
   if(context)
     clReleaseContext(context);
