@@ -175,20 +175,174 @@ const char* oclErrorString(cl_int error)
 }
 
 
-
-int main(int argc, char *argv[])
+int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl_program *program)
 {
   cl_platform_id platform;
   cl_device_id *devices;
   cl_uint numDevices;
-  cl_context context;
-
-  cl_program program;
   cl_build_status build_status;
+
+  cl_int err;
+
   size_t ret_val_size;
 
-  cl_kernel kernel;
+  char *fc;
+  int fd;
+  struct stat fs;
+
+  if (kf == NULL || context == NULL || command_queue == NULL || program == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: %s usage\n", __func__);
+#endif
+    return -1;
+  }
+
+  if (stat(kf, &fs) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "e: stat error: %s\n", strerror(errno));
+#endif
+    return -1;
+  }
+  
+  fd = open(kf, O_RDONLY);
+  if (fd < 0){
+#ifdef DEBUG
+    fprintf(stderr, "e: open error: %s\n", strerror(errno));
+#endif
+    return -1;
+  }
+
+  fc = mmap(NULL, fs.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  if (fc == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: mmap error: %s\n", strerror(errno));
+#endif
+    close(fd);
+    return -1;
+  }
+
+  err = oclGetPlatformID(&platform);
+#ifdef DEBUG
+  fprintf(stderr, "oclGetPlatformID returns %s\n", oclErrorString(err));
+#endif
+
+  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
+#ifdef DEBUG
+  fprintf(stderr, "clGetDeviceIDs returns %s\n", oclErrorString(err));
+#endif
+ 
+  devices = malloc(sizeof(cl_device_id) * numDevices);
+  if (devices == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: error malloc %s\n", strerror(errno));
+#endif
+    munmap(fc);
+    close(fd);
+    return -1;
+  }
+
+  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
+#ifdef DEBUG
+  fprintf(stderr, "clGetDeviceIDs returns %s\n", oclErrorString(err));
+#endif
+
+
+
+  *context = clCreateContext(0, 1, devices, NULL, NULL, &err);
+#ifdef DEBUG
+  fprintf(stderr, "clCreateContext returns %s\n", oclErrorString(err));
+#endif
+
+  *command_queue = clCreateCommandQueue(*context, devices[0], 0, &err);
+#ifdef DEBUG
+  fprintf(stderr, "clCreateCommandQueue returns %s\n", oclErrorString(err));
+#endif
+
+
+  *program = clCreateProgramWithSource(*context, 1, (const char **) &fc, &fs.st_size, &err);
+#ifdef DEBUG
+  fprintf(stderr, "clCreateProgramWithSource returns %s\n", oclErrorString(err));
+#endif
+
+
+  err = clBuildProgram(*program, 0, NULL, NULL, NULL, NULL);
+#ifdef DEBUG
+  fprintf(stderr, "clBuildProgram returns %s\n", oclErrorString(err));
+#endif
+
+  err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status, NULL);
+#ifdef DEBUG
+  fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD STATUS %d\n", oclErrorString(err), build_status);
+#endif
+
+
+  err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
+#ifdef DEBUG
+  fprintf(stderr, "clGetProgramBuildInfo returns %s\n", oclErrorString(err));
+#endif
+
+
+  char build_log[ret_val_size+1];
+  err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL);
+#ifdef DEBUG
+  fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD LOG [%s]\n", oclErrorString(err), build_log);
+#endif
+
+  munmap(fc);
+
+  close(fd);
+
+  free(devices);
+
+  return err;
+}
+
+cl_kernel get_kernel(char *name, cl_program *p)
+{
+  cl_kernel k;
+  cl_int err;
+
+  if (name == NULL || p == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: %s usage\n", __func__);
+#endif
+    return NULL;
+  }
+
+  kernel = clCreateKernel(*program, "vector_add", &err);
+
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clCreateKernel returns %s\n", oclErrorString(err));
+#endif
+    return NULL;
+  }
+
+  return k;
+}
+
+void destroy()
+{
+  if(program)
+    clReleaseProgram(program);
+
+  if(kernel)
+    clReleaseKernel(kernel); 
+
+  if(command_queue)
+    clReleaseCommandQueue(command_queue);
+
+  if(context)
+    clReleaseContext(context);
+}
+
+int main(int argc, char *argv[])
+{
+  cl_context context;
   cl_command_queue command_queue;
+
+  cl_program program;
+  cl_kernel kernel;
 
   cl_int err;
   cl_event event;
@@ -206,104 +360,19 @@ int main(int argc, char *argv[])
   size_t workGroupSize[1];
 
 
-  char *fc, *fpath = "vadd.cl";
-  int fd;
-  struct stat fs;
-
-  if (stat(fpath, &fs) < 0){
+  if (setup_ocl("vadd.cl", &context, &command_queue, &program) != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "stat error: %s\n", strerror(errno));
+    fprintf(stderr, "e: setup_ocl error\n");
 #endif
-    return -1;
-  }
-  
-  fd = open(fpath, O_RDONLY);
-  if (fd < 0){
-#ifdef DEBUG
-    fprintf(stderr, "open error: %s\n", strerror(errno));
-#endif
-    return -1;
+    return 1;
   }
 
-  fc = mmap(NULL, fs.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-  if (fc == NULL){
+  kernel = get_kernel("vector_add", &program);
+  if (kernel == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "mmap error: %s\n", strerror(errno));
+    fprintf(stderr, "e: get_kernel error\n");
 #endif
-    return -1;
-  }
-
-  
-
-
-  err = oclGetPlatformID(&platform);
-#ifdef DEBUG
-  fprintf(stderr, "oclGetPlatformID returns %s\n", oclErrorString(err));
-#endif
-
-  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
-#ifdef DEBUG
-  fprintf(stderr, "clGetDeviceIDs returns %s\n", oclErrorString(err));
-#endif
- 
-  devices = malloc(sizeof(cl_device_id) * numDevices);
-  if (devices == NULL)
-    return -1;
-
-  err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
-#ifdef DEBUG
-  fprintf(stderr, "clGetDeviceIDs returns %s\n", oclErrorString(err));
-#endif
-
-
-
-  context = clCreateContext(0, 1, devices, NULL, NULL, &err);
-#ifdef DEBUG
-  fprintf(stderr, "clCreateContext returns %s\n", oclErrorString(err));
-#endif
-
-  command_queue = clCreateCommandQueue(context, devices[0], 0, &err);
-#ifdef DEBUG
-  fprintf(stderr, "clCreateCommandQueue returns %s\n", oclErrorString(err));
-#endif
-
-
-  program = clCreateProgramWithSource(context, 1, (const char **) &fc, &fs.st_size, &err);
-#ifdef DEBUG
-  fprintf(stderr, "clCreateProgramWithSource returns %s\n", oclErrorString(err));
-#endif
-
-  err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-#ifdef DEBUG
-  fprintf(stderr, "clBuildProgram returns %s\n", oclErrorString(err));
-#endif
-
-  err = clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status, NULL);
-#ifdef DEBUG
-  fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD STATUS %d\n", oclErrorString(err), build_status);
-#endif
-
-
-  err = clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
-#ifdef DEBUG
-  fprintf(stderr, "clGetProgramBuildInfo returns %s\n", oclErrorString(err));
-#endif
-
-
-  char build_log[ret_val_size+1];
-  err = clGetProgramBuildInfo(program, devices[0], CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL);
-#ifdef DEBUG
-  fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD LOG [%s]\n", oclErrorString(err), build_log);
-#endif
-
-
-  kernel = clCreateKernel(program, "vector_add", &err);
-#ifdef DEBUG
-  fprintf(stderr, "clCreateKernel returns %s\n", oclErrorString(err));
-#endif
-
-  if (err != CL_SUCCESS){
-    goto clean;
+    return 1;
   }
 
 
@@ -326,7 +395,7 @@ int main(int argc, char *argv[])
 #ifdef DEBUG
   fprintf(stderr, "clCreateBuffer returns %s\n", oclErrorString(err));
 #endif
-  cl_c = clCreateBuffer(context, CL_MEM_READ_WRITE                      , sizeof(float) * SIZE, NULL, &err);
+  cl_c = clCreateBuffer(context, CL_MEM_WRITE_ONLY                      , sizeof(float) * SIZE, NULL, &err);
 #ifdef DEBUG
   fprintf(stderr, "clCreateBuffer returns %s\n", oclErrorString(err));
 #endif
@@ -357,9 +426,9 @@ int main(int argc, char *argv[])
 
 
 
-  workGroupSize[0] = 1;
+  workGroupSize[0] = SIZE;
   
-  err = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &event);
+  err = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, workGroupSize, workGroupSize, 0, NULL, &event);
 
 #ifdef DEBUG
   printf("clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
@@ -411,8 +480,6 @@ clean:
   if(context)
     clReleaseContext(context);
 
-  if(devices)
-    free(devices);
 
   return 0;
 }
