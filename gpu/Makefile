@@ -19,16 +19,19 @@ UTILS = cudafft.cu dedisperse.cu
 
 OBJ = $(patsubst %.cu,%.so,$(UTILS))
 
-all: $(OBJ)
+all: $(OBJ) ocl
 
 %.so: %.cu
 	$(NCC) $(CFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
 
 clean:
-	$(RM) -f $(OBJ) core vgcore* ocl
+	$(RM) -f $(OBJ) core vgcore* ocl *.o
 
-ocl: ocldd.c
-	$(CC) $< -o $@ -ggdb -DDEBUG -lOpenCL -lm
+shared.o: shared.c
+	$(CC) -c $< -o $@ -ggdb -DDEBUG
+
+ocl: ocldd.c shared.o
+	$(CC) $^ -o $@ -ggdb -DDEBUG -lOpenCL -lm
 
 #install: all
 #	install $(EXE) /usr/local/bin

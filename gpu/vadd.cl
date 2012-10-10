@@ -5,8 +5,8 @@ __kernel void vector_add(__global const float *A, __global const float *B, __glo
 }
 
 #define D        (4.148808*1000.0)
-#define DM       100.0 
-#define CF       1500.0
+#define DM       4000.0 
+#define CF       15.0
 
 __kernel void coherent_dedisperse(__global const float2 *in, __global float2 *out)
 {
