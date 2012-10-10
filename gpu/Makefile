@@ -28,7 +28,7 @@ clean:
 	$(RM) -f $(OBJ) core vgcore* ocl
 
 ocl: ocldd.c
-	$(CC) $< -o $@ -ggdb -DDEBUG -lOpenCL
+	$(CC) $< -o $@ -ggdb -DDEBUG -lOpenCL -lm
 
 #install: all
 #	install $(EXE) /usr/local/bin

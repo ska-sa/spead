@@ -5,16 +5,23 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include <math.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
 #include <CL/opencl.h>
 
+#define SIZE          1024
+#define CL_SUCCESS    0
 
+struct float2 {
+  float x;
+  float y;
+};
 
-#define SIZE  100
-#define CL_SUCCESS   0
+typedef struct float2 float2;
 
 //NVIDIA's code follows
 //license issues probably prevent you from using this, but shouldn't take long
@@ -39,7 +46,7 @@ cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
   if (ciErrNum != CL_SUCCESS)
   {
     //shrLog(" Error %i in clGetPlatformIDs Call !!!\n\n", ciErrNum);
-    printf(" Error %i in clGetPlatformIDs Call !!!\n\n", ciErrNum);
+    fprintf(stderr, " Error %i in clGetPlatformIDs Call !!!\n\n", ciErrNum);
     return -1000;
   }
   else
@@ -47,7 +54,7 @@ cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
     if(num_platforms == 0)
     {
       //shrLog("No OpenCL platform found!\n\n");
-      printf("No OpenCL platform found!\n\n");
+      fprintf(stderr, "No OpenCL platform found!\n\n");
       return -2000;
     }
     else
@@ -56,22 +63,22 @@ cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
       if ((clPlatformIDs = (cl_platform_id*)malloc(num_platforms * sizeof(cl_platform_id))) == NULL)
       {
         //shrLog("Failed to allocate memory for cl_platform ID's!\n\n");
-        printf("Failed to allocate memory for cl_platform ID's!\n\n");
+        fprintf(stderr, "Failed to allocate memory for cl_platform ID's!\n\n");
         return -3000;
       }
 
       // get platform info for each platform and trap the NVIDIA platform if found
       ciErrNum = clGetPlatformIDs (num_platforms, clPlatformIDs, NULL);
-      printf("Available platforms:\n");
+      fprintf(stderr, "Available platforms:\n");
       for(i = 0; i < num_platforms; ++i)
       {
         ciErrNum = clGetPlatformInfo (clPlatformIDs[i], CL_PLATFORM_NAME, 1024, &chBuffer, NULL);
         if(ciErrNum == CL_SUCCESS)
         {
-          printf("platform %d: %s\n", i, chBuffer);
+          fprintf(stderr, "platform %d: %s\n", i, chBuffer);
           if(strstr(chBuffer, "NVIDIA") != NULL)
           {
-            printf("selected platform %d\n", i);
+            fprintf(stderr, "selected platform %d\n", i);
             *clSelectedPlatformID = clPlatformIDs[i];
             break;
           }
@@ -83,7 +90,7 @@ cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
       {
         //shrLog("WARNING: NVIDIA OpenCL platform not found - defaulting to first platform!\n\n");
         //printf("WARNING: NVIDIA OpenCL platform not found - defaulting to first platform!\n\n");
-        printf("selected platform: %d\n", 0);
+        fprintf(stderr, "selected platform: %d\n", 0);
         *clSelectedPlatformID = clPlatformIDs[0];
       }
 
@@ -236,7 +243,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
 #ifdef DEBUG
     fprintf(stderr, "e: error malloc %s\n", strerror(errno));
 #endif
-    munmap(fc);
+    munmap(fc, fs.st_size);
     close(fd);
     return -1;
   }
@@ -288,7 +295,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD LOG [%s]\n", oclErrorString(err), build_log);
 #endif
 
-  munmap(fc);
+  munmap(fc, fs.st_size);
 
   close(fd);
 
@@ -309,7 +316,7 @@ cl_kernel get_kernel(char *name, cl_program *p)
     return NULL;
   }
 
-  kernel = clCreateKernel(*program, "vector_add", &err);
+  k = clCreateKernel(*p, name, &err);
 
   if (err != CL_SUCCESS){
 #ifdef DEBUG
@@ -321,19 +328,19 @@ cl_kernel get_kernel(char *name, cl_program *p)
   return k;
 }
 
-void destroy()
+void destroy(cl_kernel *kernel, cl_context *context, cl_command_queue *command_queue, cl_program *program)
 {
   if(program)
-    clReleaseProgram(program);
+    clReleaseProgram(*program);
 
   if(kernel)
-    clReleaseKernel(kernel); 
+    clReleaseKernel(*kernel); 
 
   if(command_queue)
-    clReleaseCommandQueue(command_queue);
+    clReleaseCommandQueue(*command_queue);
 
   if(context)
-    clReleaseContext(context);
+    clReleaseContext(*context);
 }
 
 int main(int argc, char *argv[])
@@ -347,13 +354,19 @@ int main(int argc, char *argv[])
   cl_int err;
   cl_event event;
 
+#if 0
   cl_mem cl_a;
   cl_mem cl_b;
   cl_mem cl_c;
-  
+#endif
+
+  cl_mem cl_in;
+  cl_mem cl_out;
+#if 0
   float a[SIZE];
   float b[SIZE];
-  float c[SIZE];
+#endif
+  float2 c[SIZE];
   
   int i;
 
@@ -367,22 +380,43 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  kernel = get_kernel("vector_add", &program);
+  kernel = get_kernel("coherent_dedisperse", &program);
   if (kernel == NULL){
 #ifdef DEBUG
     fprintf(stderr, "e: get_kernel error\n");
 #endif
     return 1;
-  }
+  } 
+  
+  cl_in = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float2) * SIZE, NULL, &err);
+#ifdef DEBUG
+  fprintf(stderr, "clCreateBuffer returns %s\n", oclErrorString(err));
+#endif
+
+  cl_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float2) * SIZE, NULL, &err);
+#ifdef DEBUG
+  fprintf(stderr, "clCreateBuffer returns %s\n", oclErrorString(err));
+#endif
+
+  err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *) &cl_in);
+#ifdef DEBUG
+  fprintf(stderr, "clSetKernelArg returns %s\n", oclErrorString(err));
+#endif
+
+  err = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *) &cl_out);
+#ifdef DEBUG
+  fprintf(stderr, "clSetKernelArg returns %s\n", oclErrorString(err));
+#endif
 
 
+
+#if 0
   for(i=0; i<SIZE; i++)
   {
     a[i] = 1.0f;
     b[i] = 1.0f;
     c[i] = 0.0f;
   }
-
 
   
   /*create a on the gpu and copy at the same time*/
@@ -423,15 +457,15 @@ int main(int argc, char *argv[])
 #endif
   
   clFinish(command_queue);
-
+#endif
 
 
   workGroupSize[0] = SIZE;
   
-  err = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, workGroupSize, workGroupSize, 0, NULL, &event);
+  err = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &event);
 
 #ifdef DEBUG
-  printf("clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+  fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
 #endif
   
   clReleaseEvent(event);
@@ -442,7 +476,7 @@ int main(int argc, char *argv[])
 
 
 
-  err = clEnqueueReadBuffer(command_queue, cl_c, CL_TRUE, 0, sizeof(float) * SIZE, &c, 0, NULL, &event);
+  err = clEnqueueReadBuffer(command_queue, cl_out, CL_TRUE, 0, sizeof(float2) * SIZE, &c, 0, NULL, &event);
 #ifdef DEBUG
   fprintf(stderr, "clEnqueueReadBuffer returns %s\n", oclErrorString(err));
 #endif
@@ -450,35 +484,48 @@ int main(int argc, char *argv[])
   clReleaseEvent(event);
 
 
+
   for (i=0; i<SIZE; i++){
 #ifdef DEBUG
-    fprintf(stderr, "%f ", c[i]);
+    //fprintf(stdout, "%f %c%fj\n", c[i].x, (c[i].y > 0)? '+':' ', c[i].y);
+    fprintf(stdout, "%d %f\n", i, hypotf(c[i].x, c[i].y));
 #endif
   }
-  
+
+#ifdef DEBUG
+  fprintf(stdout, "e\n\n");
+#endif
+
+  for (i=0; i<SIZE; i++){
+#ifdef DEBUG
+    //fprintf(stdout, "%f %c%fj\n", c[i].x, (c[i].y > 0)? '+':' ', c[i].y);
+    fprintf(stdout, "%d %f\n", i, atan2f(c[i].x, c[i].y));
+#endif
+  }
+
+#ifdef DEBUG
+  fprintf(stdout, "e\n");
+#endif
+
 #ifdef DEBUG
   fprintf(stderr, "\n");
 #endif
 
-
+#if 0
   if(cl_a)
     clReleaseMemObject(cl_a);
   if(cl_b)
     clReleaseMemObject(cl_b);
   if(cl_c)
     clReleaseMemObject(cl_c);
-    
-clean:
-  if(program)
-    clReleaseProgram(program);
-  if(kernel)
-    clReleaseKernel(kernel); 
-  if(command_queue)
-    clReleaseCommandQueue(command_queue);
+#endif
 
-
-  if(context)
-    clReleaseContext(context);
+  if(cl_in)
+    clReleaseMemObject(cl_in);
+  if(cl_out)
+    clReleaseMemObject(cl_out);
+  
+  destroy(&kernel, &context, &command_queue, &program);
 
 
   return 0;
