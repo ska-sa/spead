@@ -7,7 +7,6 @@
 
 #include <math.h>
 
-
 #include <CL/opencl.h>
 
 #include "shared.h"
@@ -27,7 +26,6 @@ int main(int argc, char *argv[])
   cl_int err;
   cl_event event;
 
-
   cl_mem cl_in;
   cl_mem cl_out;
   float2 c[SIZE];
@@ -35,7 +33,6 @@ int main(int argc, char *argv[])
   int i;
 
   size_t workGroupSize[1];
-
 
   if (setup_ocl("vadd.cl", &context, &command_queue, &program) != CL_SUCCESS){
 #ifdef DEBUG
@@ -51,6 +48,8 @@ int main(int argc, char *argv[])
 #endif
     return 1;
   } 
+
+
   
   cl_in = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float2) * SIZE, NULL, &err);
 #ifdef DEBUG
@@ -131,10 +130,6 @@ int main(int argc, char *argv[])
   if(cl_out)
     clReleaseMemObject(cl_out);
   
-#if 0
-  float a[SIZE];
-  float b[SIZE];
-#endif
   destroy(&kernel, &context, &command_queue, &program);
 
 
