@@ -1,4 +1,4 @@
-CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG
 CFLAGS += --compiler-options '-fPIC' --shared -x 'c'
 #CFLAGS += -Wall
 #CFLAGS += -ggdb
