@@ -9,49 +9,205 @@
 
 #include <CL/opencl.h>
 
+#include <spead_api.h>
+
 #include "shared.h"
 
 #define SIZE          1024
 #define CL_SUCCESS    0
 
+#define KERNELS_FILE  "kernels.cl"
+
+#define SPEAD_DATA_ID       0x0    /*data id*/
+
+struct sapi_o {
+  cl_context       ctx;
+  cl_command_queue cq;
+  cl_program       p;
+  cl_kernel        k;
+  cl_mem           clin;
+  cl_mem           clout;
+};
+
+void spead_api_destroy(void *data)
+{
+  struct sapi_o *a;
+
+  a = data;
+
+  if (a){
+    
+    if(a->clin)
+      clReleaseMemObject(a->clin);
+    if(a->clout)
+      clReleaseMemObject(a->clout);
+
+    destroy(&(a->k), &(a->ctx), &(a->cq), &(a->p));
+    
+    free(a);
+
+  }
+
+}
+
+void *spead_api_setup()
+{
+  struct sapi_o *a;
+
+  a = malloc(sizeof(struct sapi_o));
+  if (a == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: logic could not malloc api obj\n");
+#endif
+    return NULL;
+  }
+
+  if (setup_ocl(KERNELS_FILE, &(a->ctx), &(a->cq), &(a->p)) != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "e: setup_ocl error\n");
+#endif
+    spead_api_destroy(a);
+    return NULL;
+  }
+
+  a->k = get_kernel("coherent_dedisperse", &(a->p));
+  if (a->k == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: get_kernel error\n");
+#endif
+    spead_api_destroy(a);
+    return NULL;
+  } 
+  
+  return a;
+}
+
+
+int spead_api_callback(struct spead_item_group *ig, void *data)
+{
+  struct spead_api_item *itm;
+  struct sapi_o *a;
+  uint64_t off, count;
+
+  cl_int err;
+  cl_event evt;
+
+  size_t workGroupSize[1];
+  
+  a = data;
+
+  if (ig == NULL || a == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: callback parameter error\n");
+#endif
+    return -1;
+  }
+
+  off = 0;
+  while (off < ig->g_size){
+    itm = (struct spead_api_item *) (ig->g_map + off);
+
+    if (itm->i_len == 0)
+      goto skip;
+
+    count = 0;
+    if (itm->i_id == SPEAD_DATA_ID)
+      break;
+skip:
+    off += sizeof(struct spead_api_item) + itm->i_len;
+  }
+  
+#if 0
+  a->clin = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float2) * SIZE, a, &err);
+#endif
+
+  a->clin  = clCreateBuffer(a->ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, itm->i_len, itm->i_data, &err);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clCreateBuffer return %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  a->clout = clCreateBuffer(a->ctx, CL_MEM_WRITE_ONLY, itm->i_len, NULL, &err);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clCreateBuffer return %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  err = clSetKernelArg(a->k, 0, sizeof(cl_mem), (void *) &(a->clin));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  err = clSetKernelArg(a->k, 1, sizeof(cl_mem), (void *) &(a->clout));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  workGroupSize[0] = itm->i_len;
+  
+  err = clEnqueueNDRangeKernel(a->cq, a->k, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  clReleaseEvent(evt);
+
+  clFinish(a->cq);
+
+#if 0
+  err = clEnqueueReadBuffer(command_queue, a->clout, CL_TRUE, 0, sizeof(float2) * , &c, 0, NULL, &event);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueReadBuffer returns %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  clReleaseEvent(evt);
+#endif
+
+  
+  return 0;
+}
+
+#ifdef STANDALONE
 
 int main(int argc, char *argv[])
 {
-  cl_context context;
-  cl_command_queue command_queue;
+  struct sapi_o *a;
 
-  cl_program program;
-  cl_kernel kernel;
+  a = spead_api_setup();
 
-  cl_int err;
-  cl_event event;
-
-  cl_mem cl_in;
-  cl_mem cl_out;
+  spead_api_destroy(a);
+    
+  
+#if 0
+  float2 a[SIZE];
   float2 c[SIZE];
   
   int i;
 
   size_t workGroupSize[1];
-
-  if (setup_ocl("vadd.cl", &context, &command_queue, &program) != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "e: setup_ocl error\n");
-#endif
-    return 1;
-  }
-
-  kernel = get_kernel("coherent_dedisperse", &program);
-  if (kernel == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "e: get_kernel error\n");
-#endif
-    return 1;
-  } 
-
-
   
-  cl_in = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(float2) * SIZE, NULL, &err);
+  for (i=0; i<SIZE; i++){
+    a[i].x = 1.0f;
+    a[i].y = 1.0f;
+  }
+  
+  cl_in = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float2) * SIZE, a, &err);
 #ifdef DEBUG
   fprintf(stderr, "clCreateBuffer returns %s\n", oclErrorString(err));
 #endif
@@ -71,9 +227,6 @@ int main(int argc, char *argv[])
   fprintf(stderr, "clSetKernelArg returns %s\n", oclErrorString(err));
 #endif
 
-
-
-
   workGroupSize[0] = SIZE;
   
   err = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &event);
@@ -86,18 +239,12 @@ int main(int argc, char *argv[])
 
   clFinish(command_queue);
 
-
-
-
-
   err = clEnqueueReadBuffer(command_queue, cl_out, CL_TRUE, 0, sizeof(float2) * SIZE, &c, 0, NULL, &event);
 #ifdef DEBUG
   fprintf(stderr, "clEnqueueReadBuffer returns %s\n", oclErrorString(err));
 #endif
 
   clReleaseEvent(event);
-
-
 
   for (i=0; i<SIZE; i++){
 #ifdef DEBUG
@@ -125,16 +272,15 @@ int main(int argc, char *argv[])
   fprintf(stderr, "\n");
 #endif
 
-  if(cl_in)
-    clReleaseMemObject(cl_in);
-  if(cl_out)
-    clReleaseMemObject(cl_out);
-  
-  destroy(&kernel, &context, &command_queue, &program);
 
+#endif
 
   return 0;
 }
+
+#endif
+
+
 
 
 #if 0
@@ -144,7 +290,6 @@ int main(int argc, char *argv[])
     b[i] = 1.0f;
     c[i] = 0.0f;
   }
-
   
   /*create a on the gpu and copy at the same time*/
   cl_a = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * SIZE, a, &err);
@@ -184,23 +329,17 @@ int main(int argc, char *argv[])
 #endif
   
   clFinish(command_queue);
-#endif
 
-#if 0
   if(cl_a)
     clReleaseMemObject(cl_a);
   if(cl_b)
     clReleaseMemObject(cl_b);
   if(cl_c)
     clReleaseMemObject(cl_c);
-#endif
 
-#if 0
   cl_mem cl_a;
   cl_mem cl_b;
   cl_mem cl_c;
-#endif
-#if 0
   float a[SIZE];
   float b[SIZE];
 #endif

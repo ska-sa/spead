@@ -31,7 +31,7 @@ shared.o: shared.c
 	$(CC) -c $< -o $@ -ggdb -DDEBUG
 
 ocl: ocldd.c shared.o
-	$(CC) $^ -o $@ -ggdb -DDEBUG -lOpenCL -lm
+	$(CC) $^ -o $@ -ggdb -DDEBUG -DSTANDALONE -lOpenCL -lm $(LIB) $(IDIR) $(LDIR)
 
 #install: all
 #	install $(EXE) /usr/local/bin

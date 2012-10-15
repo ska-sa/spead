@@ -93,7 +93,9 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
   cudaError_t err;
   uint8_t *dd;
 
-  if (o == NULL){
+  o = data;
+
+  if (ig == NULL || o == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: error cannot use callback with null data\n", __func__);
 #endif
