@@ -14,7 +14,10 @@
 #define B_ENG   1
 
 
-#define SPEAD_DATA_ID   0x0
+#define SPEAD_DATA_ID       0x0    /*data id*/
+
+#define DATA_CHANNELS       1024   /*2k fft with only positive results*/
+#define DATA_CHANNEL_SETS   128    /*1 byte real 1 byte img*/
 
 
 struct sapi_obj {
@@ -81,112 +84,81 @@ void spead_api_destroy(void *data)
   }
 }
 
-#if 0
-int spead_worker_setup(void *data)
-{
-  struct sapi_obj *o;
-  pid_t pid;
-  float2 *dd;
-  cudaError_t err;
-
-  o = data;
-  if (o == NULL)
-    return -1;
-
-  pid_t = getpid();
-
-  err = cudaMalloc((void **) &dd, o->o_size);
-  if (err != cudaSuccess){
-#ifdef DEBUG
-    fprintf(stderr, "%s: could not cudamalloc\n", __func__);
-#endif
-    free(o);
-    return NULL;
-  }
-
-  o->o_data = dd;
-
-#ifdef DEBUG
-  fprintf(stderr, "%s: setup complete cudaMalloc %ld bytes\n", __func__, o->o_size);
-#endif
-
-
-
-  return 0;
-}
-#endif
-
 int spead_api_callback(struct spead_item_group *ig, void *data)
 {
+  struct spead_api_item *itm;
   struct sapi_obj *o;
+  uint64_t off;
+  uint64_t count;
   cudaError_t err;
-  //float2 *dd;
   uint8_t *dd;
-  pid_t pid;
 
   o = data;
-  pid = getpid();
-  
-  if (o == NULL){
+
+  if (ig == NULL || o == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: error cannot use callback with null data\n", __func__);
 #endif
     return -1; 
   }
 
-#if 0
-  dd = o->o_data;
-  
-  if (o->o_size < ig->g_size){
-#ifdef DEBUG
-    fprintf(stderr, "%s: need more \n", __func__);
-#endif
-  }
-#endif
-
-  err = cudaMalloc((void **) &dd, ig->g_size);
-  if (err != cudaSuccess){
-#ifdef DEBUG
-    fprintf(stderr, "copy failed %d <%s>\n", err, cudaGetErrorString(err));
-#endif
-    return -1;  
-  }
-
-#ifdef DEBUG
-  fprintf(stderr, "~~~[%d]start copy %ld in cuda pointer @ (%p)\n", pid, ig->g_size, dd);
-#endif
-
-  err = cudaMemcpy(dd, ig->g_map, ig->g_size, cudaMemcpyHostToDevice);
-  if (err != cudaSuccess){
-#ifdef DEBUG
-    fprintf(stderr, "copy failed %d <%s>\n", err, cudaGetErrorString(err));
-#endif
-    cudaFree(dd);
-    return -1;  
-  }
-  
-#ifdef DEBUG
-  fprintf(stderr, "~~~[%d]end copy %ld in cuda pointer @ (%p)\n", pid, ig->g_size, dd);
-#endif
-  
-#if 0
-  uint64_t off = 0;
-  uint64_t count;
-  struct spead_api_item *itm;
+  off = 0;
   while (off < ig->g_size){
     itm = (struct spead_api_item *) (ig->g_map + off);
+
+    fprintf(stderr, "ITEM id[%d] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
     if (itm->i_len == 0)
       goto skip;
+
     count = 0;
+#if 0
     fprintf(stderr, "ITEM id[%d] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
     print_data(itm->i_data, itm->i_len);
+#endif
+    if (itm->i_id == SPEAD_DATA_ID)
+      break;
 skip:
     off += sizeof(struct spead_api_item) + itm->i_len;
   }
+
+
+  if (itm && itm->i_id == SPEAD_DATA_ID){
+
+#ifdef DEBUG
+    fprintf(stderr, "SPEAD DATA ID FOUND\n");
+#endif
+      
+    err = cudaMalloc((void **) &dd, itm->i_len);
+    if (err != cudaSuccess){
+#ifdef DEBUG
+      fprintf(stderr, "copy failed %d <%s>\n", err, cudaGetErrorString(err));
+#endif
+      return -1;  
+    }
+
+#ifdef DEBUG
+    fprintf(stderr, "CUDA malloc of size %ld\n", itm->i_len);
 #endif
 
-  cudaFree(dd);
+    err = cudaMemcpy(dd, itm->i_data, itm->i_len, cudaMemcpyHostToDevice);
+    if (err != cudaSuccess){
+#ifdef DEBUG
+      fprintf(stderr, "copy failed %d <%s>\n", err, cudaGetErrorString(err));
+#endif
+      cudaFree(dd);
+      return -1;  
+    }
+  
+    
+    
 
+
+
+
+    cudaFree(dd);
+
+  }
+  
   return 0;
 }
 

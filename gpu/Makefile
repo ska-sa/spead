@@ -11,6 +11,7 @@ LDIR = -L../src
 #-arch=sm_20
 #USECUFFT = 1
 NCC = nvcc
+CC  = gcc
 
 #gcc -shared -Wl,-x in.o -o out.so
 
@@ -18,13 +19,19 @@ UTILS = cudafft.cu dedisperse.cu
 
 OBJ = $(patsubst %.cu,%.so,$(UTILS))
 
-all: $(OBJ)
+all: $(OBJ) ocl
 
 %.so: %.cu
 	$(NCC) $(CFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
 
 clean:
-	$(RM) -f $(OBJ) core vgcore*
+	$(RM) -f $(OBJ) core vgcore* ocl *.o
+
+shared.o: shared.c
+	$(CC) -c $< -o $@ -ggdb -DDEBUG
+
+ocl: ocldd.c shared.o
+	$(CC) $^ -o $@ -ggdb -DDEBUG -DSTANDALONE -lOpenCL -lm $(LIB) $(IDIR) $(LDIR)
 
 #install: all
 #	install $(EXE) /usr/local/bin

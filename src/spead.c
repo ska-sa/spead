@@ -185,6 +185,7 @@ void print_data(unsigned char *buf, int size)
   for (;count<size; count++){
 
     fprintf(stderr, "%02X", buf[count]);
+
     if ((count+1) % COLS == 0){
 
       if ((count+1) % ROWS == 0){
@@ -612,7 +613,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
           state = S_NEXT_PACKET;
           break;
         }
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "--pkt-- in o (%p) has p (%p)\n  payload_off: %ld payload_len: %ld payload: %p\n", o, p, p->payload_off, p->payload_len, p->payload);
 #endif
         state = S_GET_ITEM;
@@ -1049,7 +1050,7 @@ def DEBUG
   /*have all packets by data count must process*/
   if (flag_processing){
 #ifdef DEBUG
-    fprintf(stderr, "[%d] data_count = %ld bytes == heap_len\n", getpid(), ht->t_data_count);
+    fprintf(stderr, "FLAG ROCESSING [%d] data_count = %ld bytes == heap_len\n", getpid(), ht->t_data_count);
 #endif
 
     ig = process_items(ht);

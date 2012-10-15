@@ -328,7 +328,7 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
     //unlock_mutex(&(t->t_m));
 
 #ifdef DEBUG
-    fprintf(stderr, "HASH [%d][%ld][%ld] ", getpid(), t->t_id, id);
+    fprintf(stderr, "[%d] HASH into [%ld] @ [%ld]\t(%p)\n", getpid(), t->t_id, id, o);
 #endif
 
     return 0;
