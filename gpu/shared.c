@@ -28,7 +28,9 @@ cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
   if (ciErrNum != CL_SUCCESS)
   {
     //shrLog(" Error %i in clGetPlatformIDs Call !!!\n\n", ciErrNum);
+#ifdef DEBUG
     fprintf(stderr, " Error %i in clGetPlatformIDs Call !!!\n\n", ciErrNum);
+#endif
     return -1000;
   }
   else
@@ -36,7 +38,9 @@ cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
     if(num_platforms == 0)
     {
       //shrLog("No OpenCL platform found!\n\n");
+#ifdef DEBUG
       fprintf(stderr, "No OpenCL platform found!\n\n");
+#endif
       return -2000;
     }
     else
@@ -45,22 +49,30 @@ cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
       if ((clPlatformIDs = (cl_platform_id*)malloc(num_platforms * sizeof(cl_platform_id))) == NULL)
       {
         //shrLog("Failed to allocate memory for cl_platform ID's!\n\n");
+#ifdef DEBUG
         fprintf(stderr, "Failed to allocate memory for cl_platform ID's!\n\n");
+#endif
         return -3000;
       }
 
       // get platform info for each platform and trap the NVIDIA platform if found
       ciErrNum = clGetPlatformIDs (num_platforms, clPlatformIDs, NULL);
+#ifdef DEBUG
       fprintf(stderr, "Available platforms:\n");
+#endif
       for(i = 0; i < num_platforms; ++i)
       {
         ciErrNum = clGetPlatformInfo (clPlatformIDs[i], CL_PLATFORM_NAME, 1024, &chBuffer, NULL);
         if(ciErrNum == CL_SUCCESS)
         {
+#ifdef DEBUG
           fprintf(stderr, "platform %d: %s\n", i, chBuffer);
+#endif
           if(strstr(chBuffer, "NVIDIA") != NULL)
           {
-            fprintf(stderr, "selected platform %d\n", i);
+#ifdef DEBUG
+            fprintf(stderr, "++selected platform %d\n", i);
+#endif
             *clSelectedPlatformID = clPlatformIDs[i];
             break;
           }
@@ -72,7 +84,9 @@ cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
       {
         //shrLog("WARNING: NVIDIA OpenCL platform not found - defaulting to first platform!\n\n");
         //printf("WARNING: NVIDIA OpenCL platform not found - defaulting to first platform!\n\n");
-        fprintf(stderr, "selected platform: %d\n", 0);
+#ifdef DEBUG
+        fprintf(stderr, "--selected platform: %d\n", 0);
+#endif
         *clSelectedPlatformID = clPlatformIDs[0];
       }
 
@@ -213,14 +227,20 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   }
 
   err = oclGetPlatformID(&platform);
+  if (err != CL_SUCCESS){
 #ifdef DEBUG
-  fprintf(stderr, "oclGetPlatformID returns %s\n", oclErrorString(err));
+    fprintf(stderr, "oclGetPlatformID returns %s\n", oclErrorString(err));
 #endif
+    return -1;
+  }
 
   err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
+  if (err != CL_SUCCESS){
 #ifdef DEBUG
-  fprintf(stderr, "clGetDeviceIDs returns %s\n", oclErrorString(err));
+    fprintf(stderr, "clGetDeviceIDs returns %s\n", oclErrorString(err));
 #endif
+    return -1;
+  }
  
   devices = malloc(sizeof(cl_device_id) * numDevices);
   if (devices == NULL){
@@ -233,59 +253,113 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   }
 
   err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
+
+  if (err != CL_SUCCESS){
 #ifdef DEBUG
-  fprintf(stderr, "clGetDeviceIDs returns %s\n", oclErrorString(err));
+    fprintf(stderr, "clGetDeviceIDs returns %s\n", oclErrorString(err));
 #endif
+    munmap(fc, fs.st_size);
+    close(fd);
+    free(devices);
+    return -1;
+  }
 
   err = clGetDeviceInfo(devices[0], CL_DEVICE_NAME, sizeof(name), &name, NULL); 
+  if (err != CL_SUCCESS){
+    munmap(fc, fs.st_size);
+    close(fd);
+    free(devices);
+    return -1;
+
+  }
 #ifdef DEBUG
   fprintf(stderr, "Device name: %s\n", name);
 #endif
 
   *context = clCreateContext(0, 1, devices, NULL, NULL, &err);
+  if (err != CL_SUCCESS){
 #ifdef DEBUG
-  fprintf(stderr, "clCreateContext returns %s\n", oclErrorString(err));
+    fprintf(stderr, "clCreateContext returns %s\n", oclErrorString(err));
 #endif
+    munmap(fc, fs.st_size);
+    close(fd);
+    free(devices);
+    return -1;
+  }
 
   *command_queue = clCreateCommandQueue(*context, devices[0], 0, &err);
+  if (err != CL_SUCCESS){
 #ifdef DEBUG
-  fprintf(stderr, "clCreateCommandQueue returns %s\n", oclErrorString(err));
+    fprintf(stderr, "clCreateCommandQueue returns %s\n", oclErrorString(err));
 #endif
+    munmap(fc, fs.st_size);
+    close(fd);
+    free(devices);
+    return -1;
+  }
 
 
   *program = clCreateProgramWithSource(*context, 1, (const char **) &fc, &fs.st_size, &err);
+  if (err != CL_SUCCESS){
 #ifdef DEBUG
-  fprintf(stderr, "clCreateProgramWithSource returns %s\n", oclErrorString(err));
+    fprintf(stderr, "clCreateProgramWithSource returns %s\n", oclErrorString(err));
 #endif
+    munmap(fc, fs.st_size);
+    close(fd);
+    free(devices);
+    return -1;
+  }
 
 
   err = clBuildProgram(*program, 0, NULL, NULL, NULL, NULL);
+  if (err != CL_SUCCESS){
 #ifdef DEBUG
-  fprintf(stderr, "clBuildProgram returns %s\n", oclErrorString(err));
+    fprintf(stderr, "clBuildProgram returns %s\n", oclErrorString(err));
 #endif
+    munmap(fc, fs.st_size);
+    close(fd);
+    free(devices);
+    return -1;
+  }
 
   err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status, NULL);
+  if (err != CL_SUCCESS){
 #ifdef DEBUG
-  fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD STATUS %d\n", oclErrorString(err), build_status);
+    fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD STATUS %d\n", oclErrorString(err), build_status);
 #endif
+    munmap(fc, fs.st_size);
+    close(fd);
+    free(devices);
+    return -1;
+  }
 
 
   err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
+  if (err != CL_SUCCESS){
 #ifdef DEBUG
-  fprintf(stderr, "clGetProgramBuildInfo returns %s\n", oclErrorString(err));
+    fprintf(stderr, "clGetProgramBuildInfo returns %s\n", oclErrorString(err));
 #endif
+    munmap(fc, fs.st_size);
+    close(fd);
+    free(devices);
+    return -1;
+  }
 
 
   char build_log[ret_val_size+1];
   err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL);
+  if (err != CL_SUCCESS){
 #ifdef DEBUG
-  fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD LOG [%s]\n", oclErrorString(err), build_log);
+    fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD LOG [%s]\n", oclErrorString(err), build_log);
 #endif
+    munmap(fc, fs.st_size);
+    close(fd);
+    free(devices);
+    return -1;
+  }
 
   munmap(fc, fs.st_size);
-
   close(fd);
-
   free(devices);
 
   return err;
