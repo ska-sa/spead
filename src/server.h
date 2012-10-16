@@ -41,8 +41,9 @@ void print_format_bitrate(char x, uint64_t bps);
 
 struct spead_api_module {
   void *m_handle;
-  int (*m_cdfn)();
-  int (*m_destroy)(void *data);
+  void *(*m_setup)();
+  int  (*m_cdfn)();
+  int  (*m_destroy)(void *data);
   void *m_data;
 };
 

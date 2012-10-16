@@ -70,9 +70,12 @@ struct spead_api_module *load_api_user_module(char *mod)
   m->m_handle  = mhandle;
   m->m_cdfn    = cb;
   m->m_destroy = destroy;
+  m->m_setup   = setup;
 
-  m->m_data    = (*setup)();
+  m->m_data    = NULL;
+
 #if 0
+  m->m_data    = (*setup)();
   if (m->m_data == NULL){
     unload_api_user_module(m);
     return NULL;
@@ -89,20 +92,22 @@ struct spead_api_module *load_api_user_module(char *mod)
 void unload_api_user_module(struct spead_api_module *m)
 {
   if (m){
-    
+ 
+#if 0   
     if (m->m_destroy){
-      
       (*m->m_destroy)(m->m_data);
-
     }
+#endif
 
     if (m->m_handle){
-      
       dlclose(m->m_handle);
-
     }
 
     free(m);
      
   }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: done\n", __func__);
+#endif
 }

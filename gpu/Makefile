@@ -1,9 +1,12 @@
-#CFLAGS += -DDEBUG
-CFLAGS += --compiler-options '-fPIC' --shared -x 'c'
-#CFLAGS += -Wall
-#CFLAGS += -ggdb
+CFLAGS += -DDEBUG
+NFLAGS += --compiler-options '-fPIC' --shared -x 'c'
+CFLAGS += -Wall
+CFLAGS += -ggdb
 #CFLAGS += -O3
 LIB = -lspead
+OCLLIB = -lOpenCL -lm
+OFLAGS = -shared -Wl,-x
+KDIR = -DKERNELDIR=\"$(shell pwd)\"
 
 IDIR = -I../src
 LDIR = -L../src
@@ -19,19 +22,22 @@ UTILS = cudafft.cu dedisperse.cu
 
 OBJ = $(patsubst %.cu,%.so,$(UTILS))
 
-all: $(OBJ) ocl
+all: $(OBJ) ocl.so
 
 %.so: %.cu
-	$(NCC) $(CFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
+	$(NCC) -DDEBUG $(NFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
 
 clean:
-	$(RM) -f $(OBJ) core vgcore* ocl *.o
+	$(RM) -f $(OBJ) core vgcore* *.o ocl.so
 
-shared.o: shared.c
-	$(CC) -c $< -o $@ -ggdb -DDEBUG
+%.o: %.c
+	$(CC) -c $< -o $@ $(KDIR) $(CFLAGS) $(IDIR) -fPIC
 
-ocl: ocldd.c shared.o
-	$(CC) $^ -o $@ -ggdb -DDEBUG -DSTANDALONE -lOpenCL -lm $(LIB) $(IDIR) $(LDIR)
+#ocl: ocldd.o shared.o
+#	$(CC) $^ -o $@ $(CFLAGS) -DSTANDALONE $(OCLLIB) $(LIB) $(LDIR)
+
+ocl.so: ocldd.o shared.o
+	$(CC) $^ -o $@ $(CFLAGS) $(OCLLIB) $(LIB) $(LDIR) $(OFLAGS)
 
 #install: all
 #	install $(EXE) /usr/local/bin
