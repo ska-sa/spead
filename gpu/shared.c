@@ -15,12 +15,13 @@
 
 cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
 {
-  char chBuffer[1024];
-  cl_uint num_platforms;
+  char            chBuffer[1024];
+  cl_uint         num_platforms;
   cl_platform_id* clPlatformIDs;
-  cl_int ciErrNum;
+  cl_int          ciErrNum;
+  cl_uint         i = 0;
+
   *clSelectedPlatformID = NULL;
-  cl_uint i = 0;
 
   // Get OpenCL platform count
   ciErrNum = clGetPlatformIDs (0, NULL, &num_platforms);
@@ -174,6 +175,8 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
 
   size_t ret_val_size;
 
+  char name[100];
+
   char *fc;
   int fd;
   struct stat fs;
@@ -234,7 +237,10 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   fprintf(stderr, "clGetDeviceIDs returns %s\n", oclErrorString(err));
 #endif
 
-
+  err = clGetDeviceInfo(devices[0], CL_DEVICE_NAME, sizeof(name), &name, NULL); 
+#ifdef DEBUG
+  fprintf(stderr, "Device name: %s\n", name);
+#endif
 
   *context = clCreateContext(0, 1, devices, NULL, NULL, &err);
 #ifdef DEBUG
