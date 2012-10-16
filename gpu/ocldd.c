@@ -16,7 +16,7 @@
 #define SIZE          1024
 #define CL_SUCCESS    0
 
-#define KERNELS_FILE  "kernels.cl"
+#define KERNELS_FILE  "/kernels.cl"
 
 #define SPEAD_DATA_ID       0x0    /*data id*/
 
@@ -27,6 +27,8 @@ struct sapi_o {
   cl_kernel        k;
   cl_mem           clin;
   cl_mem           clout;
+  unsigned char    *out;
+  uint64_t         olen;
 };
 
 void spead_api_destroy(void *data)
@@ -34,20 +36,20 @@ void spead_api_destroy(void *data)
   struct sapi_o *a;
 
   a = data;
-
   if (a){
-    
     if(a->clin)
       clReleaseMemObject(a->clin);
+
     if(a->clout)
       clReleaseMemObject(a->clout);
+  
+    if (a->out)
+      free(a->out);
 
     destroy(&(a->k), &(a->ctx), &(a->cq), &(a->p));
     
     free(a);
-
   }
-
 }
 
 void *spead_api_setup()
@@ -62,7 +64,7 @@ void *spead_api_setup()
     return NULL;
   }
 
-  if (setup_ocl(KERNELS_FILE, &(a->ctx), &(a->cq), &(a->p)) != CL_SUCCESS){
+  if (setup_ocl(KERNELDIR KERNELS_FILE, &(a->ctx), &(a->cq), &(a->p)) != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "e: setup_ocl error\n");
 #endif
@@ -81,7 +83,7 @@ void *spead_api_setup()
 
   a->clin   = NULL;
   a->clout  = NULL;
-
+  a->out    = NULL;
   
   return a;
 }
@@ -97,7 +99,7 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
   cl_event evt;
 
   size_t workGroupSize[1];
-  
+
   a = data;
 
   if (ig == NULL || a == NULL){
@@ -120,6 +122,19 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
 skip:
     off += sizeof(struct spead_api_item) + itm->i_len;
   }
+
+  if (a->out == NULL || itm->i_len != a->olen){
+    a->olen = itm->i_len;
+    a->out = realloc(a->out, sizeof(unsigned char)* a->olen);
+    if (a->out == NULL){
+#ifdef DEBUG
+      fprintf(stderr, "e: logic cannot malloc output buffer\n");
+#endif
+      return -1;
+    }
+  }
+
+  /*TODO:FIX length for changing data size*/
 
   if (a->clin == NULL){
     a->clin  = clCreateBuffer(a->ctx, CL_MEM_READ_ONLY, itm->i_len, NULL, &err);
@@ -151,7 +166,6 @@ skip:
 
   clReleaseEvent(evt);
 
-
   err = clSetKernelArg(a->k, 0, sizeof(cl_mem), (void *) &(a->clin));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
@@ -182,8 +196,7 @@ skip:
 
   clFinish(a->cq);
 
-#if 0
-  err = clEnqueueReadBuffer(command_queue, a->clout, CL_TRUE, 0, sizeof(float2) * , &c, 0, NULL, &event);
+  err = clEnqueueReadBuffer(a->cq, a->clout, CL_TRUE, 0, sizeof(unsigned char)*itm->i_len, &(a->out), 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clEnqueueReadBuffer returns %s\n", oclErrorString(err));
@@ -192,7 +205,6 @@ skip:
   }
 
   clReleaseEvent(evt);
-#endif
 
   
   return 0;
