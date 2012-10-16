@@ -1,7 +1,7 @@
 CFLAGS += -DDEBUG
 NFLAGS += --compiler-options '-fPIC' --shared -x 'c'
-#CFLAGS += -Wall
-#CFLAGS += -ggdb
+CFLAGS += -Wall
+CFLAGS += -ggdb
 #CFLAGS += -O3
 LIB = -lspead
 OCLLIB = -lOpenCL -lm
@@ -25,7 +25,7 @@ OBJ = $(patsubst %.cu,%.so,$(UTILS))
 all: $(OBJ) ocl.so
 
 %.so: %.cu
-	$(NCC) $(CFLAGS) $(NFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
+	$(NCC) -DDEBUG $(NFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
 
 clean:
 	$(RM) -f $(OBJ) core vgcore* *.o ocl.so

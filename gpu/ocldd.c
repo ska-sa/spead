@@ -18,7 +18,7 @@
 
 #define KERNELS_FILE  "/kernels.cl"
 
-#define SPEAD_DATA_ID       0x0    /*data id*/
+#define SPEAD_DATA_ID       0x1001    /*data id*/
 
 struct sapi_o {
   cl_context       ctx;
@@ -50,6 +50,9 @@ void spead_api_destroy(void *data)
     
     free(a);
   }
+#ifdef DEBUG
+  fprintf(stderr, "%s: done\n", __func__);   
+#endif
 }
 
 void *spead_api_setup()
@@ -113,12 +116,14 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
   while (off < ig->g_size){
     itm = (struct spead_api_item *) (ig->g_map + off);
 
+    fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
     if (itm->i_len == 0)
       goto skip;
 
     count = 0;
-    if (itm->i_id == SPEAD_DATA_ID)
+    if (itm->i_id == SPEAD_DATA_ID){
       break;
+    }
 skip:
     off += sizeof(struct spead_api_item) + itm->i_len;
   }
@@ -132,6 +137,9 @@ skip:
 #endif
       return -1;
     }
+#ifdef DEBUG
+    fprintf(stderr, "%s: created ouput buffer %ld bytes\n", __func__, a->olen);
+#endif
   }
 
   /*TODO:FIX length for changing data size*/
@@ -205,7 +213,6 @@ skip:
   }
 
   clReleaseEvent(evt);
-
   
   return 0;
 }
