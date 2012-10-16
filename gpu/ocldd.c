@@ -78,6 +78,10 @@ void *spead_api_setup()
     spead_api_destroy(a);
     return NULL;
   } 
+
+  a->clin   = NULL;
+  a->clout  = NULL;
+
   
   return a;
 }
@@ -116,26 +120,37 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
 skip:
     off += sizeof(struct spead_api_item) + itm->i_len;
   }
+
+  if (a->clin == NULL){
+    a->clin  = clCreateBuffer(a->ctx, CL_MEM_READ_ONLY, itm->i_len, NULL, &err);
+    if (err != CL_SUCCESS){
+#ifdef DEBUG
+      fprintf(stderr, "clCreateBuffer return %s\n", oclErrorString(err));
+#endif
+      return -1;
+    }
+  }
+
+  if (a->clout == NULL){
+    a->clout = clCreateBuffer(a->ctx, CL_MEM_WRITE_ONLY, itm->i_len, NULL, &err);
+    if (err != CL_SUCCESS){
+#ifdef DEBUG
+      fprintf(stderr, "clCreateBuffer return %s\n", oclErrorString(err));
+#endif
+      return -1;
+    }
+  }
   
-#if 0
-  a->clin = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float2) * SIZE, a, &err);
-#endif
-
-  a->clin  = clCreateBuffer(a->ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, itm->i_len, itm->i_data, &err);
+  err = clEnqueueWriteBuffer(a->cq, a->clin, CL_TRUE, 0, sizeof(unsigned char)*itm->i_len, itm->i_data, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clCreateBuffer return %s\n", oclErrorString(err));
+    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
 #endif
     return -1;
   }
 
-  a->clout = clCreateBuffer(a->ctx, CL_MEM_WRITE_ONLY, itm->i_len, NULL, &err);
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clCreateBuffer return %s\n", oclErrorString(err));
-#endif
-    return -1;
-  }
+  clReleaseEvent(evt);
+
 
   err = clSetKernelArg(a->k, 0, sizeof(cl_mem), (void *) &(a->clin));
   if (err != CL_SUCCESS){
