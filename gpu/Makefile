@@ -22,7 +22,7 @@ UTILS = cudafft.cu dedisperse.cu
 
 OBJ = $(patsubst %.cu,%.so,$(UTILS))
 
-all: $(OBJ) ocl.so
+all: ocl.so $(OBJ)
 
 %.so: %.cu
 	$(NCC) -DDEBUG $(NFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
