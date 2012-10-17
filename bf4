@@ -1,5 +1,5 @@
 #roach220
-?progdev r_1b2_8a_2012_Oct_04_1557.bof
+?progdev r_1b2_8a_2012_Oct_17_1825.bof
 ?tap-start x gbe0 10.0.3.254 9999
 
 ?wordwrite dest_bf0 0 0x0a000369
