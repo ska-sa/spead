@@ -270,8 +270,8 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     close(fd);
     free(devices);
     return -1;
-
   }
+  
 #ifdef DEBUG
   fprintf(stderr, "Device name: %s\n", name);
 #endif
@@ -299,7 +299,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   }
 
 
-  *program = clCreateProgramWithSource(*context, 1, (const char **) &fc, &fs.st_size, &err);
+  *program = clCreateProgramWithSource(*context, 1, (const char **) &fc, (const size_t *) &fs.st_size, &err);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clCreateProgramWithSource returns %s\n", oclErrorString(err));
@@ -316,47 +316,27 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
 #ifdef DEBUG
     fprintf(stderr, "clBuildProgram returns %s\n", oclErrorString(err));
 #endif
-    munmap(fc, fs.st_size);
-    close(fd);
-    free(devices);
-    return -1;
-  }
 
-  err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status, NULL);
-  if (err != CL_SUCCESS){
+    err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status, NULL);
 #ifdef DEBUG
-    fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD STATUS %d\n", oclErrorString(err), build_status);
+    fprintf(stderr, "clGetProgramBuildInfo BUILD STATUS %d\n", build_status);
 #endif
-    munmap(fc, fs.st_size);
-    close(fd);
-    free(devices);
-    return -1;
-  }
 
+    err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
 
-  err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
-  if (err != CL_SUCCESS){
+    char build_log[ret_val_size+1];
+    err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL);
+
 #ifdef DEBUG
-    fprintf(stderr, "clGetProgramBuildInfo returns %s\n", oclErrorString(err));
+    fprintf(stderr, "clGetProgramBuildInfo returns BUILD LOG\n\n%s\n", build_log);
 #endif
+
     munmap(fc, fs.st_size);
     close(fd);
     free(devices);
     return -1;
   }
 
-
-  char build_log[ret_val_size+1];
-  err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL);
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clGetProgramBuildInfo returns %s BUILD LOG [%s]\n", oclErrorString(err), build_log);
-#endif
-    munmap(fc, fs.st_size);
-    close(fd);
-    free(devices);
-    return -1;
-  }
 
   munmap(fc, fs.st_size);
   close(fd);

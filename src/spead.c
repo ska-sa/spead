@@ -965,7 +965,7 @@ struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, ui
   return ht;
 }
 
-int store_packet_hs(struct u_server *s, struct hash_o *o)
+int store_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o)
 {
   struct spead_heap_store   *hs;
   struct spead_packet       *p;
@@ -982,9 +982,9 @@ int store_packet_hs(struct u_server *s, struct hash_o *o)
   if (s == NULL)
     return -1;
 
-  if (s->s_mod){
-    cdfn = s->s_mod->m_cdfn;
-    data = s->s_mod->m_data;
+  if (m){
+    cdfn = m->m_cdfn;
+    data = m->m_data;
   }
 
   hs = s->s_hs;
@@ -1081,10 +1081,11 @@ def DEBUG
     fprintf(stderr, "[%d] %s:\033[32m DONE empting hash table [%ld] \033[0m\n", getpid(), __func__, ht->t_id);
 #endif
 
+    /*SPEAD_API_MODULE CALLBACK*/
     if (cdfn != NULL){
       if((*cdfn)(ig, data) < 0){
 #ifdef DEBUG
-        fprintf(stderr, "user callback failed\n");
+        fprintf(stderr, "%s: user callback failed\n", __func__);
 #endif
       }
     }
@@ -1099,7 +1100,7 @@ def DEBUG
   return 0;
 }
 
-int process_packet_hs(struct u_server *s, struct hash_o *o)
+int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o)
 {
   struct spead_heap_store *hs;
   struct spead_packet *p;
@@ -1156,7 +1157,7 @@ int process_packet_hs(struct u_server *s, struct hash_o *o)
 
     return -1;
   } else {
-    rtn = store_packet_hs(s, o);
+    rtn = store_packet_hs(s, m, o);
   }
 
   return rtn;

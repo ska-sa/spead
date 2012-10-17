@@ -45,10 +45,11 @@ void destroy_child_sp(struct u_child *c)
   }
 }
 
-struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s, int cfd))
+struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s, struct spead_api_module *m, int cfd))
 {
   int pipefd[2];
   pid_t cpid;
+  struct spead_api_module *m;
 
   if (call == NULL){
 #ifdef DEBUG
@@ -86,27 +87,34 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
   }
 
   close(pipefd[0]); /*close read end in child*/
-
-
+  
   /*setup module data*/
-  if (s && s->s_mod && s->s_mod->m_setup){
-    s->s_mod->m_data = (*s->s_mod->m_setup)();
+  if (s){
+    m = s->s_mod;
+    if (m){
+      if (m->m_setup){
+        m->m_data = (*m->m_setup)();
 #ifdef DEBUG
-    fprintf(stderr, "%s: child [%d] has api data @ (%p)\n", __func__, getpid(), s->s_mod->m_data);
+        fprintf(stderr, "%s: child [%d] has api data @ (%p)\n", __func__, getpid(), m->m_data);
 #endif
+      }
+    }
   }
 
-
   /*in child use exit not return*/ 
-  (*call)(s, pipefd[1]);
-
+  (*call)(s, m, pipefd[1]);
 
   /*destroy module data*/
-  if (s && s->s_mod && s->s_mod->m_destroy){
-    (*s->s_mod->m_destroy)(s->s_mod->m_data);
+  if (m){
+    if (m->m_destroy){
+      (*m->m_destroy)(m->m_data);
 #ifdef DEBUG
-    fprintf(stderr, "%s: child [%d] has called destroy api data\n", __func__, getpid());
+      fprintf(stderr, "%s: child [%d] has called destroy api data\n", __func__, getpid());
 #endif
+    }
+  }
+
+  if (s && s->s_mod && s->s_mod->m_destroy){
   }
 
 

@@ -53,9 +53,7 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
 
 struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n);
 
-int process_packet_hs(struct u_server *s, struct hash_o *o);
-
-  
+int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o);  
 
 #endif
 

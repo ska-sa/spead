@@ -19,3 +19,11 @@ __kernel void coherent_dedisperse(__global const float2 *in, __global float2 *ou
   out[n].y = (float) (in[n].x * chirp.y) + (in[n].y * chirp.x);
 
 }
+
+__kernel void ct(__global const unsigned char *in, __global unsigned char *out)
+{
+  int i = get_global_id(0);
+
+  out[i] = in[i] + (unsigned char)1;
+
+}
