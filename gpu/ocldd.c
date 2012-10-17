@@ -117,7 +117,9 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
   while (off < ig->g_size){
     itm = (struct spead_api_item *) (ig->g_map + off);
 
+#ifdef DEBUG
     fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
+#endif
     if (itm->i_len == 0)
       goto skip;
 
