@@ -1105,6 +1105,10 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
   struct spead_heap_store *hs;
   struct spead_packet *p;
   int rtn;
+#ifdef DEBUG
+  int i, id, mode;
+  uint64_t iptr;
+#endif
 
   if (s == NULL)
     return -1;
@@ -1146,6 +1150,15 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
 
 #if DEBUG>1
   fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
+#endif
+
+#ifdef DEBUG
+  for (i=0; i<p->n_items; i++){
+    iptr = SPEAD_ITEM(p->data, (i+1));
+    id   = SPEAD_ITEM_ID(iptr);
+    mode = SPEAD_ITEM_MODE(iptr);
+    fprintf(stderr, "ITEM[%d] mode[%d] id[%d] 0x%lx\n", i, mode, id, iptr);
+  }
 #endif
 
   if (p->is_stream_ctrl_term){
