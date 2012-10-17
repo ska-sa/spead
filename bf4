@@ -1,3 +1,23 @@
+#roach220
+?progdev r_1b2_8a_2012_Oct_04_1557.bof
+?tap-start x gbe0 10.0.3.254 9999
+
+?wordwrite dest_bf0 0 0x0a000369
+?wordwrite dest_bf0 1 9999
+?wordwrite dest_bf0 2 0x0a000369
+?wordwrite dest_bf0 3 9999
+
+#n_beng_per_spead_group|beam_group_id|group_offset|beam_id
+
+?wordwrite beam_cfg0 0 0x01000000
+?wordwrite beam_cfg1 0 0x01000001
+
+?wordwrite ratio 0 200
+
+?wordwrite control 0 0x9
+?wordwrite control 0 0x6
+
+
 ?progdev r_4b4_2a_2012_Sep_26_1532.bof
 ?tap-start x gbe0 10.0.3.254 9999
 ?wordwrite dest_gbe0 0 0x0a000369
