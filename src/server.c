@@ -374,10 +374,10 @@ int worker_task_us(struct u_server *s, struct spead_api_module *m, int cfd)
 #ifndef RATE
     o = pop_hash_o(hs->s_list);
     if (o == NULL){
-      //run = 0;
-      //break;
+      run = 0;
+      break;
       //sleep(1);
-      continue;
+      //continue;
     }
 #endif
 
