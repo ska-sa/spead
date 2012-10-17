@@ -709,6 +709,7 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
   s = create_server_us(m, cpus);
   if (s == NULL){
     fprintf(stderr, "%s: error could not create server\n", __func__);
+    unload_api_user_module(m);
     return -1;
   }
 

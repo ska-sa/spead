@@ -87,7 +87,6 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
 
   close(pipefd[0]); /*close read end in child*/
 
-  malloc (getpid()%8*1024);
 
   /*setup module data*/
   if (s && s->s_mod && s->s_mod->m_setup){
@@ -109,6 +108,7 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
     fprintf(stderr, "%s: child [%d] has called destroy api data\n", __func__, getpid());
 #endif
   }
+
 
   exit(EX_OK);
   return NULL;
