@@ -329,7 +329,7 @@ void print_format_bitrate(char x, uint64_t bps)
 #endif
 }
 
-int worker_task_us(struct u_server *s, int cfd)
+int worker_task_us(struct u_server *s, struct spead_api_module *m, int cfd)
 {
   struct spead_packet *p;
   struct spead_heap_store *hs;
@@ -420,7 +420,7 @@ int worker_task_us(struct u_server *s, int cfd)
     unlock_mutex(&(s->s_m));
 
 #ifndef RATE
-    if (process_packet_hs(s, o) < 0){
+    if (process_packet_hs(s, m, o) < 0){
 #if DEBUG>1
       fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
 #endif

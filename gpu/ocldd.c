@@ -75,7 +75,8 @@ void *spead_api_setup()
     return NULL;
   }
 
-  a->k = get_kernel("coherent_dedisperse", &(a->p));
+  //a->k = get_kernel("coherent_dedisperse", &(a->p));
+  a->k = get_kernel("ct", &(a->p));
   if (a->k == NULL){
 #ifdef DEBUG
     fprintf(stderr, "e: get_kernel error\n");
@@ -107,7 +108,7 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
 
   if (ig == NULL || a == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "e: callback parameter error\n");
+    fprintf(stderr, "[%d] e: callback parameter error\n", getpid());
 #endif
     return -1;
   }
@@ -128,9 +129,18 @@ skip:
     off += sizeof(struct spead_api_item) + itm->i_len;
   }
 
+  if (itm->i_id != SPEAD_DATA_ID){
+#ifdef DEBUG
+    fprintf(stderr, "%s: err dont have requested data id\n", __func__);
+#endif
+    return -1;
+  }
+  
+  print_data(itm->i_data, sizeof(unsigned char)*itm->i_len);
+  
   if (a->out == NULL || itm->i_len != a->olen){
     a->olen = itm->i_len;
-    a->out = realloc(a->out, sizeof(unsigned char)* a->olen);
+    a->out  = realloc(a->out, sizeof(unsigned char)* a->olen);
     if (a->out == NULL){
 #ifdef DEBUG
       fprintf(stderr, "e: logic cannot malloc output buffer\n");
@@ -145,23 +155,29 @@ skip:
   /*TODO:FIX length for changing data size*/
 
   if (a->clin == NULL){
-    a->clin  = clCreateBuffer(a->ctx, CL_MEM_READ_ONLY, itm->i_len, NULL, &err);
+    a->clin  = clCreateBuffer(a->ctx, CL_MEM_READ_ONLY, sizeof(unsigned char)*itm->i_len, NULL, &err);
     if (err != CL_SUCCESS){
 #ifdef DEBUG
       fprintf(stderr, "clCreateBuffer return %s\n", oclErrorString(err));
 #endif
       return -1;
     }
+#ifdef DEBUG
+    fprintf(stderr, "%s: created device input buffer %ld bytes\n", __func__, itm->i_len);
+#endif
   }
 
   if (a->clout == NULL){
-    a->clout = clCreateBuffer(a->ctx, CL_MEM_WRITE_ONLY, itm->i_len, NULL, &err);
+    a->clout = clCreateBuffer(a->ctx, CL_MEM_WRITE_ONLY, sizeof(unsigned char)*itm->i_len, NULL, &err);
     if (err != CL_SUCCESS){
 #ifdef DEBUG
       fprintf(stderr, "clCreateBuffer return %s\n", oclErrorString(err));
 #endif
       return -1;
     }
+#ifdef DEBUG
+    fprintf(stderr, "%s: created device ouput buffer %ld bytes\n", __func__, itm->i_len);
+#endif
   }
   
   err = clEnqueueWriteBuffer(a->cq, a->clin, CL_TRUE, 0, sizeof(unsigned char)*itm->i_len, itm->i_data, 0, NULL, &evt);
@@ -171,6 +187,10 @@ skip:
 #endif
     return -1;
   }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: enqueue write buffer\n", __func__);
+#endif
 
   clReleaseEvent(evt);
 
@@ -204,7 +224,7 @@ skip:
 
   clFinish(a->cq);
 
-  err = clEnqueueReadBuffer(a->cq, a->clout, CL_TRUE, 0, sizeof(unsigned char)*itm->i_len, &(a->out), 0, NULL, &evt);
+  err = clEnqueueReadBuffer(a->cq, a->clout, CL_TRUE, 0, sizeof(unsigned char)*a->olen, a->out, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clEnqueueReadBuffer returns %s\n", oclErrorString(err));
@@ -212,8 +232,14 @@ skip:
     return -1;
   }
 
+#ifdef DEBUG
+  fprintf(stderr, "%s: enqueue read buffer\n", __func__);
+#endif
+
   clReleaseEvent(evt);
   
+  print_data(a->out, sizeof(unsigned char)*itm->i_len);
+
   return 0;
 }
 

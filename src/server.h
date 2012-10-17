@@ -29,7 +29,7 @@ struct u_child {
 };
 
 void destroy_child_sp(struct u_child *c);
-struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s, int cfd));
+struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s, struct spead_api_module *m, int cfd));
 
 void print_format_bitrate(char x, uint64_t bps);
 
