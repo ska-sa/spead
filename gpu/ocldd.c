@@ -97,7 +97,7 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
 {
   struct spead_api_item *itm;
   struct sapi_o *a;
-  uint64_t off, count;
+  uint64_t off;
 
   cl_int err;
   cl_event evt;
@@ -121,7 +121,6 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
     if (itm->i_len == 0)
       goto skip;
 
-    count = 0;
     if (itm->i_id == SPEAD_DATA_ID){
       break;
     }
@@ -136,8 +135,10 @@ skip:
     return -1;
   }
   
+#if 0
   print_data(itm->i_data, sizeof(unsigned char)*itm->i_len);
-  
+#endif
+
   if (a->out == NULL || itm->i_len != a->olen){
     a->olen = itm->i_len;
     a->out  = realloc(a->out, sizeof(unsigned char)* a->olen);
@@ -238,7 +239,9 @@ skip:
 
   clReleaseEvent(evt);
   
+#if 0
   print_data(a->out, sizeof(unsigned char)*itm->i_len);
+#endif
 
   return 0;
 }
