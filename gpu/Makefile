@@ -1,4 +1,4 @@
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 NFLAGS += --compiler-options '-fPIC' --shared -x 'c'
 CFLAGS += -Wall
 CFLAGS += -ggdb
@@ -14,7 +14,7 @@ LDIR = -L../src
 #-arch=sm_20
 #USECUFFT = 1
 NCC = nvcc
-CC  = gcc
+#CC  = gcc
 
 #gcc -shared -Wl,-x in.o -o out.so
 
