@@ -2,7 +2,7 @@ CFLAGS += -DDEBUG
 NFLAGS += --compiler-options '-fPIC' --shared -x 'c'
 CFLAGS += -Wall
 CFLAGS += -ggdb
-#CFLAGS += -O3
+CFLAGS += -O3
 LIB = -lspead
 OCLLIB = -lOpenCL -lm
 OFLAGS = -shared -Wl,-x
@@ -14,7 +14,7 @@ LDIR = -L../src
 #-arch=sm_20
 #USECUFFT = 1
 NCC = nvcc
-CC  = gcc
+#CC  = gcc
 
 #gcc -shared -Wl,-x in.o -o out.so
 
