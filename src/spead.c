@@ -936,7 +936,7 @@ struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, ui
   } 
   
   if (ht->t_data_id != hid){
-#ifdef DEBUG
+#ifdef DISCARD
     fprintf(stderr, "heap_cnt[%ld] maps to[%ld] / however have [%ld] at [%ld]\n", hid, id, ht->t_data_id, id);
     fprintf(stderr, "old heap has datacount [%ld]\n", ht->t_data_count);
 #endif
@@ -1105,7 +1105,7 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
   struct spead_heap_store *hs;
   struct spead_packet *p;
   int rtn;
-#ifdef DEBUG
+#if DEBUG>1
   int i, id, mode;
   uint64_t iptr;
 #endif
