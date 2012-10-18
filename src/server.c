@@ -463,12 +463,12 @@ int worker_task_us(struct u_server *s, struct spead_api_module *m, int cfd)
   return 0;
 }
 
-
 int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 {
   struct spead_heap_store *hs;
   struct u_child *c;
-  int status, i, hi_fd, rtn;
+  int status, i, hi_fd, rtn, rb;
+  unsigned char buf[BUF];
   fd_set ins;
   pid_t sp;
   sigset_t empty_mask;
@@ -570,8 +570,42 @@ def DEBUG
           run = 0;
           continue;
       }
-    } 
-    
+    }
+
+    for (i=0; i<s->s_cpus; i++){
+      c = s->s_cs[i];
+      if (c == NULL){
+        continue;
+      }
+      if (FD_ISSET(c->c_fd, &ins)){
+#ifdef DATA
+        fprintf(stderr, "\tCHILD [%d] has data for parent\n", c->c_pid);
+#endif
+        rb = read(c->c_fd, buf, BUF);
+        if (rb < 0){
+          switch(errno){
+            case EAGAIN:
+            case EINTR:
+              break;
+            default:
+#ifdef DEBUG
+              fprintf(stderr, "%s: pselect error\n", __func__);
+#endif    
+              run = 0;
+              continue;
+          }
+        } else if (rb == 0){
+#ifdef DATA
+          fprintf(stderr, "\tread EOF\n");
+#endif
+        } else{
+#ifdef DATA
+          fprintf(stderr, "\tread %d bytes [%s]\n", rb, (unsigned char*)buf);
+#endif
+        }
+      }
+    }
+
 #ifdef DATA
     if (timer){
       lock_mutex(&(s->s_m));
@@ -609,27 +643,8 @@ def DEBUG
       child = 0;
     }
 
-#if 0
-    for (i=0; i<s->s_cpus; i++){
-      c = s->s_cs[i];
-      if (c != NULL){
-        if (FD_ISSET(c->c_fd, &ins)){
-          
-#if DEBUG>1
-          fprintf(stderr, "%s: FD %d ISSET\n", __func__, c->c_fd);
-#endif    
-          if(read(c->c_fd, &rr, sizeof(rr))){
-            s->s_bc += rr;
-          }
-        }
-      }
-    }
-#endif
-
   }
 
-  //s->s_bc = total;
-  
   i = 0;
   do {
     
@@ -674,6 +689,7 @@ int setup_katcp_us(struct u_server *s)
 
   if (s == NULL)
     return -1;
+
 #ifndef DEBUG
   flags = fcntl(STDOUT_FILENO, F_GETFL, NULL);
   if (flags >= 0){
