@@ -562,7 +562,7 @@ def DEBUG
       switch(errno){
         case EAGAIN:
         case EINTR:
-          break;
+          continue;
         default:
 #ifdef DEBUG
           fprintf(stderr, "%s: pselect error\n", __func__);
