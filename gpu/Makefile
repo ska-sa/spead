@@ -1,8 +1,8 @@
-CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG
 NFLAGS += --compiler-options '-fPIC' --shared -x 'c'
 CFLAGS += -Wall
 CFLAGS += -ggdb
-#CFLAGS += -O3
+CFLAGS += -O3
 LIB = -lspead
 OCLLIB = -lOpenCL -lm
 OFLAGS = -shared -Wl,-x
