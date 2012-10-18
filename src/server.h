@@ -9,6 +9,7 @@
 #include "mutex.h"
 
 #define PORT      "8888"
+#define BUF       100
 
 struct u_server {
   mutex s_m;
