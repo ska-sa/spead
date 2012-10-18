@@ -18,8 +18,8 @@
 
 #define KERNELS_FILE  "/kernels.cl"
 
-/*#define SPEAD_DATA_ID       0x1001    /*data id*/*/
-#define SPEAD_DATA_ID       0x0    /*data id*/
+/*#define SPEAD_DATA_ID       0x1001*/ 
+#define SPEAD_DATA_ID       0x0
 
 struct sapi_o {
   cl_context       ctx;
