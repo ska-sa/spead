@@ -6,6 +6,8 @@
 
 #include <spead_api.h>
 
+#define IN_DATA_SET(val) if((val) == 0x08 || (val) == 0x09) return 1 else return 0;
+
 void spead_api_destroy(void *data)
 {
 
@@ -25,19 +27,16 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
   while (off < ig->g_size){
     itm = (struct spead_api_item *) (ig->g_map + off);
 
-#ifdef DEBUG
-    fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
-#endif
     if (itm->i_len == 0)
       goto skip;
 
-    print_data(itm->i_data, sizeof(unsigned char)*itm->i_len);
-
-#if 0
-    if (itm->i_id == SPEAD_DATA_ID){
-      break;
-    }
+    if (IN_DATA_SET(itm->i_id)){
+#ifdef DEBUG
+      fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
 #endif
+      //print_data(itm->i_data, sizeof(unsigned char)*itm->i_len);
+    }
+
 skip:
     off += sizeof(struct spead_api_item) + itm->i_len;
   }

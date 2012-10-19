@@ -655,6 +655,8 @@ struct spead_item_group *process_items(struct hash_table *ht)
       case S_MODE:
         state = S_NEXT_ITEM;
 
+        /*TODO: watchout for data IDs inside the reserved id range! DANGEROUS*/
+        
         switch(id){
           case SPEAD_HEAP_CNT_ID:
           case SPEAD_HEAP_LEN_ID:

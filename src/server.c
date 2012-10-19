@@ -695,7 +695,8 @@ int setup_katcp_us(struct u_server *s)
   if (s == NULL)
     return -1;
 
-#ifndef DEBUG
+#if 0
+ndef DEBUG
   flags = fcntl(STDOUT_FILENO, F_GETFL, NULL);
   if (flags >= 0){
     flags = fcntl(STDOUT_FILENO, F_SETFL, flags | O_NONBLOCK);
