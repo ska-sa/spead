@@ -802,10 +802,13 @@ DC_GET_PKT:
         ds.p = get_data_hash_o(ds.o);
         if (ds.p == NULL){
           //state = S_NEXT_PACKET;
+#ifdef PROCESS
+          fprintf(stderr, "go to next packet\n");
+#endif  
           goto DC_NXT_PKT;
         }
 
-#if DEBUG>2
+#ifdef PROCESS
         fprintf(stderr, "\tDC:--pkt-- in ds.o (%p) has ds.p (%p)\n\t   payload_off: %ld payload_len: %ld payload: %p\n", ds.o, ds.p, ds.p->payload_off, ds.p->payload_len, ds.p->payload);
 #endif
         state = S_DIRECT_COPY;
