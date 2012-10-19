@@ -38,10 +38,10 @@ clean:
 #	$(CC) $^ -o $@ $(CFLAGS) -DSTANDALONE $(OCLLIB) $(LIB) $(LDIR)
 
 dummy.so: dummy.o
-	$(CC) $^ -o $@ $(CFLAGS) $(LIB) $(LDIR) $(OFLAGS)
+	$(CC) $(CFLAGS) $^ -o $@  $(LIB) $(LDIR) $(OFLAGS)
 
 ocl.so: ocldd.o shared.o
-	$(CC) $^ -o $@ $(CFLAGS) $(OCLLIB) $(LIB) $(LDIR) $(OFLAGS)
+	$(CC) $(CFLAGS) $^ -o $@ $(OCLLIB) $(LIB) $(LDIR) $(OFLAGS)
 
 #install: all
 #	install $(EXE) /usr/local/bin
