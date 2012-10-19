@@ -545,7 +545,7 @@ def DEBUG
 
     FD_ZERO(&ins);
     
-#if 0
+#if 1
     for (i=0; i<s->s_cpus; i++){
       c = s->s_cs[i];
       if (c != NULL){
