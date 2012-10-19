@@ -1084,7 +1084,7 @@ def DEBUG
     /*SPEAD_API_MODULE CALLBACK*/
     if (cdfn != NULL){
       if((*cdfn)(ig, data) < 0){
-#ifdef DEBUG
+#ifdef DEBUG 
         fprintf(stderr, "%s: user callback failed\n", __func__);
 #endif
       }
