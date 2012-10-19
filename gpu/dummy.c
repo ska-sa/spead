@@ -6,7 +6,7 @@
 
 #include <spead_api.h>
 
-#define IN_DATA_SET(val) ((val) == 0x08 || (val) == 0x09);
+#define IN_DATA_SET(val) ((val) == 0x08 || (val) == 0x09)
 
 void spead_api_destroy(void *data)
 {
