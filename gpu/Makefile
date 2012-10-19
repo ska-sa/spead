@@ -32,7 +32,7 @@ clean:
 	$(RM) -f $(OBJ) core vgcore* *.o ocl.so
 
 %.o: %.c
-	$(CC) -c $< -o $@ $(KDIR) $(CFLAGS) $(IDIR) -fPIC
+	$(CC) $(CFLAGS) -c $< -o $@ $(KDIR) $(IDIR) -fPIC
 
 #ocl: ocldd.o shared.o
 #	$(CC) $^ -o $@ $(CFLAGS) -DSTANDALONE $(OCLLIB) $(LIB) $(LDIR)
