@@ -617,6 +617,7 @@ def DEBUG
       total = s->s_bc - total;
       unlock_mutex(&(s->s_m));
       print_format_bitrate('R', total);
+
       if (s->s_hpcount > 0){
         fprintf(stderr, "\theaps \033[32mprocessed: %d\033[0m\n", s->s_hpcount);
       }
