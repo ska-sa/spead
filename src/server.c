@@ -545,6 +545,7 @@ def DEBUG
 
     FD_ZERO(&ins);
     
+#if 0
     for (i=0; i<s->s_cpus; i++){
       c = s->s_cs[i];
       if (c != NULL){
@@ -556,7 +557,8 @@ def DEBUG
         }
       }
     }
-    
+#endif
+
     rtn = pselect(hi_fd + 1, &ins, (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask);
     if (rtn < 0){
       switch(errno){
@@ -572,6 +574,7 @@ def DEBUG
       }
     }
 
+#if 0
     for (i=0; i<s->s_cpus; i++){
       c = s->s_cs[i];
       if (c == NULL){
@@ -605,6 +608,7 @@ def DEBUG
         }
       }
     }
+#endif
 
 #ifdef DATA
     if (timer){
