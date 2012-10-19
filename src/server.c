@@ -545,7 +545,7 @@ def DEBUG
 
     FD_ZERO(&ins);
     
-#if 1
+#if 0
     for (i=0; i<s->s_cpus; i++){
       c = s->s_cs[i];
       if (c != NULL){
@@ -564,7 +564,8 @@ def DEBUG
       switch(errno){
         case EAGAIN:
         case EINTR:
-          continue;
+          //continue;
+          break;
         default:
 #ifdef DEBUG
           fprintf(stderr, "%s: pselect error\n", __func__);
