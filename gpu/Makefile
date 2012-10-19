@@ -22,7 +22,8 @@ UTILS = cudafft.cu dedisperse.cu
 
 OBJ = $(patsubst %.cu,%.so,$(UTILS))
 
-all: ocl.so $(OBJ)
+all: ocl.so dummy.so  
+#$(OBJ)
 
 %.so: %.cu
 	$(NCC) -DDEBUG $(NFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
@@ -35,6 +36,9 @@ clean:
 
 #ocl: ocldd.o shared.o
 #	$(CC) $^ -o $@ $(CFLAGS) -DSTANDALONE $(OCLLIB) $(LIB) $(LDIR)
+
+dummy.so: dummy.o
+	$(CC) $^ -o $@ $(CFLAGS) $(LIB) $(LDIR) $(OFLAGS)
 
 ocl.so: ocldd.o shared.o
 	$(CC) $^ -o $@ $(CFLAGS) $(OCLLIB) $(LIB) $(LDIR) $(OFLAGS)

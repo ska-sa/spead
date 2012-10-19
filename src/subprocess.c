@@ -114,9 +114,6 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
     }
   }
 
-  if (s && s->s_mod && s->s_mod->m_destroy){
-  }
-
 
   exit(EX_OK);
   return NULL;
