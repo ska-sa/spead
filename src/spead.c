@@ -770,7 +770,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
         fprintf(stderr, "===dc get next packet===\n");
 #endif
 DC_NXT_PKT:
-        if (ds.o->o_next != NULL){
+        if (ds.o != NULL && ds.o->o_next != NULL){
           ds.o = ds.o->o_next;
           //state = S_GET_PACKET;
           goto DC_GET_PKT;
