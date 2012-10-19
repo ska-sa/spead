@@ -6,7 +6,7 @@
 
 #include <spead_api.h>
 
-#define CHAN    1024
+#define CHAN    64
 #define SAMP    128
 
 #define IN_DATA_SET(val) ((val) == 0x08 || (val) == 0x09)
@@ -35,15 +35,18 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
 
     if (IN_DATA_SET(itm->i_id)){
 #ifdef DEBUG
-      //fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
+      fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
 #endif
       //print_data(itm->i_data, sizeof(unsigned char)*itm->i_len);
+
+#if 1
+      fprintf(stdout, "splot '-' matrix with image\n");
 
       for (i=0; i<CHAN; i++){
         
         for(j=0; j<SAMP; j++){
           
-          fprintf(stdout, "%d ", itm->i_data[i*SAMP+j]);
+          fprintf(stdout, "%d %d ", itm->i_data[i*SAMP+j], itm->i_data[i*SAMP+j+1]);
   
         }
 
@@ -51,6 +54,9 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
       
       }
 
+      fprintf(stdout,"e\ne\n");
+
+#endif
     }
 
 skip:
