@@ -9,8 +9,8 @@
 
 #n_beng_per_spead_group|beam_group_id|group_offset|beam_id
 
-?wordwrite beam_cfg0 0 0x01000000
-?wordwrite beam_cfg1 0 0x01000001
+?wordwrite beam_cfg0 0 0x01000008
+?wordwrite beam_cfg1 0 0x01000009
 
 ?wordwrite ratio 0 200
 

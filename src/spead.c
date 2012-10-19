@@ -584,7 +584,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
         } else {
           /*still need to get any direct items*/
 #ifdef PROCESS
-          fprintf(stderr, "Last Direct ITEM[%d] in pkt(%p) SIZE [%ld] bytes\n", ps.j, ps.p, p->heap_len - ps.off);
+          fprintf(stderr, "[GET OBJECT] Last Direct ITEM[%d] in pkt(%p) SIZE [%ld] bytes\n", ps.j, ps.p, p->heap_len - ps.off);
 #endif
           ps.state = S_END;
 
@@ -614,7 +614,8 @@ struct spead_item_group *process_items(struct hash_table *ht)
           break;
         }
 #ifdef PROCESS
-        fprintf(stderr, "--pkt-- in o (%p) has p (%p)\n  payload_off: %ld payload_len: %ld payload: %p\n", o, p, p->payload_off, p->payload_len, p->payload);
+        //fprintf(stderr, "--pkt-- in o (%p) has p (%p)\n  payload_off: %ld payload_len: %ld payload: %p\n", o, p, p->payload_off, p->payload_len, p->payload);
+        fprintf(stderr, "[GET PACKET] --pkt--\n\tpayload_off: %ld\n\tpayload_len: %ld\n", p->payload_off, p->payload_len);
 #endif
         state = S_GET_ITEM;
         break;
@@ -636,7 +637,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
           id   = SPEAD_ITEM_ID(iptr);
           mode = SPEAD_ITEM_MODE(iptr);
 #ifdef PROCESS
-          fprintf(stderr, "@@@ITEM[%d] mode[%d] id[%d] 0x%lx\n", j, mode, id, iptr);
+          fprintf(stderr, "[GET ITEM] @@@ITEM[%d] mode[%d] id[%d] 0x%lx\n", j, mode, id, iptr);
 #endif
           //state = S_NEXT_ITEM;
           state = S_MODE;
@@ -671,7 +672,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
         }
 
 #ifdef PROCESS
-        fprintf(stderr, "ITEM[%d] mode[ %s ] id[%d] 0x%lx\n", j, ((mode == SPEAD_DIRECTADDR)?"DIRECT   ":"IMMEDIATE"), id, iptr);
+        fprintf(stderr, "[MODE] ITEM[%d] mode[ %s ] id[%d] 0x%lx\n", j, ((mode == SPEAD_DIRECTADDR)?"DIRECT   ":"IMMEDIATE"), id, iptr);
 #endif
         switch (mode){
           case SPEAD_DIRECTADDR:
