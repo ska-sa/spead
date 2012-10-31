@@ -1,7 +1,7 @@
 #CFLAGS += -DDEBUG=3
-#CFLAGS += -DPROCESS
+CFLAGS += -DPROCESS
 CFLAGS += -DDISCARD
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
 CFLAGS += -ggdb
