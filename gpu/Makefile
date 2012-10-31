@@ -11,8 +11,8 @@ KDIR = -DKERNELDIR=\"$(shell pwd)\"
 IDIR = -I../src
 LDIR = -L../src
 
-.IMPLICT = 
-.PHONY = all
+.SECONDARY:
+#.PRECIOUS: %.o
 
 #-arch=sm_20
 #USECUFFT = 1
@@ -21,24 +21,25 @@ CC  = gcc
 
 #gcc -shared -Wl,-x in.o -o out.so
 
-UTILS = cudafft.cu dedisperse.cu
+#UTILS = cudafft.cu dedisperse.cu
 
 #OBJ = $(patsubst %.cu,%.so,$(UTILS))
 HDR= shared.h
 SRC= shared.c dummy.c ocl.c 
-OBJ= $(patsubst %.c,%.o, $(SRC))
+OBJ= $(patsubst %.c,%.o,$(SRC))
 
 
-all: ocl.so dummy.so  
+all: shared.o ocl.so dummy.so 
 
 #%.so: %.cu
 #	$(NCC) -DDEBUG $(NFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
 
+%.o: %.c
+	$(CC) $(CFLAGS) $(KDIR) $(IDIR) -fPIC -c $< -o $@
+
 %.so: %.o shared.o
 	$(CC) $(CFLAGS) $(OCLLIB) $(LIB) $(LDIR) $(OFLAGS) $^ -o $@ 
 
-%.o: %.c $(HDR)
-	$(CC) $(CFLAGS) $(KDIR) $(IDIR) -fPIC -c $< -o $@
 
 clean:
 	$(RM) -f $(OBJ) core vgcore* *.o *.so
