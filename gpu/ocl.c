@@ -94,54 +94,17 @@ void *spead_api_setup()
 }
 
 
-int spead_api_callback(struct spead_item_group *ig, void *data)
+int ocl_data_callback(struct sapi_o *a, struct spead_api_item *itm)
 {
-  struct spead_api_item *itm;
-  struct sapi_o *a;
-  uint64_t off;
-
   cl_int err;
   cl_event evt;
 
   size_t workGroupSize[1];
 
-  a = data;
-
-  if (ig == NULL || a == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "[%d] e: callback parameter error\n", getpid());
-#endif
-    return -1;
-  }
-
-  off = 0;
-  while (off < ig->g_size){
-    itm = (struct spead_api_item *) (ig->g_map + off);
-
-#ifdef DEBUG
-    fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
-#endif
-    if (itm->i_len == 0)
-      goto skip;
-
-    if (itm->i_id == SPEAD_DATA_ID){
-      break;
-    }
-skip:
-    off += sizeof(struct spead_api_item) + itm->i_len;
-  }
-
-  if (itm->i_id != SPEAD_DATA_ID){
-#ifdef DEBUG
-    fprintf(stderr, "%s: err dont have requested data id\n", __func__);
-#endif
+  if (a == NULL || itm == NULL){
     return -1;
   }
   
-#if 0
-  print_data(itm->i_data, sizeof(unsigned char)*itm->i_len);
-#endif
-
   if (a->out == NULL || itm->i_len != a->olen){
     a->olen = itm->i_len;
     a->out  = realloc(a->out, sizeof(unsigned char)* a->olen);
@@ -242,6 +205,57 @@ skip:
 
   clReleaseEvent(evt);
   
+  return 0;
+}
+
+int spead_api_callback(struct spead_item_group *ig, void *data)
+{
+  struct spead_api_item *itm;
+  struct sapi_o *a;
+  uint64_t off;
+
+
+  a = data;
+
+  if (ig == NULL || a == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "[%d] e: callback parameter error\n", getpid());
+#endif
+    return -1;
+  }
+
+  off = 0;
+  while (off < ig->g_size){
+    itm = (struct spead_api_item *) (ig->g_map + off);
+
+#ifdef DEBUG
+    fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
+#endif
+    if (itm->i_len == 0)
+      goto skip;
+
+    if (itm->i_id == SPEAD_DATA_ID){
+      break;
+    }
+skip:
+    off += sizeof(struct spead_api_item) + itm->i_len;
+  }
+
+  if (itm->i_id != SPEAD_DATA_ID){
+#ifdef DEBUG
+    fprintf(stderr, "%s: err dont have requested data id\n", __func__);
+#endif
+    return -1;
+  }
+  
+#if 0
+  print_data(itm->i_data, sizeof(unsigned char)*itm->i_len);
+#endif
+
+  if (ocl_data_callback(a, itm) < 0){
+    return -1;
+  } 
+
 #if 0
   print_data(a->out, sizeof(unsigned char)*itm->i_len);
 #endif

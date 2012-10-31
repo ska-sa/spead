@@ -17,7 +17,7 @@ LDIR = -L../src
 #-arch=sm_20
 #USECUFFT = 1
 #NCC = nvcc
-CC  = gcc
+#CC  = gcc
 
 #gcc -shared -Wl,-x in.o -o out.so
 
@@ -40,12 +40,11 @@ all: shared.o ocl.so dummy.so
 %.so: %.o shared.o
 	$(CC) $(CFLAGS) $(OCLLIB) $(LIB) $(LDIR) $(OFLAGS) $^ -o $@ 
 
-
 clean:
 	$(RM) -f $(OBJ) core vgcore* *.o *.so
 
-#ocl: ocldd.o shared.o
-#	$(CC) $^ -o $@ $(CFLAGS) -DSTANDALONE $(OCLLIB) $(LIB) $(LDIR)
+ocl: ocldd.o shared.o
+	$(CC) $^ -o $@ $(CFLAGS) -DSTANDALONE $(OCLLIB) $(LIB) $(LDIR)
 
 #dummy.so: dummy.o
 #	$(CC) $(CFLAGS) $^ -o $@  $(LIB) $(LDIR) $(OFLAGS)
