@@ -44,7 +44,7 @@ void spead_api_destroy(void *data)
     if(a->clout)
       clReleaseMemObject(a->clout);
   
-    if (a->out)
+    if(a->out)
       free(a->out);
 
     destroy(&(a->k), &(a->ctx), &(a->cq), &(a->p));
