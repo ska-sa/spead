@@ -270,7 +270,16 @@ int main(int argc, char *argv[])
   struct sapi_o *a;
 
   a = spead_api_setup();
-
+  if (a == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: spead api setup\n"); 
+#endif
+    return 1;
+  }
+  
+    
+  
+  
   spead_api_destroy(a);
     
   

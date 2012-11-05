@@ -11,7 +11,7 @@ KDIR = -DKERNELDIR=\"$(shell pwd)\"
 IDIR = -I../src
 LDIR = -L../src
 
-.SECONDARY:
+#.SECONDARY:
 #.PRECIOUS: %.o
 
 #-arch=sm_20
@@ -29,21 +29,21 @@ SRC= shared.c dummy.c ocl.c
 OBJ= $(patsubst %.c,%.o,$(SRC))
 
 
-all: shared.o ocl.so dummy.so 
+all: ocl.so dummy.so 
 
 #%.so: %.cu
 #	$(NCC) -DDEBUG $(NFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
 
-%.o: %.c
+%.o: %.c $(HDR)
 	$(CC) $(CFLAGS) $(KDIR) $(IDIR) -fPIC -c $< -o $@
 
 %.so: %.o shared.o
-	$(CC) $(CFLAGS) $(OCLLIB) $(LIB) $(LDIR) $(OFLAGS) $^ -o $@ 
+	$(CC) $(OFLAGS) $^ -o $@ $(OCLLIB) $(LIB) $(LDIR) 
 
 clean:
-	$(RM) -f $(OBJ) core vgcore* *.o *.so
+	$(RM) $(OBJ) core vgcore* *.o *.so
 
-ocl: ocldd.o shared.o
+ocl: ocl.o shared.o
 	$(CC) $^ -o $@ $(CFLAGS) -DSTANDALONE $(OCLLIB) $(LIB) $(LDIR)
 
 #dummy.so: dummy.o
