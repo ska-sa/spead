@@ -1,6 +1,6 @@
 #CFLAGS += -DDEBUG=3
 #CFLAGS += -DPROCESS
-CFLAGS += -DIKATCP
+#CFLAGS += -DIKATCP
 CFLAGS += -DDISCARD
 CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
@@ -10,7 +10,11 @@ CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
 
-LIB = -ldl -lspead -L. -lkatcp
+LIB = -ldl -lspead -L.
+
+ifeq (,$(findstring -DIKATCP,$(CFLAGS)))
+	LIB += -lkatcp
+endif
 
 ###############
 #   VERSION   #
