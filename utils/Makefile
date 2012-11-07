@@ -13,7 +13,7 @@ $(EXE): $(UTILS)
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	$(RM) -f $(EXE) core vgcore*
+	$(RM) $(EXE) core vgcore*
 
 install: all
 	install $(EXE) /usr/local/bin

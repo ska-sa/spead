@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <pcap/pcap.h>
+#include <pcap.h>
 
 #include <netinet/ether.h>
 #include <netinet/ip.h>
