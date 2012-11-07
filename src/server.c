@@ -22,8 +22,10 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#ifndef IKATCP
 #include <katcl.h>
 #include <katcp.h>
+#endif
 
 #include "spead_api.h"
 #include "server.h"
@@ -146,7 +148,9 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus)
   s->s_hs      = NULL;
   s->s_m       = 0;
   s->s_mod     = m;
+#ifndef IKATCP
   s->s_kl      = NULL;
+#endif
 
   return s;
 }
@@ -167,9 +171,11 @@ void destroy_server_us(struct u_server *s)
       free(s->s_cs);
     }
   
+#ifndef IKATCP
     if (s->s_kl){
       destroy_katcl(s->s_kl, 0);
     }
+#endif
 
     unload_api_user_module(s->s_mod);
 
@@ -688,6 +694,7 @@ def DEBUG
   return 0;
 }
 
+#ifndef IKATCP
 int setup_katcp_us(struct u_server *s)
 {
   struct katcl_line *kl;
@@ -719,6 +726,7 @@ ndef DEBUG
 
   return 0;
 }
+#endif
 
 int register_client_handler_server(struct spead_api_module *m, char *port, long cpus, uint64_t hashes, uint64_t hashsize, int broadcast)
 {
@@ -742,11 +750,13 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
     return -1;
   }
 
+#ifndef IKATCP
   if (setup_katcp_us(s) < 0){
     fprintf(stderr,"%s: error in startup\n", __func__);
     shutdown_server_us(s);
     return -1;
   }
+#endif
 
   if (spawn_workers_us(s, hashes, hashsize) < 0){ 
     fprintf(stderr,"%s: error during run\n", __func__);

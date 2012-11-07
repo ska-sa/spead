@@ -4,7 +4,10 @@
 #define UDP_SERVER_H
 
 #include <stdint.h>
+
+#ifndef IKATCP
 #include <katcl.h>
+#endif
 
 #include "mutex.h"
 
@@ -21,7 +24,9 @@ struct u_server {
   uint64_t s_bc;
   struct spead_heap_store *s_hs;
   struct spead_api_module *s_mod;
+#ifndef IKATCP
   struct katcl_line *s_kl;
+#endif
 };
 
 struct u_child {
