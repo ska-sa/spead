@@ -57,7 +57,8 @@ $(EXE): $(OBJ) $(SLIB)
 
 
 install: all
-	$(INSTALL) $(EXE) $(PREFIX)/sbin
+	ln -s $(PWD)/$(SLIB) $(PREFIX)/lib/$(SLIB)
+#	$(INSTALL) $(EXE) $(PREFIX)/sbin
 
 clean: 
 	$(RM) $(EXE) $(SLIB) *.o *.lo core vgcore* test-*
