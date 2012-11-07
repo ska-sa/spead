@@ -214,7 +214,6 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
   struct sapi_o *a;
   uint64_t off;
 
-
   a = data;
 
   if (ig == NULL || a == NULL){
@@ -263,26 +262,118 @@ skip:
   return 0;
 }
 
+
+
 #ifdef STANDALONE
+
+#include <sys/stat.h>
+#include <sys/mman.h>
 
 int main(int argc, char *argv[])
 {
   struct sapi_o *a;
+  struct stat fs;
+  
+  uint8_t *data;
+  int fd;
+  char *fname;
+
+  uint64_t off, chunk, have;
+
+  if (argc < 2){
+#ifdef DEBUG
+    fprintf(stderr, "e: usage: %s datafile\n", argv[0]);
+#endif
+    return 1;
+  }
+  
+  fname = argv[1];
+
+  /*map file into memory*/
+  if (stat(fname, &fs) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "e: stat error: %s\n", strerror(errno));
+#endif
+    return 1;
+  }
+  
+  fd = open(fname, O_RDONLY);
+  if (fd < 0){
+#ifdef DEBUG
+    fprintf(stderr, "e: open error: %s\n", strerror(errno));
+#endif
+    return 1;
+  }
+
+  data = mmap(NULL, fs.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  if (data == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: mmap error: %s\n", strerror(errno));
+#endif
+    close(fd);
+    return 1;
+  }
+  
+
+#ifdef DEBUG
+  fprintf(stderr, "mapped <%s> into (%p) size [%d] bytes\n", fname, data, fs.st_size);
+#endif
+
+
 
   a = spead_api_setup();
   if (a == NULL){
 #ifdef DEBUG
     fprintf(stderr, "e: spead api setup\n"); 
 #endif
+    munmap(data, fs.st_size);
+    close(fd);
     return 1;
   }
   
+
+
+#if 1
+
+  off   = 0;
+  chunk = 1024;
+  have  = fs.st_size;
+
+  do {
+
+    print_data(data+off, (have < chunk) ? have : chunk);
+
+    off += chunk;
+    have -= chunk;
     
+#ifdef DEBUG
+    fprintf(stderr, "\n");
+#endif
+    
+  } while (off < fs.st_size);
+
+#endif
+   
   
+  
+   
   
   spead_api_destroy(a);
+  munmap(data, fs.st_size);
+  close(fd);
     
-  
+  return 0;
+}
+
+#endif
+
+
+
+
+/**
+  example codes
+*/
+
 #if 0
   float2 a[SIZE];
   float2 c[SIZE];
@@ -363,14 +454,6 @@ int main(int argc, char *argv[])
 
 
 #endif
-
-  return 0;
-}
-
-#endif
-
-
-
 
 #if 0
   for(i=0; i<SIZE; i++)

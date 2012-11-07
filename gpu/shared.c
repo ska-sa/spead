@@ -177,7 +177,6 @@ const char* oclErrorString(cl_int error)
 
 }
 
-
 int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl_program *program)
 {
   cl_platform_id platform;

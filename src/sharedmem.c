@@ -121,8 +121,12 @@ int create_shared_mem(uint64_t size)
   m_area->m_off  = 0;
   m_area->m_ptr  = ptr;
 
-#ifdef DEBUG
+#if 0
+def DEBUG
   //fprintf(stderr, "%s: shared memory or size [%ld] created shared_malloc now available\n", __func__, size);
+  /*
+  This call will break libspead.so as a stand alone lib
+  */
   print_format_bitrate('D', size);
 #endif
 

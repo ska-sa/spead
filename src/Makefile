@@ -23,9 +23,9 @@ EXE = spead
 SHDR = spead_api.h spead_packet.h
 HDR = mutex.h sharedmem.h hash.h $(SHDR) server.h
 
-SRC = module.c mutex.c sharedmem.c hash.c subprocess.c server.c
+SRC = module.c subprocess.c server.c
 
-SSRC = spead.c spead_packet.c
+SSRC = spead.c spead_packet.c mutex.c sharedmem.c hash.c 
 SLIB = libspead.so
 
 

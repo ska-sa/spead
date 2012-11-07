@@ -11,7 +11,7 @@ KDIR = -DKERNELDIR=\"$(shell pwd)\"
 IDIR = -I../src
 LDIR = -L../src
 
-#.SECONDARY:
+.SECONDARY:
 #.PRECIOUS: %.o
 
 #-arch=sm_20
@@ -41,10 +41,10 @@ all: ocl.so dummy.so
 	$(CC) $(OFLAGS) $^ -o $@ $(OCLLIB) $(LIB) $(LDIR) 
 
 clean:
-	$(RM) $(OBJ) core vgcore* *.o *.so
+	$(RM) $(OBJ) ocl core vgcore* *.o *.so
 
-ocl: ocl.o shared.o
-	$(CC) $^ -o $@ $(CFLAGS) -DSTANDALONE $(OCLLIB) $(LIB) $(LDIR)
+ocl: ocl.c shared.c
+	$(CC) $(CFLAGS) -DSTANDALONE $(KDIR) $^ -o $@ $(OCLLIB) $(LIB) $(IDIR) $(LDIR) 
 
 #dummy.so: dummy.o
 #	$(CC) $(CFLAGS) $^ -o $@  $(LIB) $(LDIR) $(OFLAGS)
