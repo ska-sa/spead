@@ -35,3 +35,23 @@ Utils
       this will snarf udp spead packets and send them to multicast
       use something like to recv them
       socat UDP4-RECVFROM:8888,ip-add-membership=225.0.0.37:yourip,fork - | hd
+
+
+GPU
+---
+
+  This folder contains some examples of how to leverage the spead coalescing server api,
+  each example is compiled into a dynmically linkable object or (.so) file.
+  To use the api each component must implement the spead_api_setup, spead_api_destroy, and 
+  spead_api_callback functions.
+
+  dummy
+    used to receive data and format it for display in gnuplot as a 2d heat map
+
+  ocl
+    used to execute opencl kernels on spead data streams
+
+  fft
+    cuda (cufft) example used to fft a spead data stream
+
+
