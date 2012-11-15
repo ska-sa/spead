@@ -977,21 +977,26 @@ int store_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_
   struct spead_packet       *p;
   struct hash_table         *ht;
   int flag_processing;
+#if 0
   int (*cdfn)(struct spead_item_group *ig, void *data);
   void *data;
+#endif
   struct spead_item_group *ig;
   
+#if 0
   cdfn = NULL;
   data = NULL;
+#endif
   ig   = NULL;
 
   if (s == NULL)
     return -1;
-
+#if 0
   if (m){
     cdfn = m->m_cdfn;
     data = m->m_data;
   }
+#endif
 
   hs = s->s_hs;
 
@@ -1088,12 +1093,20 @@ def DEBUG
 #endif
 
     /*SPEAD_API_MODULE CALLBACK*/
+#if 0
     if (cdfn != NULL){
       if((*cdfn)(ig, data) < 0){
 #ifdef DEBUG 
         fprintf(stderr, "%s: user callback failed\n", __func__);
 #endif
       }
+    }
+#endif
+
+    if(run_api_user_callback_module(m, ig) < 0){
+#ifdef DEBUG 
+      fprintf(stderr, "%s: user callback failed\n", __func__);
+#endif
     }
 
     destroy_item_group(ig);

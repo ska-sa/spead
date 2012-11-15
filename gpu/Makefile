@@ -48,7 +48,7 @@ clean:
 	$(RM) $(OBJ) $(EXE) core vgcore* *.o *.so
 
 $(EXE): $(EXE).c
-	$(CC) $(CFLAGS) $< -o $@
+	$(CC) $(CFLAGS) -Wl,-rpath,\"$(shell pwd)/\" $< -o $@ $(LIB) $(IDIR) $(LDIR)
 
 
 #ocl: ocl.c shared.c

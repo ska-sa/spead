@@ -55,5 +55,26 @@ struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n);
 
 int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o);  
 
+/*modules api*/
+
+#define SAPI_CALLBACK "spead_api_callback"
+#define SAPI_SETUP    "spead_api_setup"
+#define SAPI_DESTROY  "spead_api_destroy"
+
+struct spead_api_module {
+  void *m_handle;
+  void *(*m_setup)();
+  int  (*m_cdfn)();
+  int  (*m_destroy)(void *data);
+  void *m_data;
+};
+
+
+struct spead_api_module *load_api_user_module(char *mod);
+void unload_api_user_module(struct spead_api_module *m);
+int setup_api_user_module(struct spead_api_module *m);
+int destroy_api_user_module(struct spead_api_module *m);
+int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_group *ig);
+
 #endif
 

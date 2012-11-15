@@ -10,7 +10,7 @@ CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
 
-LIB = -ldl -lspead -L.
+LIB = -lspead -L.
 
 ifeq (,$(findstring -DIKATCP,$(CFLAGS)))
 	LIB += -lkatcp
@@ -28,9 +28,9 @@ EXE = spead
 SHDR = spead_api.h spead_packet.h
 HDR = mutex.h sharedmem.h hash.h $(SHDR) server.h
 
-SRC = module.c subprocess.c server.c
+SRC = subprocess.c server.c
 
-SSRC = spead.c spead_packet.c mutex.c sharedmem.c hash.c 
+SSRC = spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c 
 SLIB = libspead.so
 
 
@@ -42,7 +42,7 @@ all: $(EXE)
 
 
 $(SLIB): $(SOBJ)
-	$(CC) -o $@ $^ -shared -Wl,-x 
+	$(CC) -o $@ $^ -shared -Wl,-x -ldl 
 
 %.lo: %.c $(SHDR)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC) -fPIC

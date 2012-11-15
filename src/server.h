@@ -39,22 +39,4 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
 
 void print_format_bitrate(char x, uint64_t bps);
 
-/*modules api*/
-
-#define SAPI_CALLBACK "spead_api_callback"
-#define SAPI_SETUP    "spead_api_setup"
-#define SAPI_DESTROY  "spead_api_destroy"
-
-struct spead_api_module {
-  void *m_handle;
-  void *(*m_setup)();
-  int  (*m_cdfn)();
-  int  (*m_destroy)(void *data);
-  void *m_data;
-};
-
-
-struct spead_api_module *load_api_user_module(char *mod);
-void unload_api_user_module(struct spead_api_module *m);
-
 #endif

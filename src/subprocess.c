@@ -13,6 +13,7 @@
 #include <sys/types.h> 
 
 #include "server.h"
+#include "spead_api.h"
 
 struct u_child *create_child_sp(pid_t pid, int cfd)
 {
@@ -91,6 +92,17 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
   /*setup module data*/
   if (s){
     m = s->s_mod;
+    if (setup_api_user_module(m) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error setup_api_user_module\n", __func__);
+#endif
+    } else {
+#ifdef DEBUG
+      fprintf(stderr, "%s: child [%d] has api data @ (%p)\n", __func__, getpid(), m->m_data);
+#endif
+    }
+
+#if 0
     if (m){
       if (m->m_setup){
         m->m_data = (*m->m_setup)();
@@ -99,12 +111,23 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
 #endif
       }
     }
+#endif
   }
 
   /*in child use exit not return*/ 
   (*call)(s, m, pipefd[1]);
 
   /*destroy module data*/
+  if (destroy_api_user_module(m->m_data) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error destroy_api_user_module\n", __func__);
+#endif
+  } else {
+#ifdef DEBUG
+    fprintf(stderr, "%s: child [%d] has called destroy api data\n", __func__, getpid());
+#endif
+  }
+#if 0
   if (m){
     if (m->m_destroy){
       (*m->m_destroy)(m->m_data);
@@ -113,7 +136,7 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
 #endif
     }
   }
-
+#endif
 
   exit(EX_OK);
   return NULL;
