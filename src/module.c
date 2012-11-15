@@ -125,7 +125,7 @@ int setup_api_user_module(struct spead_api_module *m)
     if (m->m_setup){
       m->m_data = (*m->m_setup)();
 #ifdef DEBUG
-      fprintf(stderr, "%s: module (%p) data @ (%p)\n", m, m->m_data);
+      fprintf(stderr, "%s: module (%p) data @ (%p)\n", __func__, m, m->m_data);
 #endif
       return 0;
     }
@@ -139,7 +139,7 @@ int destroy_api_user_module(struct spead_api_module *m)
     if (m->m_destroy){
       (*m->m_destroy)(m->m_data);
 #ifdef DEBUG
-      fprintf(stderr, "%s: module (%p) data destroy called\n", m);
+      fprintf(stderr, "%s: module (%p) data destroy called\n", __func__, m);
 #endif
       return 0;
     }

@@ -282,7 +282,20 @@ struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n)
   return NULL;
 }
 
+#if 0
+struct spead_api_item *init_spead_api_item(struct spead_api_item *itm, int vaild, int id, int len, unsigned char *data)
+{
+  if (itm == NULL)
+    return NULL;
 
+  itm->i_valid = vaild;
+  itm->i_id    = id;
+  itm->i_len   = len;
+  itm->i_data  = data;
+
+  return itm;
+}
+#endif
 
 void process_descriptor_item(struct spead_api_item *itm)
 {
@@ -1194,5 +1207,6 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
 
   return rtn;
 }
+
 
 

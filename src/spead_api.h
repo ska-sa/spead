@@ -52,6 +52,9 @@ void destroy_item_group(struct spead_item_group *ig);
 struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size);
 
 struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n);
+#if 0
+struct spead_api_item *init_spead_api_item(struct spead_api_item *itm, int vaild, int id, int len, unsigned char *data);
+#endif
 
 int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o);  
 

@@ -122,7 +122,6 @@ struct demo_o *load_demo(int argc, char **argv)
 
   d->mcount = modc;
 
-
   return d;
 }
 
@@ -150,6 +149,10 @@ int setup_pipeline(struct demo_o *d)
 
 int run_pipeline(struct demo_o *d)
 {
+  struct spead_item_group   *ig;
+  struct spead_api_item     *itm;
+
+  uint64_t off, chunk, have;
   int i;
 
   if (d == NULL){
@@ -159,17 +162,63 @@ int run_pipeline(struct demo_o *d)
     return -1;
   }
   
-  for (i=0; i<d->mcount; i++){
-    
+  off   = 0;
+  chunk = 1024;
+  have  = d->fs.st_size;
 
-
+  ig = create_item_group(chunk, 1);
+  if (ig == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: create ig error\n", __func__);
+#endif
+    return -1;
   }
+
+  itm = new_item_from_group(ig, chunk);
+
+#if 0
+  ig.g_items = 1;
+  ig.g_size  = sizeof(struct spead_api_item) + chunk;
+  ig.g_off   = ig.g_size;
+  ig.g_map   = &itm;
+#endif
   
+  itm->i_valid = 1;
+  itm->i_id    = 0x0;
+  itm->i_len   = chunk;
   
-  
+  do {
+    
+#if 1
+#ifdef DEBUG
+    fprintf(stderr, "BEGIN---\n");
+#endif
+    print_data((d->fmap)+off, (have < chunk) ? have : chunk);
+#ifdef DEBUG
+    fprintf(stderr, "---END\n");
+#endif
+#endif
+
+    memcpy(itm->i_data, d->fmap + off, (have < chunk) ? have : chunk);
+      
+    for (i=0; i<d->mcount; i++){
+      
+      if (run_api_user_callback_module(d->mods[i], ig) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "e: api mod[%d] callback\n", i);
+#endif
+      }
+
+    }
+
+    off  += chunk;
+    have -= chunk;
+
+  } while (off < d->fs.st_size);
 
 
-
+  destroy_item_group(ig);
+    
   return 0;
 }
 
@@ -191,7 +240,6 @@ int destroy_pipeline(struct demo_o *d)
 #endif
     }
   }
-  
 
   return 0;
 }
@@ -200,17 +248,10 @@ int destroy_pipeline(struct demo_o *d)
 int main(int argc, char *argv[])
 {
   struct demo_o *d;
-
-#if 0
-  struct sapi_o *a;
-#endif
-
-  uint64_t off, chunk, have;
   
   d = load_demo(argc, argv);
   if (d == NULL)
     return 1;
-  
    
   if (setup_pipeline(d) < 0){
 #ifdef DEBUG
@@ -230,39 +271,6 @@ int main(int argc, char *argv[])
 #endif
     return 1;
   }
-
-
-#if 0
-  a = spead_api_setup();
-  if (a == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "e: spead api setup\n"); 
-#endif
-    munmap(data, fs.st_size);
-    close(fd);
-    return 1;
-  }
-
-  off   = 0;
-  chunk = 1024;
-  have  = fs.st_size;
-
-  do {
-
-    print_data(data+off, (have < chunk) ? have : chunk);
-
-    off += chunk;
-    have -= chunk;
-
-#ifdef DEBUG
-    fprintf(stderr, "\n");
-#endif
-
-  } while (off < fs.st_size);
-
-  spead_api_destroy(a);
-#endif
-
 
   destroy_demo(d);
     

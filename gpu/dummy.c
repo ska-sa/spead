@@ -9,7 +9,7 @@
 #define CHAN    64
 #define SAMP    128
 
-#define IN_DATA_SET(val) ((val) == 0x08 || (val) == 0x09)
+#define IN_DATA_SET(val) ((val) == 0x08 || (val) == 0x09 || (val) == 0x0)
 
 void spead_api_destroy(void *data)
 {
@@ -37,9 +37,9 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
 #ifdef DEBUG
       fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
 #endif
-      //print_data(itm->i_data, sizeof(unsigned char)*itm->i_len);
+      print_data(itm->i_data, sizeof(unsigned char)*itm->i_len);
 
-#if 1
+#if 0
       fprintf(stdout, "splot '-' matrix with image\n");
 
       for (i=0; i<CHAN; i++){
