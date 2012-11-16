@@ -1,6 +1,8 @@
 /* (c) 2012 SKA SA */
 /* Released under the GNU GPLv3 - see COPYING */
 
+#define _GNU_SOURCE
+
 #include <string.h>
 #include <unistd.h>
 #include <endian.h>
@@ -223,6 +225,9 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
 
   ig->g_items = nitems;
   ig->g_off   = 0;
+#if 0
+  ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item));
+#endif
   ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item) + sizeof(uint64_t));
   ig->g_map   = mmap(NULL, ig->g_size, PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, (-1), 0);
 
@@ -235,6 +240,37 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   fprintf(stderr, "CREATE ITEM GROUP with map size [%ld] bytes\n", ig->g_size);
 #endif
   return ig;
+}
+
+int grow_spead_item_group(struct spead_item_group *ig, uint64_t datasize, uint64_t nitems)
+{
+  uint64_t oldsize;
+  void *oldmap;
+
+  if (ig == NULL){
+#ifdef DEUBG
+    fprintf(stderr, "%s: parameter error\n", __func__);
+#endif
+    return -1;
+  }
+
+  oldsize = ig->g_size;
+  oldmap  = ig->g_map;
+
+  ig->g_items += nitems;
+  ig->g_size  += datasize + nitems*(sizeof(struct spead_api_item) + sizeof(uint64_t));
+  
+  ig->g_map   = mremap(ig->g_map, oldsize, ig->g_size, MREMAP_MAYMOVE);
+  if (ig->g_map == MAP_FAILED){
+    ig->g_map   = oldmap;
+    ig->g_size  = oldsize;
+#ifdef DEBUG
+    fprintf(stderr, "%s: mremap failed\n", __func__);
+#endif
+    return -1;
+  }
+
+  return 0;
 }
 
 void destroy_item_group(struct spead_item_group *ig)
@@ -251,13 +287,16 @@ void destroy_item_group(struct spead_item_group *ig)
 struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size)
 {
   struct spead_api_item *itm;
+  uint64_t item_size;
+
+  item_size = size + sizeof(struct spead_api_item);
   
   if (ig == NULL || size <= 0)
     return NULL;
     
-  if ((ig->g_off + size) > ig->g_size){
+  if ((ig->g_off + item_size) > ig->g_size){
 #ifdef DEBUG
-    fprintf(stderr, "%s: parameter error (ig->g_off + size) %ld ig->g_size %ld\n", __func__, ig->g_off+size, ig->g_size);
+    fprintf(stderr, "%s: parameter error (ig->g_off + size) %ld ig->g_size %ld\n", __func__, ig->g_off+item_size, ig->g_size);
 #endif
     return NULL;
   }
@@ -266,12 +305,17 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   if (itm == NULL)
     return NULL;
 
-  ig->g_off += size;
+  ig->g_off += item_size;
   ig->g_items++;
 
 #if DEBUG>2
   fprintf(stderr, "GROUP map (%p): size %ld offset: %ld data: %p\n", ig->g_map, ig->g_size, ig->g_off, itm->i_data);
 #endif
+
+  itm->i_valid = 0;
+  itm->i_id    = 0;
+  itm->io_data = NULL;
+  itm->i_len   = 0;
 
   return itm;
 }
@@ -281,6 +325,25 @@ struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n)
   
 
   return NULL;
+}
+
+int set_spead_item_io_data(struct spead_api_item *itm, void *ptr)
+{
+  if (itm){
+
+    if (itm->io_data){
+#ifdef DEBUG
+      fprintf(stderr, "%s: WARN not setting io_data ptr as is set\n", __func__);
+#endif
+      return -1;
+    }
+    
+    itm->io_data = ptr;
+
+    return 0;
+  }
+
+  return -1;
 }
 
 #if 0
@@ -604,7 +667,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
 
           ds.cc = p->heap_len - ps.off; 
                     
-          itm = new_item_from_group(ig, sizeof(struct spead_api_item) + ds.cc);
+          itm = new_item_from_group(ig, ds.cc);
           if (itm){
             itm->i_id   = ps.id;
             itm->i_len  = ds.cc;
@@ -713,7 +776,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
         fprintf(stderr, "\tdata: 0x%lx | %ld\n", data64, data64);
 #endif
         
-        itm = new_item_from_group(ig, sizeof(struct spead_api_item) + sizeof(data64));
+        itm = new_item_from_group(ig, sizeof(data64));
         if (itm){
           itm->i_id = id;
           itm->i_len = sizeof(int64_t);
@@ -749,7 +812,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
 #ifdef PROCESS
           fprintf(stderr, "Direct ITEM[%d] in obj[%d] pkt(%p) SIZE [%ld] bytes\n", ps.j, ps.i, ps.p, off - ps.off);
 #endif
-          itm = new_item_from_group(ig, sizeof(struct spead_api_item) + (off - ps.off));
+          itm = new_item_from_group(ig, (off - ps.off));
           if (itm){
             itm->i_id   = ps.id;
             itm->i_len  = (off - ps.off);

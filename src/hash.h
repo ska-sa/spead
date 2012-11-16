@@ -1,3 +1,6 @@
+/* (c) 2012 SKA SA */
+/* Released under the GNU GPLv3 - see COPYING */
+
 #ifndef HASH_H
 #define HASH_H
 

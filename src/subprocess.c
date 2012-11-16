@@ -52,6 +52,8 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
   pid_t cpid;
   struct spead_api_module *m;
 
+  m = NULL;
+
   if (call == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: null callback\n", __func__);
@@ -118,7 +120,7 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
   (*call)(s, m, pipefd[1]);
 
   /*destroy module data*/
-  if (destroy_api_user_module(m->m_data) < 0){
+  if (destroy_api_user_module(m) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: error destroy_api_user_module\n", __func__);
 #endif

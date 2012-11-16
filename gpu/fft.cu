@@ -1,3 +1,6 @@
+/* (c) 2012 SKA SA */
+/* Released under the GNU GPLv3 - see COPYING */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -150,11 +153,21 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
     return -1;
   }
 
+  if (set_spead_item_io_data(itm, in) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "err: storeing cufft output\n");
+#endif
+    return -1;
+  }
+
 #if 0
   print_data( (unsigned char *) in, sizeof(cufftComplex)*NX*BATCH);
   for (i=0; i<NX*BATCH; i++){
     fprintf(stderr, "%f + j %f\n", in[i].x, in[i].y);
   }
+#endif
+
+#if 0
   /*compute power*/
   for (i=0; i<NX*BATCH; i++){
 #ifdef DEBUG
