@@ -163,7 +163,7 @@ int run_pipeline(struct demo_o *d)
   }
   
   off   = 0;
-  chunk = 1024;
+  chunk = 2048;
   have  = d->fs.st_size;
 
   ig = create_item_group(chunk, 1);
@@ -189,7 +189,7 @@ int run_pipeline(struct demo_o *d)
   
   do {
     
-#if 1
+#if 0
 #ifdef DEBUG
     fprintf(stderr, "BEGIN---\n");
 #endif
