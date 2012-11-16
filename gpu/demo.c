@@ -87,7 +87,7 @@ struct demo_o *load_demo(int argc, char **argv)
   }
 
   d->fmap = mmap(NULL, d->fs.st_size, PROT_READ, MAP_PRIVATE, d->fd, 0);
-  if (d->fmap == NULL){
+  if (d->fmap == MAP_FAILED){
 #ifdef DEBUG
     fprintf(stderr, "e: mmap error: %s\n", strerror(errno));
 #endif
@@ -163,7 +163,7 @@ int run_pipeline(struct demo_o *d)
   }
   
   off   = 0;
-  chunk = 2048;
+  chunk = 1024;
   have  = d->fs.st_size;
 
   ig = create_item_group(chunk, 1);
@@ -175,13 +175,6 @@ int run_pipeline(struct demo_o *d)
   }
 
   itm = new_item_from_group(ig, chunk);
-
-#if 0
-  ig.g_items = 1;
-  ig.g_size  = sizeof(struct spead_api_item) + chunk;
-  ig.g_off   = ig.g_size;
-  ig.g_map   = &itm;
-#endif
   
   itm->i_valid = 1;
   itm->i_id    = 0x0;

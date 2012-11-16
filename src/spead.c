@@ -226,10 +226,11 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item) + sizeof(uint64_t));
   ig->g_map   = mmap(NULL, ig->g_size, PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, (-1), 0);
 
-  if (ig->g_map == NULL){
+  if (ig->g_map == MAP_FAILED){
     free(ig);
     return NULL;
   }
+
 #ifdef DEBUG
   fprintf(stderr, "CREATE ITEM GROUP with map size [%ld] bytes\n", ig->g_size);
 #endif

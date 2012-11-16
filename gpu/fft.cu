@@ -8,7 +8,7 @@
 
 #include <spead_api.h>
 
-#define NX      2048
+#define NX      1024
 #define BATCH   1
 
 #define SPEAD_DATA_ID       0x0
@@ -152,12 +152,10 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
 
 #if 0
   print_data( (unsigned char *) in, sizeof(cufftComplex)*NX*BATCH);
-  
   for (i=0; i<NX*BATCH; i++){
     fprintf(stderr, "%f + j %f\n", in[i].x, in[i].y);
   }
-#endif
-
+  /*compute power*/
   for (i=0; i<NX*BATCH; i++){
 #ifdef DEBUG
     fprintf(stdout, "%ld %0.5f\n", i, cuCabsf(in[i]));
@@ -166,6 +164,7 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
 #ifdef DEBUG
   fprintf(stdout, "e\n");
 #endif
+  /*compute phase*/
   for (i=0; i<NX*BATCH; i++){
 #ifdef DEBUG
     fprintf(stdout, "%ld %0.5f\n", i, atan2(in[i].y, in[i].x));
@@ -174,7 +173,8 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
 #ifdef DEBUG
   fprintf(stdout, "e\n");
 #endif
-  
+#endif
+
   return 0;
 }
 
