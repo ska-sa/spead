@@ -26,7 +26,7 @@ CFLAGS += -DVERSION=\"$(GITVER)\"
 EXE = spead
 
 SHDR = spead_api.h spead_packet.h
-HDR = mutex.h sharedmem.h hash.h $(SHDR) server.h
+HDR = mutex.h hash.h $(SHDR) server.h
 
 SRC = subprocess.c server.c
 

@@ -19,8 +19,8 @@
 
 struct cufft_o {
   cufftHandle     plan;
-  cufftComplex    *d_in;
-  cufftComplex    *d_out;
+  cufftComplex    *d_host;
+  cufftComplex    *d_device;
 };
 
 
@@ -34,11 +34,11 @@ void spead_api_destroy(void *data)
   
     cufftDestroy(fo->plan);
     
-    if (fo->d_in){
-      free(fo->d_in);
+    if (fo->d_host){
+      free(fo->d_host);
     }
     
-    cudaFree(fo->d_out);
+    cudaFree(fo->d_device);
   
   }
 }
@@ -56,8 +56,8 @@ void *spead_api_setup()
     return NULL;
   }
   
-  fo->d_in  = NULL;
-  fo->d_out = NULL;
+  fo->d_host  = NULL;
+  fo->d_device = NULL;
   
   if (cufftPlan1d(&(fo->plan), NX, CUFFT_C2C, BATCH) != CUFFT_SUCCESS) {
 #ifdef DEBUG
@@ -67,8 +67,8 @@ void *spead_api_setup()
     return NULL;
   }
 
-  fo->d_in = (cufftComplex*) malloc(sizeof(cufftComplex) * NX * BATCH); 
-  if (fo->d_in == NULL){
+  fo->d_host = (cufftComplex*) malloc(sizeof(cufftComplex) * NX * BATCH); 
+  if (fo->d_host == NULL){
 #ifdef DEBUG
     fprintf(stderr, "e: malloc failed\n");
 #endif
@@ -76,7 +76,7 @@ void *spead_api_setup()
     return NULL;
   }
   
-  cudaMalloc((void **) &(fo->d_out), sizeof(cufftComplex) * NX * BATCH);
+  cudaMalloc((void **) &(fo->d_device), sizeof(cufftComplex) * NX * BATCH);
   if (cudaGetLastError() != cudaSuccess){
 #ifdef DEBUG
     fprintf(stderr, "cuda err: failed to cudamalloc\n");
@@ -95,8 +95,8 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
 
   uint8_t *d;  
 
-  cufftComplex *in;
-  cufftComplex *out;
+  cufftComplex *hst;
+  cufftComplex *dvc;
 
   cufftResult res;
   
@@ -111,11 +111,11 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
     return -1;
   }
 
-  in  = fo->d_in;
-  out = fo->d_out;
+  hst  = fo->d_host;
+  dvc = fo->d_device;
   d   = itm->i_data;
 
-  if (in == NULL || out == NULL || d == NULL){
+  if (hst == NULL || dvc == NULL || d == NULL){
 #ifdef DEBUG
     fprintf(stderr, "e: data pointers are null\n");
 #endif
@@ -125,11 +125,11 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
   /*prepare the data into cuComplex*/
   
   for (i=0; i<NX*BATCH; i++){
-    in[i].x = (float) d[i];
-    in[i].y = 0;
+    hst[i].x = (float) d[i];
+    hst[i].y = 0;
   }
   
-  cudaMemcpy(out, in, sizeof(cufftComplex) * NX * BATCH, cudaMemcpyHostToDevice);
+  cudaMemcpy(dvc, hst, sizeof(cufftComplex) * NX * BATCH, cudaMemcpyHostToDevice);
   if (cudaGetLastError() != cudaSuccess){
 #ifdef DEBUG
     fprintf(stderr, "cuda err: failed copy\n");
@@ -137,7 +137,7 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
     return -1;
   }
 
-  res = cufftExecC2C(fo->plan, out, out, CUFFT_FORWARD);
+  res = cufftExecC2C(fo->plan, dvc, dvc, CUFFT_FORWARD);
   if (res != CUFFT_SUCCESS) {
 #ifdef DEBUG
     fprintf(stderr ,"CUFFT error: ExecC2C Forward failed %d\n", res);
@@ -145,7 +145,7 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
     return -1;  
   }
 
-  cudaMemcpy(in, out, sizeof(cufftComplex) * NX * BATCH, cudaMemcpyDeviceToHost);
+  cudaMemcpy(hst, dvc, sizeof(cufftComplex) * NX * BATCH, cudaMemcpyDeviceToHost);
   if (cudaGetLastError() != cudaSuccess){
 #ifdef DEBUG
     fprintf(stderr, "cuda err: failed copy\n");
@@ -153,7 +153,7 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
     return -1;
   }
 
-  if (set_spead_item_io_data(itm, in) < 0){
+  if (set_spead_item_io_data(itm, hst) < 0){
 #ifdef DEBUG
     fprintf(stderr, "err: storeing cufft output\n");
 #endif

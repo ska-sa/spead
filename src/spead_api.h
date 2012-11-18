@@ -86,5 +86,18 @@ int setup_api_user_module(struct spead_api_module *m);
 int destroy_api_user_module(struct spead_api_module *m);
 int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_group *ig);
 
+
+/*shared_mem api*/
+
+struct shared_mem {
+  uint64_t  m_size;
+  uint64_t  m_off;
+  void      *m_ptr;
+};
+
+int create_shared_mem(uint64_t size);
+void destroy_shared_mem();
+void *shared_malloc(size_t size);
+
 #endif
 

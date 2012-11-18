@@ -30,7 +30,6 @@
 #include "spead_api.h"
 #include "server.h"
 #include "hash.h"
-#include "sharedmem.h"
 #include "mutex.h"
 
 

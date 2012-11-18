@@ -1,7 +1,6 @@
 /* (c) 2012 SKA SA */
 /* Released under the GNU GPLv3 - see COPYING */
 
-#define _GNU_SOURCE
 
 #include <string.h>
 #include <unistd.h>
@@ -11,7 +10,6 @@
 
 #include "hash.h"
 #include "spead_api.h"
-#include "sharedmem.h"
 #include "server.h"
 
 struct spead_heap *create_spead_heap()
@@ -229,12 +227,24 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item));
 #endif
   ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item) + sizeof(uint64_t));
+
+  ig->g_map   = shared_malloc(ig->g_size);
+  if (ig->g_map == NULL){
+    free(ig);
+#ifdef DEBUG
+    fprintf(stderr, "%s: failed to get shared_malloc for ig map\n", __func__);
+#endif
+    return NULL;
+  }
+
+#if 0
   ig->g_map   = mmap(NULL, ig->g_size, PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, (-1), 0);
 
   if (ig->g_map == MAP_FAILED){
     free(ig);
     return NULL;
   }
+#endif
 
 #ifdef DEBUG
   fprintf(stderr, "CREATE ITEM GROUP with map size [%ld] bytes\n", ig->g_size);
@@ -242,6 +252,7 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   return ig;
 }
 
+#if 0
 int grow_spead_item_group(struct spead_item_group *ig, uint64_t datasize, uint64_t nitems)
 {
   uint64_t oldsize;
@@ -272,14 +283,18 @@ int grow_spead_item_group(struct spead_item_group *ig, uint64_t datasize, uint64
 
   return 0;
 }
+#endif
 
 void destroy_item_group(struct spead_item_group *ig)
 {
   if (ig){
     
+    /*TODO: this is we must do something with shared_mem*/
+#if 0
     if (ig->g_map)
       munmap(ig->g_map, ig->g_size); 
-  
+#endif
+
     free(ig);
   }
 }

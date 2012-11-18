@@ -41,21 +41,13 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
 
 #if 0
       fprintf(stdout, "splot '-' matrix with image\n");
-
       for (i=0; i<CHAN; i++){
-        
         for(j=0; j<SAMP; j++){
-          
           fprintf(stdout, "%d %d ", itm->i_data[i*SAMP+j], itm->i_data[i*SAMP+j+1]);
-  
         }
-
         fprintf(stdout,"\n");
-      
       }
-
       fprintf(stdout,"e\ne\n");
-
 #endif
     }
 

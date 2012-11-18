@@ -7,8 +7,8 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "spead_api.h"
 #include "hash.h"
-#include "sharedmem.h"
 #include "mutex.h"
 
 void print_list_stats(struct hash_o_list *l, const char *func) 
@@ -276,7 +276,7 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
 
 void destroy_o_list(struct hash_o_list *l)
 {
-
+  /*TODO: is this the final place mem is needed?*/
   destroy_shared_mem();
 
 #if 0
