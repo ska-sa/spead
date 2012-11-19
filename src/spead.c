@@ -223,11 +223,14 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
 
   ig->g_items = nitems;
   ig->g_off   = 0;
+
 #if 0
   ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item));
 #endif
+
   ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item) + sizeof(uint64_t));
 
+#if 0
   ig->g_map   = shared_malloc(ig->g_size);
   if (ig->g_map == NULL){
     free(ig);
@@ -236,10 +239,10 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
 #endif
     return NULL;
   }
+#endif
 
-#if 0
+#if 1
   ig->g_map   = mmap(NULL, ig->g_size, PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, (-1), 0);
-
   if (ig->g_map == MAP_FAILED){
     free(ig);
     return NULL;
@@ -252,7 +255,7 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   return ig;
 }
 
-#if 0
+#if 0 
 int grow_spead_item_group(struct spead_item_group *ig, uint64_t datasize, uint64_t nitems)
 {
   uint64_t oldsize;
@@ -290,7 +293,7 @@ void destroy_item_group(struct spead_item_group *ig)
   if (ig){
     
     /*TODO: this is we must do something with shared_mem*/
-#if 0
+#if 1
     if (ig->g_map)
       munmap(ig->g_map, ig->g_size); 
 #endif
@@ -330,21 +333,32 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   itm->i_valid = 0;
   itm->i_id    = 0;
   itm->io_data = NULL;
-  itm->i_len   = 0;
+  itm->i_len   = size;
 
   return itm;
 }
 
-struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n)
+struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64_t off)
 {
-  
+  if (ig == NULL)
+    return NULL;
 
-  return NULL;
+  if (off >= ig->g_size)
+    return NULL;
+
+  return (struct spead_api_item *) (ig->g_map + off);
 }
 
 int set_spead_item_io_data(struct spead_api_item *itm, void *ptr)
 {
   if (itm){
+
+    if (ptr == itm->io_data){
+#ifdef DEBUG
+      fprintf(stderr, "%s: io_data pointer match\n", __func__);
+#endif
+      return 0;
+    }
 
     if (itm->io_data){
 #ifdef DEBUG
@@ -359,6 +373,22 @@ int set_spead_item_io_data(struct spead_api_item *itm, void *ptr)
   }
 
   return -1;
+}
+
+int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len)
+{
+  if (itm == NULL || src == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot operate with null params\n", __func__);
+#endif
+    return -1;
+  }
+  
+  memcpy(itm->i_data, src, len);
+
+  itm->i_len = len;
+
+  return len;
 }
 
 #if 0

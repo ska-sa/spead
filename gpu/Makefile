@@ -11,7 +11,7 @@ OFLAGS = -shared -Wl,-x
 KDIR = -DKERNELDIR=\"$(shell pwd)\"
 
 NFLAGS += --compiler-options '-fPIC' --shared -x 'c'
-NLIB = -lcufft
+NLIB = -lcufft -lcudart
 NCC = nvcc
 
 IDIR = -I../src
@@ -27,13 +27,14 @@ LDIR = -L../src
 #UTILS = cudafft.cu dedisperse.cu
 
 #OBJ = $(patsubst %.cu,%.so,$(UTILS))
-HDR= shared.h
-SRC= shared.c dummy.c ocl.c 
-OBJ= $(patsubst %.c,%.o,$(SRC))
 EXE= demo
+MODS=         dummy.so ocl.so fft.so
+SRC= shared.c dummy.c  ocl.c        
 
+HDR= shared.h
+OBJ= $(patsubst %.c,%.o,$(SRC))
 
-all: ocl.so dummy.so fft.so $(EXE)
+all: $(MODS) $(EXE)
 
 %.so: %.cu
 	$(NCC) -DDEBUG $(NFLAGS) $(NLIB) $(LIB) $(LDIR) $(IDIR) $< -o $@

@@ -166,7 +166,7 @@ int run_pipeline(struct demo_o *d)
   }
   
   off   = 0;
-  chunk = 1024;
+  chunk = 128*1024;
   have  = d->fs.st_size;
 
   ig = create_item_group(chunk, 1);
@@ -198,13 +198,11 @@ int run_pipeline(struct demo_o *d)
     memcpy(itm->i_data, d->fmap + off, (have < chunk) ? have : chunk);
       
     for (i=0; i<d->mcount; i++){
-      
       if (run_api_user_callback_module(d->mods[i], ig) < 0){
 #ifdef DEBUG
         fprintf(stderr, "e: api mod[%d] callback\n", i);
 #endif
       }
-
     }
 
     off  += chunk;
@@ -244,7 +242,11 @@ int destroy_pipeline(struct demo_o *d)
 int main(int argc, char *argv[])
 {
   struct demo_o *d;
-  
+
+#if 0
+  if (create_shared_mem(1024) < 0)
+    return 1;
+#endif
   d = load_demo(argc, argv);
   if (d == NULL)
     return 1;
@@ -269,6 +271,9 @@ int main(int argc, char *argv[])
   }
 
   destroy_demo(d);
+#if 0
+ // destroy_shared_mem();
+#endif
     
   return 0;
 }

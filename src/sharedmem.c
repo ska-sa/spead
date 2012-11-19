@@ -23,7 +23,8 @@
 static struct shared_mem *m_area = NULL;
 
 
-
+/*effects of aliasing*/
+#if 0
 int grow_shared_mem(uint64_t size)
 {
   uint64_t osize;
@@ -38,11 +39,11 @@ int grow_shared_mem(uint64_t size)
   
   osize = m_area->m_size;
  
-  ptr = mremap(m_area->m_ptr, osize, osize + size, MREMAP_MAYMOVE);
+  ptr = mremap(m_area->m_ptr, osize, osize + size, MREMAP_FIXED | MREMAP_MAYMOVE, m_area->m_ptr);
 
   if (ptr == MAP_FAILED){
 #ifdef DEBUG
-    fprintf(stderr, "%s: FAILED growth of [%ld] bytes reverting to [%ld] bytes\n", __func__, size, osize);
+    fprintf(stderr, "%s: FAILED (%s) growth of [%ld] bytes reverting to [%ld] bytes\n", __func__, strerror(errno), size, osize);
 #endif
     return -1;
   }
@@ -50,8 +51,13 @@ int grow_shared_mem(uint64_t size)
   m_area->m_ptr = ptr;
   m_area->m_size += size;
 
+#ifdef DEBUG
+  fprintf(stderr, "%s: by [%ld] bytes to (%p)\n", __func__, size, ptr);
+#endif
+
   return 0;
 }
+#endif
 
 int create_shared_mem(uint64_t size)
 {
@@ -72,7 +78,10 @@ int create_shared_mem(uint64_t size)
 #ifdef DEBUG
     fprintf(stderr, "%s: a shared memory segment is already assigned\n", __func__); 
 #endif
+#if 0
     return grow_shared_mem(size);
+#endif
+    return -1;
   }
 
   m_area = malloc(sizeof(struct shared_mem));
@@ -85,7 +94,7 @@ int create_shared_mem(uint64_t size)
   }
 
   ptr = mmap(NULL, size, PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
-  if (ptr == NULL){
+  if (ptr == MAP_FAILED){
 #ifdef DEBUG
     fprintf(stderr, "%s: mmap error %s\n", __func__, strerror(errno));
 #endif
@@ -119,8 +128,12 @@ void *shared_malloc(size_t size)
   void *ptr;
 
   m = m_area;
-  if (m == NULL)
+  if (m == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: shared memory doesn't exist\n",__func__);
+#endif
     return NULL;
+  }
 
   if (size < 0){
 #ifdef DEBUG
@@ -131,18 +144,21 @@ void *shared_malloc(size_t size)
  
   if ((size + m->m_off) > m->m_size){
 #ifdef DEBUG
-    fprintf(stderr, "%s: WARN shared_malloc size req [%ld] mem stats msize [%ld] m_off [%ld] about to grow!\n", __func__, size, m->m_size, m->m_off); 
+    fprintf(stderr, "%s: WARN shared_malloc size req [%ld] mem stats msize [%ld] m_off [%ld] @ (%p)\n", __func__, size, m->m_size, m->m_off, m->m_ptr); 
 #endif
 
+#if 0
     if (grow_shared_mem(size * 13) < 0){
       return NULL;
     }
+#endif
+    return NULL;
   }
 
   ptr       = m->m_ptr + m->m_off;
   m->m_off  = m->m_off + size;
   
-#if DEBUG>1
+#ifdef DEBUG
   fprintf(stderr, "%s: allocated [%ld] from sharedmem\n", __func__, size);
 #endif
 

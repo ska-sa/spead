@@ -11,35 +11,62 @@
 
 #include <spead_api.h>
 
-#define NX      1024
+#define NX      128*1024
 #define BATCH   1
 
-#define SPEAD_DATA_ID       0x0
+#define BUFFER  100
 
+#define SPEAD_DATA_ID       0x0
 
 struct cufft_o {
   cufftHandle     plan;
   cufftComplex    *d_host;
   cufftComplex    *d_device;
+  size_t          len;
+#if 0
+  float           *out;
+  float           *h_out;
+  struct spead_item_group *buf;
+  int inum;
+#endif
 };
 
+#if 0
+static __global__ void power(cufftComplex *data, float *out)
+{
+  int i = blockIdx.x*blockDim.x + threadIdx.x;
+  out[i] = cuCabsf(data[i]);
+}
+static __global__ void phase(cufftComplex *data, float *out)
+{
+  int i = blockIdx.x*blockDim.x + threadIdx.x;
+  out[i] = atan2(data[i].y, data[i].x);
+}
+#endif
 
 void spead_api_destroy(void *data)
 {
   struct cufft_o *fo;
 
-  fo = data;
+  fo = (struct cufft_o *)data;
 
   if (fo){
   
     cufftDestroy(fo->plan);
     
-    if (fo->d_host){
+    if (fo->d_host)
       free(fo->d_host);
-    }
-    
+
+#if 0
+    if (fo->h_out)
+      free(fo->h_out);
+    cudaFree(fo->out);
+    destroy_item_group(fo->buf); 
+#endif
+
     cudaFree(fo->d_device);
   
+    free(fo);
   }
 }
 
@@ -48,7 +75,7 @@ void *spead_api_setup()
 {
   struct cufft_o *fo;
   
-  fo = malloc(sizeof(struct cufft_o));
+  fo = (struct cufft_o*) malloc(sizeof(struct cufft_o));
   if (fo == NULL){
 #ifdef DEBUG
     fprintf(stderr, "e: logic could not malloc api obj\n");
@@ -67,7 +94,9 @@ void *spead_api_setup()
     return NULL;
   }
 
-  fo->d_host = (cufftComplex*) malloc(sizeof(cufftComplex) * NX * BATCH); 
+  fo->len = sizeof(cufftComplex)*NX*BATCH;
+
+  fo->d_host = (cufftComplex*) malloc(fo->len); 
   if (fo->d_host == NULL){
 #ifdef DEBUG
     fprintf(stderr, "e: malloc failed\n");
@@ -75,8 +104,26 @@ void *spead_api_setup()
     spead_api_destroy(fo);
     return NULL;
   }
+
+  fo->h_out = (float*) malloc(sizeof(float)*NX*BATCH); 
+  if (fo->d_host == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: malloc failed\n");
+#endif
+    spead_api_destroy(fo);
+    return NULL;
+  }
+
+  cudaMalloc((void **) &(fo->out), sizeof(float)*NX*BATCH); 
+  if (cudaGetLastError() != cudaSuccess){
+#ifdef DEBUG
+    fprintf(stderr, "e: malloc failed\n");
+#endif
+    spead_api_destroy(fo);
+    return NULL;
+  }
   
-  cudaMalloc((void **) &(fo->d_device), sizeof(cufftComplex) * NX * BATCH);
+  cudaMalloc((void **) &(fo->d_device), fo->len);
   if (cudaGetLastError() != cudaSuccess){
 #ifdef DEBUG
     fprintf(stderr, "cuda err: failed to cudamalloc\n");
@@ -85,6 +132,15 @@ void *spead_api_setup()
     return NULL;
   }
 
+#if 0
+  fo->buf = create_item_group(BUFFER*NX*BATCH*sizeof(float2), BUFFER);
+  if (fo->buf == NULL){
+    spead_api_destroy(fo);
+    return NULL;
+  }
+
+  fo->inum = 0;
+#endif
 
   return fo;
 }
@@ -129,7 +185,7 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
     hst[i].y = 0;
   }
   
-  cudaMemcpy(dvc, hst, sizeof(cufftComplex) * NX * BATCH, cudaMemcpyHostToDevice);
+  cudaMemcpy(dvc, hst, fo->len, cudaMemcpyHostToDevice);
   if (cudaGetLastError() != cudaSuccess){
 #ifdef DEBUG
     fprintf(stderr, "cuda err: failed copy\n");
@@ -145,7 +201,16 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
     return -1;  
   }
 
-  cudaMemcpy(hst, dvc, sizeof(cufftComplex) * NX * BATCH, cudaMemcpyDeviceToHost);
+
+#if 0
+  /*cuda kernel*/
+  power<<<NX/1024, 1024>>>(dvc, fo->out);  
+
+  cudaMemcpy(fo->h_out, fo->out, sizeof(float)*NX*BATCH, cudaMemcpyDeviceToHost);
+#endif
+
+
+  cudaMemcpy(hst, dvc, fo->len, cudaMemcpyDeviceToHost);
   if (cudaGetLastError() != cudaSuccess){
 #ifdef DEBUG
     fprintf(stderr, "cuda err: failed copy\n");
@@ -153,12 +218,16 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
     return -1;
   }
 
+
+
+#if 0
   if (set_spead_item_io_data(itm, hst) < 0){
 #ifdef DEBUG
     fprintf(stderr, "err: storeing cufft output\n");
 #endif
     return -1;
   }
+#endif
 
 #if 0
   print_data( (unsigned char *) in, sizeof(cufftComplex)*NX*BATCH);
@@ -194,11 +263,14 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
 
 int spead_api_callback(struct spead_item_group *ig, void *data)
 {
-  struct spead_api_item *itm;
+  struct spead_api_item *itm, *dst;
   struct cufft_o *fo;
   uint64_t off;
+  int i, j;
 
-  fo = data;
+  cufftComplex *c;
+
+  fo = (struct cufft_o *) data;
 
   if (fo == NULL || ig == NULL){
 #ifdef DEBUG
@@ -208,20 +280,26 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
   }
   
   off = 0;
-  while (off < ig->g_size){
-    itm = (struct spead_api_item *) (ig->g_map + off);
 
-#ifdef DEBUG
+  while (off < ig->g_size){
+
+    itm = get_spead_item_at_off(ig, off);
+
+#if 0
+def DEBUG
     fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
 #endif
+
     if (itm->i_len == 0)
       goto skip;
 
     if (itm->i_id == SPEAD_DATA_ID){
       break;
     }
+
 skip:
     off += sizeof(struct spead_api_item) + itm->i_len;
+
   }
 
   if (itm->i_id != SPEAD_DATA_ID){
@@ -230,12 +308,68 @@ skip:
 #endif
     return -1;
   }
-  
+
 
   if (cufft_callback(fo, itm) < 0){
     return -1;
   }
 
+
+#if 0
+  dst = new_item_from_group(fo->buf, fo->len);
+  if (dst == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: <%s> failed\n", __func__, __FILE__);
+#endif
+    return -1;
+  }
+
+  if (copy_to_spead_item(dst, fo->d_host, fo->len) < 0){
+    return -1;
+  }
+
+  fo->inum++;
+#endif
+
+#if 0 
+def DEBUG
+  fprintf(stderr, "inum: %d\n", fo->inum);
+#endif
+
+#if 0
+  itm = NULL;
+
+  if (fo->buf == NULL)
+    return -1;
+
+  if (fo->inum == BUFFER){
+
+    fprintf(stdout, "set term png size 1920,1080\nset view map\nsplot '-' matrix with image\n");
+    
+    off=0; 
+    j  =0;
+  
+    while (off < fo->buf->g_size){
+      itm = get_spead_item_at_off(ig, off);
+
+#ifdef DEBUG
+      fprintf(stderr, "ITEM [%d] id[0x%x] vaild [%d] len [%ld] of IGsize [%ld]\n", j++, itm->i_id, itm->i_valid, itm->i_len, fo->buf->g_size);
+#endif
+      if (itm->i_len > 0){
+        c = (cufftComplex *)(itm->i_data);
+        for (i=NX*BATCH/2; i<NX*BATCH; i++){ 
+          fprintf(stdout, "%0.5f ", cuCabsf(c[i]));
+          //fprintf(stdout, "%0.5f ", atan2(c[i].y, c[i].x));
+        }
+        fprintf(stdout,"\n");
+      }
+
+      off += sizeof(struct spead_api_item) + itm->i_len;
+    }
+    fprintf(stdout,"e\ne\n");
+
+  }
+#endif
 
   return 0;
 }

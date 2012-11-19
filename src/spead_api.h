@@ -51,13 +51,17 @@ struct spead_item_group {
   void      *g_map;
 };
 
+
 struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems);
 void destroy_item_group(struct spead_item_group *ig);
 struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size);
+#if 0
 int grow_spead_item_group(struct spead_item_group *ig, uint64_t extradata, uint64_t extranitems);
-
 struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n);
+#endif
+struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64_t off);
 int set_spead_item_io_data(struct spead_api_item *itm, void *ptr);
+int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len);
 
 #if 0
 struct spead_api_item *init_spead_api_item(struct spead_api_item *itm, int vaild, int id, int len, unsigned char *data);
@@ -85,7 +89,6 @@ void unload_api_user_module(struct spead_api_module *m);
 int setup_api_user_module(struct spead_api_module *m);
 int destroy_api_user_module(struct spead_api_module *m);
 int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_group *ig);
-
 
 /*shared_mem api*/
 
