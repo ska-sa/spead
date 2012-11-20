@@ -11,10 +11,12 @@
 
 #include <spead_api.h>
 
-#define NX      128*1024
+#define NX      64*1024
 #define BATCH   1
 
-#define BUFFER  100
+#if 0
+#define BUFFER  1
+#endif
 
 #define SPEAD_DATA_ID       0x0
 
@@ -105,6 +107,7 @@ void *spead_api_setup()
     return NULL;
   }
 
+#if 0
   fo->h_out = (float*) malloc(sizeof(float)*NX*BATCH); 
   if (fo->d_host == NULL){
 #ifdef DEBUG
@@ -122,7 +125,8 @@ void *spead_api_setup()
     spead_api_destroy(fo);
     return NULL;
   }
-  
+#endif
+
   cudaMalloc((void **) &(fo->d_device), fo->len);
   if (cudaGetLastError() != cudaSuccess){
 #ifdef DEBUG
@@ -219,15 +223,13 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
   }
 
 
-
-#if 0
-  if (set_spead_item_io_data(itm, hst) < 0){
+  if (set_spead_item_io_data(itm, hst, fo->len) < 0){
 #ifdef DEBUG
     fprintf(stderr, "err: storeing cufft output\n");
 #endif
     return -1;
   }
-#endif
+
 
 #if 0
   print_data( (unsigned char *) in, sizeof(cufftComplex)*NX*BATCH);
@@ -272,6 +274,7 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
 
   fo = (struct cufft_o *) data;
 
+
   if (fo == NULL || ig == NULL){
 #ifdef DEBUG
     fprintf(stderr, "e: NULL params for <%s>\n", __func__);
@@ -279,6 +282,7 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
     return -1;
   }
   
+
   off = 0;
 
   while (off < ig->g_size){
@@ -290,17 +294,16 @@ def DEBUG
     fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
 #endif
 
-    if (itm->i_len == 0)
-      goto skip;
+    if (itm == NULL)
+      return -1;
 
     if (itm->i_id == SPEAD_DATA_ID){
       break;
     }
 
-skip:
     off += sizeof(struct spead_api_item) + itm->i_len;
-
   }
+
 
   if (itm->i_id != SPEAD_DATA_ID){
 #ifdef DEBUG
@@ -310,9 +313,11 @@ skip:
   }
 
 
+
   if (cufft_callback(fo, itm) < 0){
     return -1;
   }
+
 
 
 #if 0

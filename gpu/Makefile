@@ -11,7 +11,7 @@ OFLAGS = -shared -Wl,-x
 KDIR = -DKERNELDIR=\"$(shell pwd)\"
 
 NFLAGS += --compiler-options '-fPIC' --shared -x 'c'
-NLIB = -lcufft -lcudart
+NLIB = -lcufft
 NCC = nvcc
 
 IDIR = -I../src

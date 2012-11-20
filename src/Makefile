@@ -30,7 +30,7 @@ HDR = mutex.h hash.h $(SHDR) server.h
 
 SRC = subprocess.c server.c
 
-SSRC = spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c 
+SSRC = spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c datafile.c
 SLIB = libspead.so
 
 

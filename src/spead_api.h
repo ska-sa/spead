@@ -4,6 +4,8 @@
 #ifndef SPEAD_API_H
 #define SPEAD_API_H
 
+#include <sys/stat.h>
+
 #include "spead_packet.h"
 #include "hash.h"
 #include "server.h"
@@ -40,6 +42,7 @@ struct spead_api_item{
   int           i_valid;
   int           i_id;
   void          *io_data;
+  size_t        io_size;
   uint64_t      i_len;
   unsigned char i_data[];
 };
@@ -60,7 +63,7 @@ int grow_spead_item_group(struct spead_item_group *ig, uint64_t extradata, uint6
 struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n);
 #endif
 struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64_t off);
-int set_spead_item_io_data(struct spead_api_item *itm, void *ptr);
+int set_spead_item_io_data(struct spead_api_item *itm, void *ptr, size_t size);
 int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len);
 
 #if 0
@@ -101,6 +104,17 @@ struct shared_mem {
 int create_shared_mem(uint64_t size);
 void destroy_shared_mem();
 void *shared_malloc(size_t size);
+
+struct data_file{
+  struct stat f_fs;
+  int         f_fd;
+  void        *f_fmap;
+};
+
+struct data_file *load_raw_data_file(char *fname);
+void destroy_raw_data_file(struct data_file *f);
+size_t get_data_file_size(struct data_file *f);
+void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off);
 
 #endif
 

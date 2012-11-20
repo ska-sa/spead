@@ -15,9 +15,7 @@
 #include <spead_api.h>
 
 struct demo_o {
-  struct stat             fs;
-  int                     fd;
-  uint8_t                 *fmap;
+  struct data_file        *f;
   struct spead_api_module **mods;
   int                     mcount;
 };
@@ -28,15 +26,15 @@ void destroy_demo(struct demo_o *d)
   int i;
 
   if (d){
-    if (d->fd)
-      close(d->fd);
-    if (d->fmap)
-      munmap(d->fmap, d->fs.st_size);
+    
+    destroy_raw_data_file(d->f);
+
     if (d->mods){
       for (i=0; i<d->mcount; i++)
         unload_api_user_module(d->mods[i]);
       free(d->mods);
     }
+
     free(d);
   }
 }
@@ -74,34 +72,15 @@ struct demo_o *load_demo(int argc, char **argv)
 
   d->mods = NULL;
 
-  if (stat(fname, &(d->fs)) < 0){
+  d->f = load_raw_data_file(fname);
+  if (d->f == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "e: stat error: %s\n", strerror(errno));
+    fprintf(stderr, "e: cannot load file\n");
 #endif
-    return NULL;
-  }
-  
-  d->fd = open(fname, O_RDONLY);
-  if (d->fd < 0){
-#ifdef DEBUG
-    fprintf(stderr, "e: open error: %s\n", strerror(errno));
-#endif
+    destroy_demo(d);
     return NULL;
   }
 
-  d->fmap = mmap(NULL, d->fs.st_size, PROT_READ, MAP_PRIVATE, d->fd, 0);
-  if (d->fmap == MAP_FAILED){
-#ifdef DEBUG
-    fprintf(stderr, "e: mmap error: %s\n", strerror(errno));
-#endif
-    close(d->fd);
-    return NULL;
-  }
-
-#ifdef DEBUG
-  fprintf(stderr, "mapped <%s> into (%p) size [%d] bytes\n", fname, d->fmap, (int) (d->fs.st_size));
-#endif
-  
   d->mods = malloc(sizeof(struct spead_api_module *) * modc);
   if (d->mods == NULL){
 #ifdef DEBUG
@@ -155,7 +134,8 @@ int run_pipeline(struct demo_o *d)
   struct spead_item_group   *ig;
   struct spead_api_item     *itm;
 
-  uint64_t off, chunk, have;
+  uint64_t off, chunk, have, count, size;
+  void *src;
   int i;
 
   if (d == NULL){
@@ -166,8 +146,13 @@ int run_pipeline(struct demo_o *d)
   }
   
   off   = 0;
-  chunk = 128*1024;
-  have  = d->fs.st_size;
+  chunk = 64*1024;
+  size  = get_data_file_size(d->f);
+  have  = size;
+
+  src = get_data_file_ptr_at_off(d->f, off);
+  if (src == NULL)
+    return -1;
 
   ig = create_item_group(chunk, 1);
   if (ig == NULL){
@@ -183,19 +168,10 @@ int run_pipeline(struct demo_o *d)
   itm->i_id    = 0x0;
   itm->i_len   = chunk;
   
+  count = 0;
   do {
     
-#if 0
-#ifdef DEBUG
-    fprintf(stderr, "BEGIN---\n");
-#endif
-    print_data((d->fmap)+off, (have < chunk) ? have : chunk);
-#ifdef DEBUG
-    fprintf(stderr, "---END\n");
-#endif
-#endif
-
-    memcpy(itm->i_data, d->fmap + off, (have < chunk) ? have : chunk);
+    memcpy(itm->i_data, src + off, (have < chunk) ? have : chunk);
       
     for (i=0; i<d->mcount; i++){
       if (run_api_user_callback_module(d->mods[i], ig) < 0){
@@ -207,8 +183,10 @@ int run_pipeline(struct demo_o *d)
 
     off  += chunk;
     have -= chunk;
+  
+    fprintf(stderr, "[%ld] at [%ld] of [%ld] left [%ld]\n", count++, off, size, have);
 
-  } while (off < d->fs.st_size);
+  } while (off < size);
 
 
   destroy_item_group(ig);
@@ -243,10 +221,6 @@ int main(int argc, char *argv[])
 {
   struct demo_o *d;
 
-#if 0
-  if (create_shared_mem(1024) < 0)
-    return 1;
-#endif
   d = load_demo(argc, argv);
   if (d == NULL)
     return 1;
@@ -271,9 +245,6 @@ int main(int argc, char *argv[])
   }
 
   destroy_demo(d);
-#if 0
- // destroy_shared_mem();
-#endif
     
   return 0;
 }

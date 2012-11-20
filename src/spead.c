@@ -333,6 +333,7 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   itm->i_valid = 0;
   itm->i_id    = 0;
   itm->io_data = NULL;
+  itm->io_size = 0;
   itm->i_len   = size;
 
   return itm;
@@ -340,16 +341,23 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
 
 struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64_t off)
 {
+  struct spead_api_item *itm;
+
   if (ig == NULL)
     return NULL;
 
   if (off >= ig->g_size)
     return NULL;
 
-  return (struct spead_api_item *) (ig->g_map + off);
+  itm = (struct spead_api_item *) (ig->g_map + off);
+
+  if (itm->i_len == 0)
+    return NULL;
+
+  return itm;
 }
 
-int set_spead_item_io_data(struct spead_api_item *itm, void *ptr)
+int set_spead_item_io_data(struct spead_api_item *itm, void *ptr, size_t size)
 {
   if (itm){
 
@@ -361,13 +369,13 @@ int set_spead_item_io_data(struct spead_api_item *itm, void *ptr)
     }
 
     if (itm->io_data){
-#ifdef DEBUG
-      fprintf(stderr, "%s: WARN not setting io_data ptr as is set\n", __func__);
+#if DEBUG> 2
+      fprintf(stderr, "%s: WARN overwriting io_data ptr\n", __func__);
 #endif
-      return -1;
     }
     
     itm->io_data = ptr;
+    itm->io_size = size;
 
     return 0;
   }

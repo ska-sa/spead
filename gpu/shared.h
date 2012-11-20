@@ -17,7 +17,7 @@ const char* oclErrorString(cl_int error);
 
 int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl_program *program);
 
-void destroy(cl_kernel *kernel, cl_context *context, cl_command_queue *command_queue, cl_program *program);
+void destroy(cl_context *context, cl_command_queue *command_queue, cl_program *program);
 
 cl_kernel get_kernel(char *name, cl_program *p);
 
