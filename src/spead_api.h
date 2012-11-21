@@ -116,5 +116,21 @@ void destroy_raw_data_file(struct data_file *f);
 size_t get_data_file_size(struct data_file *f);
 void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off);
 
+/*spead socket api*/
+struct spead_socket {
+  char              *x_host;
+  char              *x_port;
+  struct addrinfo   *x_res;
+  struct addrinfo   *x_active;  /*pointer to current active addrinfo in x_res*/
+  int               x_fd;
+
+};
+
+void destroy_spead_socket(struct spead_socket *x);
+struct spead_socket *create_spead_socket(char *fname, char *host, char *port);
+int bind_spead_socket(struct spead_socket *x);
+int connect_spead_socket(struct spead_socket *x);
+
+
 #endif
 

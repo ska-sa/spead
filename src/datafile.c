@@ -67,7 +67,6 @@ struct data_file *load_raw_data_file(char *fname)
 void destroy_raw_data_file(struct data_file *f)
 {
   if (f){
-    
     if (f->f_fmap)
       munmap(f->f_fmap, f->f_fs.st_size);
 
@@ -75,7 +74,6 @@ void destroy_raw_data_file(struct data_file *f)
       close(f->f_fd);
 
     free(f);
-    
   }
 }
 
@@ -97,7 +95,6 @@ void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off)
 
   return f->f_fmap + off;
 }
-
 
 
 

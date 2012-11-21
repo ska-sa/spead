@@ -9,20 +9,11 @@
 #include <string.h>
 #include <fcntl.h>
 
-#include <sys/stat.h>
-#include <sys/mman.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
-#include <spead_api.h>
-
-struct spead_socket {
-  char              *x_host;
-  char              *x_port;
-  struct addrinfo   *x_res;
-  struct addrinfo   *x_active;  /*pointer to current active addrinfo in x_res*/
-  int               x_fd;
-
-};
-
+#include "spead_api.h"
 
 
 void destroy_spead_socket(struct spead_socket *x)
@@ -39,14 +30,12 @@ void destroy_spead_socket(struct spead_socket *x)
 } 
 
 
-
 struct spead_socket *create_spead_socket(char *fname, char *host, char *port)
 {
   struct spead_socket *x;
 
   struct addrinfo hints;
   uint64_t reuse_addr;
-  int sfd;
 
   x = malloc(sizeof(struct spead_socket));
   if (x == NULL){
@@ -60,7 +49,7 @@ struct spead_socket *create_spead_socket(char *fname, char *host, char *port)
   x->x_port   = port;
   x->x_res    = NULL;
   x->x_active = NULL;
-  x->x_fd     = 0
+  x->x_fd     = 0;
 
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family     = AF_UNSPEC;
@@ -87,10 +76,10 @@ struct spead_socket *create_spead_socket(char *fname, char *host, char *port)
       break;
   }
 
-  x->x_active = (x->a_active == NULL) ? x->x_res : x->x_active;
+  x->x_active = (x->x_active == NULL) ? x->x_res : x->x_active;
 
   x->x_fd = socket(x->x_active->ai_family, x->x_active->ai_socktype, x->x_active->ai_protocol);
-  if (sfd < 0){
+  if (x->x_fd < 0){
 #ifdef DEBUG
     fprintf(stderr,"%s: error socket\n", __func__);
 #endif
@@ -128,12 +117,13 @@ int bind_spead_socket(struct spead_socket *x)
   return 0;
 }
 
+
 int connect_spead_socket(struct spead_socket *x)
 {
   if (x == NULL || x->x_active == NULL)
     return -1;
 
-  if (connect(x->x_fd, x->x_active->ai_addr, x->x_active->ai->addr_len) < 0){
+  if (connect(x->x_fd, x->x_active->ai_addr, x->x_active->ai_addrlen) < 0){
 #ifdef DEBUG
     fprintf(stderr,"%s: error connect to %s:%s\n", __func__, x->x_host, x->x_port);
 #endif
@@ -142,13 +132,3 @@ int connect_spead_socket(struct spead_socket *x)
     
   return 0;
 }
-
-
-int main(int argc, argv)
-{
-  
-
-  
-  return 0;
-}
-  
