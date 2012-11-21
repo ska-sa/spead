@@ -11,6 +11,7 @@
 #endif
 
 #include "mutex.h"
+#include "spead_api.h"
 
 #define PORT      "8888"
 #define BUF       100
@@ -19,6 +20,9 @@ struct u_server {
   mutex s_m;
   long s_cpus;
   struct u_child **s_cs;
+  
+  struct spead_socket *s_x;
+
   int s_fd;
   int s_hpcount;
   int s_hdcount;

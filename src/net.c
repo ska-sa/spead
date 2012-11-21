@@ -15,6 +15,7 @@
 
 #include "spead_api.h"
 
+#define BIG_BUF 1024*1024*1024;
 
 void destroy_spead_socket(struct spead_socket *x)
 {
@@ -29,8 +30,7 @@ void destroy_spead_socket(struct spead_socket *x)
   }
 } 
 
-
-struct spead_socket *create_spead_socket(char *fname, char *host, char *port)
+struct spead_socket *create_spead_socket(char *host, char *port)
 {
   struct spead_socket *x;
 
@@ -50,6 +50,7 @@ struct spead_socket *create_spead_socket(char *fname, char *host, char *port)
   x->x_res    = NULL;
   x->x_active = NULL;
   x->x_fd     = 0;
+  x->x_mode   = XSOCK_NONE;
 
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family     = AF_UNSPEC;
@@ -91,12 +92,6 @@ struct spead_socket *create_spead_socket(char *fname, char *host, char *port)
   reuse_addr   = 1;
   setsockopt(x->x_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
 
-  reuse_addr = 1024*1024*1024;
-  if (setsockopt(x->x_fd, SOL_SOCKET, SO_RCVBUF, &reuse_addr, sizeof(reuse_addr)) < 0){
-#ifdef DEBUG
-    fprintf(stderr,"%s: error cannot increase recv buf setsockopt: %s\n", __func__, strerror(errno));
-#endif
-  }
   
   return x;
 }
@@ -104,8 +99,17 @@ struct spead_socket *create_spead_socket(char *fname, char *host, char *port)
 
 int bind_spead_socket(struct spead_socket *x)
 {
+  uint64_t recvbuf;
+
   if (x == NULL || x->x_active == NULL)
     return -1;
+
+  recvbuf = BIG_BUF;
+  if (setsockopt(x->x_fd, SOL_SOCKET, SO_RCVBUF, &recvbuf, sizeof(recvbuf)) < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error cannot increase recv buf setsockopt: %s\n", __func__, strerror(errno));
+#endif
+  }
   
   if (bind(x->x_fd, x->x_active->ai_addr, x->x_active->ai_addrlen) < 0){
 #ifdef DEBUG
@@ -114,14 +118,25 @@ int bind_spead_socket(struct spead_socket *x)
     return -1;
   }
 
+  x->x_mode = (x->x_mode == XSOCK_NONE) ? XSOCK_BOUND : XSOCK_BOTH;
+
   return 0;
 }
 
 
 int connect_spead_socket(struct spead_socket *x)
 {
+  uint64_t sendbuf;
+
   if (x == NULL || x->x_active == NULL)
     return -1;
+
+  sendbuf = BIG_BUF;
+  if (setsockopt(x->x_fd, SOL_SOCKET, SO_SNDBUF, &sendbuf, sizeof(sendbuf)) < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error cannot increase send buf setsockopt: %s\n", __func__, strerror(errno));
+#endif
+  }
 
   if (connect(x->x_fd, x->x_active->ai_addr, x->x_active->ai_addrlen) < 0){
 #ifdef DEBUG
@@ -129,6 +144,35 @@ int connect_spead_socket(struct spead_socket *x)
 #endif
     return -1;
   }
-    
+  
+  x->x_mode = (x->x_mode == XSOCK_NONE) ? XSOCK_CONNECTED : XSOCK_BOTH;
+  
   return 0;
 }
+
+int set_broadcast_opt_spead_socket(struct spead_socket *x)
+{
+  int opt;
+
+  if (x == NULL)
+    return -1;
+  
+  opt = 1;
+  if (setsockopt(x->x_fd, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt)) < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error set broadcast setsockopt: %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
+  return 0;
+}
+
+int get_fd_spead_socket(struct spead_socket *x)
+{
+  if (x == NULL)
+    return -1;
+
+  return x->x_fd;
+}
+

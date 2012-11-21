@@ -1,6 +1,6 @@
 #CFLAGS += -DDEBUG=3
 #CFLAGS += -DPROCESS
-CFLAGS += -DIKATCP
+#CFLAGS += -DIKATCP
 CFLAGS += -DDISCARD
 CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
@@ -23,14 +23,14 @@ CFLAGS += -DVERSION=\"$(GITVER)\"
 
 ################
 
-EXE = spead
+EXE = speadrx
 
 SHDR = spead_api.h spead_packet.h
 HDR = mutex.h hash.h $(SHDR) server.h
 
-SRC = subprocess.c server.c
+SRC = server.c
 
-SSRC = spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c datafile.c net.c
+SSRC = spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c datafile.c net.c subprocess.c
 SLIB = libspead.so
 
 

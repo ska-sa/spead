@@ -138,6 +138,7 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus)
   if (s == NULL)
     return NULL;
   
+  s->s_x       = NULL;
   s->s_fd      = 0;
   s->s_bc      = 0;
   s->s_hpcount = 0;
@@ -169,7 +170,9 @@ void destroy_server_us(struct u_server *s)
 
       free(s->s_cs);
     }
-  
+    
+    destroy_spead_socket(s->s_x);
+    
 #ifndef IKATCP
     if (s->s_kl){
       destroy_katcl(s->s_kl, 0);
@@ -188,12 +191,35 @@ void destroy_server_us(struct u_server *s)
 
 int startup_server_us(struct u_server *s, char *port, int broadcast)
 {
+  if (s == NULL || port == NULL)
+    return -1;
+  
+  s->s_x = create_spead_socket(NULL, port);
+  if (s->s_x == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot create spead socket\n", __func__);
+#endif
+    return -1;
+  }
+  
+  if (bind_spead_socket(s->s_x) < 0)
+    return -1;
+  
+  if (broadcast){
+    if (set_broadcast_opt_spead_socket(s->s_x) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: WARN spead socket broadcast option not set\n", __func__);
+#endif
+    }
+  }
+
+  s->s_fd = get_fd_spead_socket(s->s_x);
+
+#if 0
   struct addrinfo hints;
   struct addrinfo *res, *rp;
   uint64_t reuse_addr;
 
-  if (s == NULL || port == NULL)
-    return -1;
 
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family     = AF_UNSPEC;
@@ -256,6 +282,7 @@ int startup_server_us(struct u_server *s, char *port, int broadcast)
   }
 
   freeaddrinfo(res);
+#endif
 
 #ifdef DEBUG
   fprintf(stderr,"\tSERVER:\t\t[%d]\n\tport:\t\t%s\n\tnice:\t\t%d\n", getpid(), port, nice(0));
@@ -267,11 +294,13 @@ int startup_server_us(struct u_server *s, char *port, int broadcast)
 void shutdown_server_us(struct u_server *s)
 {
   if (s){
+#if 0
     if (close(s->s_fd) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: error server shutdown: %s\n", __func__, strerror(errno));
 #endif
     }
+#endif
     destroy_server_us(s);
   }
 #ifdef DEBUG
