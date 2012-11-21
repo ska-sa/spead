@@ -1,5 +1,5 @@
 #CFLAGS += -DDEBUG=3
-#CFLAGS += -DPROCESS
+CFLAGS += -DPROCESS
 #CFLAGS += -DIKATCP
 CFLAGS += -DDISCARD
 CFLAGS += -DDEBUG
@@ -23,22 +23,25 @@ CFLAGS += -DVERSION=\"$(GITVER)\"
 
 ################
 
-EXE = speadrx
+RXEXE = speadrx
+TXEXE = speadtx
 
-SHDR = spead_api.h spead_packet.h
-HDR = mutex.h hash.h $(SHDR) server.h
+RXSRC = server.c
+TXSRC = tx.c
 
-SRC = server.c
+SHDR = mutex.h hash.h spead_api.h spead_packet.h
+HDR  = $(SHDR) server.h
 
 SSRC = spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c datafile.c net.c subprocess.c
 SLIB = libspead.so
 
-
-OBJ  = $(patsubst %.c,%.o,$(SRC))
 SOBJ = $(patsubst %.c,%.lo,$(SSRC))
 
+TXOBJ  = $(patsubst %.c,%.o,$(TXSRC))
+RXOBJ  = $(patsubst %.c,%.o,$(RXSRC))
 
-all: $(EXE)
+
+all: $(RXEXE) $(TXEXE)
 
 
 $(SLIB): $(SOBJ)
@@ -48,8 +51,11 @@ $(SLIB): $(SOBJ)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC) -fPIC
 
 
-$(EXE): $(OBJ) $(SLIB)
-	$(CC) -o $@ $(OBJ) $(LIB)
+$(RXEXE): $(RXOBJ) $(SLIB)
+	$(CC) -o $@ $< $(LIB)
+
+$(TXEXE): $(TXOBJ) $(SLIB)
+	$(CC) -o $@ $< $(LIB)
 
 %.o: %.c $(HDR)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC)
@@ -61,7 +67,7 @@ install: all
 #	$(INSTALL) $(EXE) $(PREFIX)/sbin
 
 clean: 
-	$(RM) $(EXE) $(SLIB) *.o *.lo core vgcore* test-*
+	$(RM) $(TXEXE) $(RXEXE) $(SLIB) *.o *.lo core vgcore* test-*
 
 test-hash: sharedmem.c hash.c
 	$(CC) $(CFLAGS) -DTEST_HASH -o $@ $^

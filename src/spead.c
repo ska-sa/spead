@@ -432,14 +432,14 @@ void process_descriptor_item(struct spead_api_item *itm)
     int p_sctrl;
     int64_t p_plen;
     int64_t p_poff;
-    char *data;
-    char *payload;
+    unsigned char *data;
+    unsigned char *payload;
   } p;
 
   if (itm == NULL)
     return;
 
-  p.data = (char *)itm->i_data;
+  p.data = itm->i_data;
 
   state = S_GET_ITEM;
 

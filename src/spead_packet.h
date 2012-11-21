@@ -103,8 +103,8 @@ struct spead_packet {
     int is_stream_ctrl_term;
     int64_t payload_len;
     int64_t payload_off;
-    char data[SPEAD_MAX_PACKET_LEN];
-    char *payload;  // Will point to spot in data where payload starts
+    unsigned char data[SPEAD_MAX_PACKET_LEN];
+    unsigned char *payload;  // Will point to spot in data where payload starts
     struct spead_packet *next; // For chaining packets together a heap
 };
 typedef struct spead_packet SpeadPacket;

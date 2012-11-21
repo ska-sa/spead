@@ -108,8 +108,9 @@ void spead_packet_copy(SpeadPacket *pkt1, SpeadPacket *pkt2) {
  * pkt gets wiped
  * data must be at least 8 bytes long */
 int64_t spead_packet_unpack_header(SpeadPacket *pkt) {
-    uint64_t hdr;
-    hdr = (uint64_t) SPEAD_HEADER(pkt->data);
+    uint64_t hdr, *data;
+    data = (uint64_t *) pkt->data;
+    hdr = (uint64_t) SPEAD_HEADER(data);
     if ((SPEAD_GET_MAGIC(hdr) != SPEAD_MAGIC) || 
             (SPEAD_GET_VERSION(hdr) != SPEAD_VERSION) ||
             (SPEAD_GET_ITEMSIZE(hdr) != SPEAD_ITEM_PTR_WIDTH) || 

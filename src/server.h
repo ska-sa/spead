@@ -11,7 +11,6 @@
 #endif
 
 #include "mutex.h"
-#include "spead_api.h"
 
 #define PORT      "8888"
 #define BUF       100

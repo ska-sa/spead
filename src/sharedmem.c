@@ -158,7 +158,7 @@ void *shared_malloc(size_t size)
   ptr       = m->m_ptr + m->m_off;
   m->m_off  = m->m_off + size;
   
-#ifdef DEBUG
+#if DEBUG>2
   fprintf(stderr, "%s: allocated [%ld] from sharedmem\n", __func__, size);
 #endif
 

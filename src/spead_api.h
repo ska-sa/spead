@@ -10,6 +10,22 @@
 #include "hash.h"
 #include "server.h"
 
+
+/*modules api*/
+#define SAPI_CALLBACK "spead_api_callback"
+#define SAPI_SETUP    "spead_api_setup"
+#define SAPI_DESTROY  "spead_api_destroy"
+
+struct spead_api_module {
+  void *m_handle;
+  void *(*m_setup)();
+  int  (*m_cdfn)();
+  int  (*m_destroy)(void *data);
+  void *m_data;
+};
+
+
+/*spead store api*/
 #define S_END             0
 #define S_MODE            1
 #define S_MODE_IMMEDIATE  2
@@ -22,21 +38,11 @@
 #define S_DIRECT_COPY     9
 #define DC_NEXT_PACKET   10
 
-void print_data(unsigned char *buf, int size);
-
-
 struct spead_heap_store{
   int64_t             s_backlog;
   struct hash_o_list  *s_list;
   struct hash_table   **s_hash;
 };
-
-struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_count, uint64_t hash_table_size);
-void destroy_store_hs(struct spead_heap_store *hs);
-int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h);
-struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid);
-
-void print_store_stats(struct spead_heap_store *hs);
 
 struct spead_api_item{
   int           i_valid;
@@ -55,6 +61,55 @@ struct spead_item_group {
 };
 
 
+/*spead shared_mem api*/
+struct shared_mem {
+  uint64_t  m_size;
+  uint64_t  m_off;
+  void      *m_ptr;
+};
+
+
+/*spead data_file api*/
+struct data_file{
+  struct stat f_fs;
+  int         f_fd;
+  void        *f_fmap;
+};
+
+
+/*spead_socket api*/
+#define XSOCK_NONE       0
+#define XSOCK_BOUND      1
+#define XSOCK_CONNECTED  2
+#define XSOCK_BOTH       3
+
+struct spead_socket {
+  char              *x_host;
+  char              *x_port;
+  struct addrinfo   *x_res;
+  struct addrinfo   *x_active;  /*pointer to current active addrinfo in x_res*/
+  int               x_fd;
+  char              x_mode;
+};
+
+
+/*spead module api*/
+struct spead_api_module *load_api_user_module(char *mod);
+void unload_api_user_module(struct spead_api_module *m);
+int setup_api_user_module(struct spead_api_module *m);
+int destroy_api_user_module(struct spead_api_module *m);
+int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_group *ig);
+void print_data(unsigned char *buf, int size);
+
+
+/*spead store api*/
+struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_count, uint64_t hash_table_size);
+void destroy_store_hs(struct spead_heap_store *hs);
+int add_heap_hs(struct spead_heap_store *hs, struct spead_heap *h);
+struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid);
+
+void print_store_stats(struct spead_heap_store *hs);
+
 struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems);
 void destroy_item_group(struct spead_item_group *ig);
 struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size);
@@ -72,72 +127,30 @@ struct spead_api_item *init_spead_api_item(struct spead_api_item *itm, int vaild
 
 int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o);  
 
-/*modules api*/
-
-#define SAPI_CALLBACK "spead_api_callback"
-#define SAPI_SETUP    "spead_api_setup"
-#define SAPI_DESTROY  "spead_api_destroy"
-
-struct spead_api_module {
-  void *m_handle;
-  void *(*m_setup)();
-  int  (*m_cdfn)();
-  int  (*m_destroy)(void *data);
-  void *m_data;
-};
-
-
-struct spead_api_module *load_api_user_module(char *mod);
-void unload_api_user_module(struct spead_api_module *m);
-int setup_api_user_module(struct spead_api_module *m);
-int destroy_api_user_module(struct spead_api_module *m);
-int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_group *ig);
 
 /*shared_mem api*/
-
-struct shared_mem {
-  uint64_t  m_size;
-  uint64_t  m_off;
-  void      *m_ptr;
-};
-
 int create_shared_mem(uint64_t size);
 void destroy_shared_mem();
 void *shared_malloc(size_t size);
 
-struct data_file{
-  struct stat f_fs;
-  int         f_fd;
-  void        *f_fmap;
-};
 
+/*spead data file*/
 struct data_file *load_raw_data_file(char *fname);
 void destroy_raw_data_file(struct data_file *f);
 size_t get_data_file_size(struct data_file *f);
 void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off);
 
+
 /*spead socket api*/
-
-#define XSOCK_NONE       0
-#define XSOCK_BOUND      1
-#define XSOCK_CONNECTED  2
-#define XSOCK_BOTH       3
-
-struct spead_socket {
-  char              *x_host;
-  char              *x_port;
-  struct addrinfo   *x_res;
-  struct addrinfo   *x_active;  /*pointer to current active addrinfo in x_res*/
-  int               x_fd;
-  char              x_mode;
-};
-
 void destroy_spead_socket(struct spead_socket *x);
 struct spead_socket *create_spead_socket(char *host, char *port);
 int bind_spead_socket(struct spead_socket *x);
 int connect_spead_socket(struct spead_socket *x);
 int set_broadcast_opt_spead_socket(struct spead_socket *x);
 int get_fd_spead_socket(struct spead_socket *x);
+
+
+
 
 #endif
 

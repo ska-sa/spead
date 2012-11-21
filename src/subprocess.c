@@ -94,11 +94,7 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
   /*setup module data*/
   if (s){
     m = s->s_mod;
-    if (setup_api_user_module(m) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: error setup_api_user_module\n", __func__);
-#endif
-    } else {
+    if (setup_api_user_module(m) == 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: child [%d] has api data @ (%p)\n", __func__, getpid(), m->m_data);
 #endif
@@ -120,11 +116,7 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
   (*call)(s, m, pipefd[1]);
 
   /*destroy module data*/
-  if (destroy_api_user_module(m) < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error destroy_api_user_module\n", __func__);
-#endif
-  } else {
+  if (destroy_api_user_module(m) == 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: child [%d] has called destroy api data\n", __func__, getpid());
 #endif

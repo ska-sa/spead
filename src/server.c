@@ -27,8 +27,8 @@
 #include <katcp.h>
 #endif
 
-#include "spead_api.h"
 #include "server.h"
+#include "spead_api.h"
 #include "hash.h"
 #include "mutex.h"
 
@@ -214,75 +214,6 @@ int startup_server_us(struct u_server *s, char *port, int broadcast)
   }
 
   s->s_fd = get_fd_spead_socket(s->s_x);
-
-#if 0
-  struct addrinfo hints;
-  struct addrinfo *res, *rp;
-  uint64_t reuse_addr;
-
-
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family     = AF_UNSPEC;
-  hints.ai_socktype   = SOCK_DGRAM;
-  hints.ai_flags      = AI_PASSIVE;
-  hints.ai_protocol   = 0;
-  hints.ai_canonname  = NULL;
-  hints.ai_addr       = NULL;
-  hints.ai_next       = NULL;
-  
-  if ((reuse_addr = getaddrinfo(NULL, port, &hints, &res)) != 0) {
-#ifdef DEBUG
-    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(reuse_addr));
-#endif
-    return -1;
-  }
-
-  for (rp = res; rp != NULL; rp = rp->ai_next) {
-#if DEBUG>1
-    fprintf(stderr, "%s: res (%p) with: %d\n", __func__, rp, rp->ai_protocol);
-#endif
-    if (rp->ai_family == AF_INET6)
-      break;
-  }
-
-  rp = (rp == NULL) ? res : rp;
-
-  s->s_fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-  if (s->s_fd < 0){
-#ifdef DEBUG
-    fprintf(stderr,"%s: error socket\n", __func__);
-#endif
-    freeaddrinfo(res);
-    return -1;
-  }
-
-  reuse_addr   = 1;
-  setsockopt(s->s_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
-
-  reuse_addr = 1024*1024*1024;
-  if (setsockopt(s->s_fd, SOL_SOCKET, SO_RCVBUF, &reuse_addr, sizeof(reuse_addr)) < 0){
-#ifdef DEBUG
-    fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
-#endif
-  }
-
-  reuse_addr = 1;
-  if (setsockopt(s->s_fd, SOL_SOCKET, SO_BROADCAST, &reuse_addr, sizeof(reuse_addr)) < 0){
-#ifdef DEBUG
-    fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
-#endif
-  }
-
-  if (bind(s->s_fd, rp->ai_addr, rp->ai_addrlen) < 0){
-#ifdef DEBUG
-    fprintf(stderr,"%s: error bind on port: %s\n", __func__, port);
-#endif
-    freeaddrinfo(res);
-    return -1;
-  }
-
-  freeaddrinfo(res);
-#endif
 
 #ifdef DEBUG
   fprintf(stderr,"\tSERVER:\t\t[%d]\n\tport:\t\t%s\n\tnice:\t\t%d\n", getpid(), port, nice(0));
@@ -501,8 +432,11 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 {
   struct spead_heap_store *hs;
   struct u_child *c;
-  int status, i, hi_fd, rtn, rb;
+  int status, i, hi_fd, rtn;
+#if 0
+  int rb;
   unsigned char buf[BUF];
+#endif
   fd_set ins;
   pid_t sp;
   sigset_t empty_mask;
@@ -726,7 +660,6 @@ def DEBUG
 int setup_katcp_us(struct u_server *s)
 {
   struct katcl_line *kl;
-  int flags;
 
   if (s == NULL)
     return -1;
@@ -809,7 +742,6 @@ int main(int argc, char *argv[])
   char *port, *dylib;
   uint64_t hashes, hashsize;
 
-  //int (*cbh)(struct spead_item_group *ig);
   struct spead_api_module *m;
 
   i = 1;
@@ -849,7 +781,7 @@ int main(int argc, char *argv[])
           break;
 
         case 'h':
-          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\t\t-x (enable receive from broadcast)\n\n", argv[0], cpus, port, hashes, hashsize);
+          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\t\t-x (enable receive from broadcast [priv])\n\n", argv[0], cpus, port, hashes, hashsize);
           return EX_OK;
 
         /*settings*/

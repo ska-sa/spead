@@ -147,7 +147,6 @@ int destroy_api_user_module(struct spead_api_module *m)
       return 0;
     }
   }
-
   return -1;
 }
 
@@ -160,3 +159,4 @@ int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_g
   }
   return -1; 
 }
+
