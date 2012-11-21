@@ -9,21 +9,138 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sysexits.h>
+#include <signal.h>
 
 
 #include "spead_api.h"
 
+static volatile int run = 1;
+static volatile int child = 0;
+
+struct spead_tx {
+  struct spead_socket   *t_x;
+  struct spead_workers  *t_w;
+ 
+};
 
 
 
-int init_speadtx(char *host, char *port, long workers, char broadcast)
+void handle_us(int signum) 
 {
+  run = 0;
+}
+
+void child_us(int signum)
+{
+  child = 1;
+}
+
+int register_signals_us()
+{
+  struct sigaction sa;
+
+  sigfillset(&sa.sa_mask);
+  sa.sa_handler   = handle_us;
+  sa.sa_flags     = 0;
+
+  if (sigaction(SIGINT, &sa, NULL) < 0)
+    return -1;
+
+  if (sigaction(SIGTERM, &sa, NULL) < 0)
+    return -1;
+
+  sa.sa_handler   = child_us;
+
+  if (sigaction(SIGCHLD, &sa, NULL) < 0)
+    return -1;
+
+  return 0;
+}
+
+void destroy_speadtx(struct spead_tx *tx)
+{
+  if (tx){
+    destroy_spead_socket(tx->t_x);
+    destroy_spead_workers(tx->t_w);
+    free(tx);
+  }
+}
+
+struct spead_tx *create_speadtx(char *host, char *port, char bcast)
+{
+  struct spead_tx *tx; 
+
+  tx = malloc(sizeof(struct spead_tx));
+  if (tx == NULL){
+#ifdef DEUBG
+    fprintf(stderr, "%s: logic cannot malloc\n", __func__);
+#endif
+    return NULL;
+  }
+
+  tx->t_x = NULL;
+
+  tx->t_x = create_spead_socket(host, port);
+  if (tx->t_x == NULL){
+    destroy_speadtx(tx);
+    return NULL;
+  }
+  
+  if (connect_spead_socket(tx->t_x) < 0){
+    destroy_speadtx(tx);
+    return NULL;
+  }
+
+  if (bcast){
+    set_broadcast_opt_spead_socket(tx->t_x);
+  }
+  
+  return tx;
+}
+
+int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
+{
+  struct spead_tx *tx;
+
+  tx = data;
+  if (tx == NULL)
+    return -1;
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: %s:%s workers [%ld] broadcast [%d]\n", __func__, host, port, workers, broadcast);
+  fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, getpid(), cfd);
 #endif
- 
+
   return 0;
+}
+
+int register_speadtx(char *host, char *port, long workers, char broadcast)
+{
+  struct spead_tx *tx;
+
+  if (register_signals_us() < 0)
+    return EX_SOFTWARE;
+  
+  tx = create_speadtx(host, port, broadcast);
+  if (tx == NULL)
+    return EX_SOFTWARE;
+  
+  tx->t_w = create_spead_workers(tx, workers, &worker_task_speadtx);
+  if (tx->t_w == NULL){
+    destroy_speadtx(tx);
+    return EX_SOFTWARE;
+  }
+
+
+  
+  destroy_speadtx(tx);
+  
+  return 0;
+}
+
+int usage(char **argv, long cpus)
+{
+  fprintf(stderr, "usage:\n\t%s (options) destination port\n\n\tOptions\n\t\t-w [workers (d:%ld)]\n\t\t-x (enable send to broadcast [priv])\n\n", argv[0], cpus);
+  return EX_USAGE;
 }
 
 int main(int argc, char **argv)
@@ -43,6 +160,8 @@ int main(int argc, char **argv)
   port = PORT;
   cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
+  if (argc < 2)
+    return usage(argv, cpus);
 
   while (i < argc){
     if (argv[i][0] == '-'){
@@ -64,8 +183,7 @@ int main(int argc, char **argv)
           break;
 
         case 'h':
-          fprintf(stderr, "usage:\n\t%s (options) destination port\n\n\tOptions\n\t\t-w [workers (d:%ld)]\n\t\t-x (enable send to broadcast [priv])\n\n", argv[0], cpus);
-          return EX_OK;
+          return usage(argv, cpus);
 
         /*settings*/
         case 'w':
@@ -114,6 +232,6 @@ int main(int argc, char **argv)
   
   
 
-  return init_speadtx(host, port, cpus, broadcast);
+  return register_speadtx(host, port, cpus, broadcast);
 }
   

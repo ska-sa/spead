@@ -29,10 +29,10 @@ TXEXE = speadtx
 RXSRC = server.c
 TXSRC = tx.c
 
-SHDR = mutex.h hash.h spead_api.h spead_packet.h
+SHDR = avltree.h mutex.h hash.h spead_api.h spead_packet.h
 HDR  = $(SHDR) server.h
 
-SSRC = spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c datafile.c net.c subprocess.c
+SSRC = avltree.c spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c datafile.c net.c subprocess.c
 SLIB = libspead.so
 
 SOBJ = $(patsubst %.c,%.lo,$(SSRC))

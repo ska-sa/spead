@@ -163,7 +163,6 @@ void destroy_server_us(struct u_server *s)
     
     if (s->s_cs){
 
-      /*WARNING: review code --ed should be ok now*/
       for (i=0; i < s->s_cpus; i++){
         destroy_child_sp(s->s_cs[i]);
       }
@@ -184,6 +183,7 @@ void destroy_server_us(struct u_server *s)
     destroy_store_hs(s->s_hs);
     munmap(s, sizeof(struct u_server));
   }
+
 #ifdef DEBUG
   fprintf(stderr, "%s: destroyed server\n",  __func__);
 #endif
@@ -239,23 +239,6 @@ void shutdown_server_us(struct u_server *s)
 #endif
 } 
 
-int add_child_us(struct u_server *s, struct u_child *c, int size)
-{
-  if (s == NULL || c == NULL)
-    return -1;
-
-  s->s_cs = realloc(s->s_cs, sizeof(struct u_child*) * (size+1));
-  if (s->s_cs == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: logic error cannot realloc for worker list\n", __func__);
-#endif 
-    return -1;
-  }
-
-  s->s_cs[size] = c;
-  
-  return size + 1;
-}
 
 void print_format_bitrate(char x, uint64_t bps)
 {
@@ -294,8 +277,9 @@ void print_format_bitrate(char x, uint64_t bps)
 #endif
 }
 
-int worker_task_us(struct u_server *s, struct spead_api_module *m, int cfd)
+int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 {
+  struct u_server *s;
   struct spead_packet *p;
   struct spead_heap_store *hs;
   struct hash_o *o;
@@ -316,6 +300,9 @@ int worker_task_us(struct u_server *s, struct spead_api_module *m, int cfd)
   p      = NULL;
   o      = NULL;
   pid    = getpid();
+  
+
+  s = data;
 
   if (s == NULL || s->s_hs == NULL)
     return -1;
@@ -474,7 +461,7 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 
   do {
 
-    c = fork_child_sp(s, &worker_task_us);
+    c = fork_child_sp(s->s_mod, s, &worker_task_us);
     if (c == NULL){
 #ifdef DEBUG
       fprintf(stderr, "%s: fork_child_sp fail\n", __func__);
@@ -482,7 +469,7 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
       continue;
     }
 
-    if (add_child_us(s, c, i) < 0){
+    if (add_child_us(&s->s_cs, c, i) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: could not store worker pid [%d]\n", __func__, c->c_pid);
 #endif

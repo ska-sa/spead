@@ -11,6 +11,8 @@
 #include "server.h"
 
 
+/*API DATASTRUCTURES*/ 
+
 /*modules api*/
 #define SAPI_CALLBACK "spead_api_callback"
 #define SAPI_SETUP    "spead_api_setup"
@@ -93,6 +95,20 @@ struct spead_socket {
 };
 
 
+/*subprocess api*/
+struct u_child {
+  pid_t c_pid;
+  int c_fd;
+};
+
+struct spead_workers {
+  struct avl_tree   *w_tree;
+  int               w_count;
+};
+
+
+/*API FUNCTIONS*/
+
 /*spead module api*/
 struct spead_api_module *load_api_user_module(char *mod);
 void unload_api_user_module(struct spead_api_module *m);
@@ -149,6 +165,14 @@ int connect_spead_socket(struct spead_socket *x);
 int set_broadcast_opt_spead_socket(struct spead_socket *x);
 int get_fd_spead_socket(struct spead_socket *x);
 
+
+/*subprocess api*/
+void destroy_child_sp(void *data);
+struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd));
+int add_child_us(struct u_child ***cs, struct u_child *c, int size);
+
+struct spead_workers *create_spead_workers(void *data, long count, int (*call)(void *data, struct spead_api_module *m, int cfd));
+void destroy_spead_workers(struct spead_workers *w);
 
 
 

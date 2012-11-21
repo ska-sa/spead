@@ -1,29 +1,29 @@
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 CFLAGS += -Wall
 CFLAGS += -ggdb
 CFLAGS += -O3
 
-LIB= -lspead
-LDIR= -L../src
-IDIR= -I../src
+#LIB= -lspead
+#LDIR= -L../src
+#IDIR= -I../src
 
 
-UTILS = pipespead.c speadtx.c
+UTILS = pipespead.c
 
 EXE = $(patsubst %.c,%,$(UTILS))
 OBJ = $(patsubst %.c,%.o,$(UTILS))
 
 all: $(EXE)
 
-$(EXE): 
-	$(CC) $(CFLAGS) $< -o $@
+$(EXE): $(OBJ) 
+	$(CC)  $< -o $@
 
 %.o: %.c
-	$(CC) $^ -o $@
+	$(CC) $(CFLAGS) -c $^ -o $@
 
 
 clean:
-	$(RM) $(EXE) core vgcore*
+	$(RM) $(OBJ) $(EXE) core vgcore*
 
 install: all
 	install $(EXE) /usr/local/bin
