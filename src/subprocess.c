@@ -11,6 +11,7 @@
 #include <signal.h>
 
 #include <sys/types.h> 
+#include <sys/wait.h>
 
 #include "server.h"
 #include "spead_api.h"
@@ -19,9 +20,7 @@
 void destroy_spead_workers(struct spead_workers *w)
 {
   if (w){
-    
     destroy_avltree(w->w_tree, &destroy_child_sp); 
-
     free(w);
   }
 }
@@ -50,7 +49,7 @@ struct spead_workers *create_spead_workers(void *data, long count, int (*call)(v
   }
 
   w->w_tree   = NULL;
-  w->w_count  = count;
+  w->w_count  = 0;
 
   w->w_tree = create_avltree(&compare_spead_workers);
   if (w->w_tree == NULL){
@@ -66,14 +65,69 @@ struct spead_workers *create_spead_workers(void *data, long count, int (*call)(v
     
     if (store_named_node_avltree(w->w_tree, &(c->c_pid), c) < 0){
       destroy_child_sp(c);
+      continue;         /* continue starting other children*/
+    }
+    
+    w->w_count++;       /* ends up containing amount of started childred*/
+
+  }
+
+  return w;
+}
+
+int get_count_spead_workers(struct spead_workers *w)
+{
+  return (w) ? w->w_count : 0;
+}
+
+int wait_spead_workers(struct spead_workers *w)
+{
+  pid_t pid;
+  int status;
+
+  if (w == NULL)
+    return -1;
+  
+  while((pid = waitpid(WAIT_ANY, &status, WNOHANG)) > 0){
+
+    if (WIFEXITED(status)) {
+#ifdef DEBUG
+      fprintf(stderr, "exited, status=%d\n", WEXITSTATUS(status));
+#endif
+      
+      if (del_name_node_avltree(w->w_tree, &pid, &destroy_child_sp) == 0){
+        w->w_count--;
+      }
+
+    } else if (WIFSIGNALED(status)) {
+#ifdef DEBUG
+      fprintf(stderr, "killed by signal %d\n", WTERMSIG(status));
+#endif
+
+      if (del_name_node_avltree(w->w_tree, &pid, &destroy_child_sp) == 0){
+        w->w_count--;
+      }
+
+    } else if (WIFSTOPPED(status)) {
+#ifdef DEBUG
+      fprintf(stderr, "stopped by signal %d\n", WSTOPSIG(status));
+#endif
+
+      if (del_name_node_avltree(w->w_tree, &pid, &destroy_child_sp) == 0){
+        w->w_count--;
+      }
+
+    } else if (WIFCONTINUED(status)) {
+#ifdef DEBUG
+      fprintf(stderr, "continued\n");
+#endif
     }
 
   }
 
-
-
-  return w;
+  return 0;
 }
+
 
 struct u_child *create_child_sp(pid_t pid, int cfd)
 {

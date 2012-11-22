@@ -173,6 +173,8 @@ int add_child_us(struct u_child ***cs, struct u_child *c, int size);
 
 struct spead_workers *create_spead_workers(void *data, long count, int (*call)(void *data, struct spead_api_module *m, int cfd));
 void destroy_spead_workers(struct spead_workers *w);
+int wait_spead_workers(struct spead_workers *w);
+int get_count_spead_workers(struct spead_workers *w);
 
 
 

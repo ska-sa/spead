@@ -20,10 +20,9 @@ static volatile int child = 0;
 struct spead_tx {
   struct spead_socket   *t_x;
   struct spead_workers  *t_w;
- 
+  struct data_file      *t_f;
+  int                   t_pkt_size; 
 };
-
-
 
 void handle_us(int signum) 
 {
@@ -60,13 +59,14 @@ int register_signals_us()
 void destroy_speadtx(struct spead_tx *tx)
 {
   if (tx){
-    destroy_spead_socket(tx->t_x);
     destroy_spead_workers(tx->t_w);
+    destroy_spead_socket(tx->t_x);
+    destroy_raw_data_file(tx->t_f);
     free(tx);
   }
 }
 
-struct spead_tx *create_speadtx(char *host, char *port, char bcast)
+struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size)
 {
   struct spead_tx *tx; 
 
@@ -78,7 +78,10 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast)
     return NULL;
   }
 
-  tx->t_x = NULL;
+  tx->t_x         = NULL;
+  tx->t_w         = NULL;
+  tx->t_f         = NULL;
+  tx->t_pkt_size  = pkt_size;
 
   tx->t_x = create_spead_socket(host, port);
   if (tx->t_x == NULL){
@@ -101,28 +104,48 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast)
 int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 {
   struct spead_tx *tx;
+  pid_t pid;
 
   tx = data;
   if (tx == NULL)
     return -1;
 
+  pid = getpid();
+
 #ifdef DEBUG
-  fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, getpid(), cfd);
+  fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
+#endif
+
+  while(run){
+    
+    fprintf(stderr, "[%d]", pid);
+    sleep(5);
+
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: worker [%d] ending\n", __func__, pid);
 #endif
 
   return 0;
 }
 
-int register_speadtx(char *host, char *port, long workers, char broadcast)
+int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size)
 {
   struct spead_tx *tx;
-
+  
   if (register_signals_us() < 0)
     return EX_SOFTWARE;
   
-  tx = create_speadtx(host, port, broadcast);
+  tx = create_speadtx(host, port, broadcast, pkt_size);
   if (tx == NULL)
     return EX_SOFTWARE;
+
+  tx->t_f = load_raw_data_file("/srv/pulsar/test.dat");
+  if (tx->t_f == NULL){
+    destroy_speadtx(tx);
+    return EX_SOFTWARE;
+  }
   
   tx->t_w = create_spead_workers(tx, workers, &worker_task_speadtx);
   if (tx->t_w == NULL){
@@ -130,9 +153,30 @@ int register_speadtx(char *host, char *port, long workers, char broadcast)
     return EX_SOFTWARE;
   }
 
+  
+  while (run){
+    
+    fprintf(stderr, ".");
+    sleep(1);
+
+
+    /*do stuff*/
+    
+    /*saw a SIGCHLD*/
+    if (child){
+      wait_spead_workers(tx->t_w);
+    }
+    
+    
+
+  }
 
   
   destroy_speadtx(tx);
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: tx exiting cleanly\n", __func__);
+#endif
   
   return 0;
 }
@@ -147,7 +191,7 @@ int main(int argc, char **argv)
 {
   long cpus;
   char c, *port, *host, broadcast;
-  int i,j,k;
+  int i,j,k, pkt_size;
 
   i = 1;
   j = 1;
@@ -157,8 +201,9 @@ int main(int argc, char **argv)
 
   broadcast = 0;
   
-  port = PORT;
-  cpus = sysconf(_SC_NPROCESSORS_ONLN);
+  pkt_size  = 1024;
+  port      = PORT;
+  cpus      = sysconf(_SC_NPROCESSORS_ONLN);
 
   if (argc < 2)
     return usage(argv, cpus);
@@ -186,6 +231,7 @@ int main(int argc, char **argv)
           return usage(argv, cpus);
 
         /*settings*/
+        case 's':
         case 'w':
           j++;
           if (argv[i][j] == '\0'){
@@ -199,6 +245,9 @@ int main(int argc, char **argv)
           switch (c){
             case 'w':
               cpus = atoll(argv[i] + j);
+              break;
+            case 's':
+              pkt_size = atoi(argv[i] + j);
               break;
           }
           i++;
@@ -232,6 +281,6 @@ int main(int argc, char **argv)
   
   
 
-  return register_speadtx(host, port, cpus, broadcast);
+  return register_speadtx(host, port, cpus, broadcast, pkt_size);
 }
   
