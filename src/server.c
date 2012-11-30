@@ -110,6 +110,11 @@ int register_signals_us()
   if (sigaction(SIGTERM, &sa, NULL) < 0)
     return -1;
 
+#if 0
+  if (sigaction(SIGFPE, &sa, NULL) < 0)
+    return -1;
+#endif
+
   sa.sa_handler   = child_us;
 
   if (sigaction(SIGCHLD, &sa, NULL) < 0)
@@ -326,6 +331,9 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 #ifndef RATE
     o = pop_hash_o(hs->s_list);
     if (o == NULL){
+#ifdef DEBUG
+      fprintf(stderr, "%s: cannot pop object!\n", __func__);
+#endif
       run = 0;
       break;
       //sleep(1);
@@ -411,6 +419,11 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 #endif
   print_format_bitrate('T', bcount);
   unlock_mutex(&(s->s_m));
+
+#ifdef RATE
+  if (p)
+    free(p);
+#endif
 
   return 0;
 }

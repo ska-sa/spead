@@ -164,7 +164,6 @@ int set_broadcast_opt_spead_socket(struct spead_socket *x)
 #endif
     return -1;
   }
-
   return 0;
 }
 
@@ -174,5 +173,13 @@ int get_fd_spead_socket(struct spead_socket *x)
     return -1;
 
   return x->x_fd;
+}
+
+struct addrinfo *get_addr_spead_socket(struct spead_socket *x)
+{
+  if (x == NULL)
+    return NULL;
+
+  return x->x_active;
 }
 

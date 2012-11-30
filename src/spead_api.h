@@ -164,9 +164,10 @@ int bind_spead_socket(struct spead_socket *x);
 int connect_spead_socket(struct spead_socket *x);
 int set_broadcast_opt_spead_socket(struct spead_socket *x);
 int get_fd_spead_socket(struct spead_socket *x);
+struct addrinfo *get_addr_spead_socket(struct spead_socket *x);
 
 
-/*subprocess api*/
+/*spead workers ubprocess api*/
 void destroy_child_sp(void *data);
 struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd));
 int add_child_us(struct u_child ***cs, struct u_child *c, int size);
@@ -175,6 +176,9 @@ struct spead_workers *create_spead_workers(void *data, long count, int (*call)(v
 void destroy_spead_workers(struct spead_workers *w);
 int wait_spead_workers(struct spead_workers *w);
 int get_count_spead_workers(struct spead_workers *w);
+
+/*spead worker compare function*/
+int compare_spead_workers(const void *v1, const void *v2);
 
 
 

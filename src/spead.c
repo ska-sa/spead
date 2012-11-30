@@ -77,13 +77,25 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
     return -1;
   }
   
-  po = p->payload_off;
-  hl = p->heap_len;
+  po = (uint64_t) p->payload_off;
+  hl = (uint64_t) p->heap_len;
+
+  if (hl <= 0)
+    return 0;
 
   if (t->t_len <= 0)
     return -1;
 
-  id = po / (hl / t->t_len);
+  id = hl / t->t_len;
+
+  if (id <= 0)
+    return -1;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: po [%ld] hl [%ld] tlen [%ld]\n", __func__,  po, hl, t->t_len);
+#endif 
+
+  id = po / id;
   
   return id;
 }
@@ -214,7 +226,8 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
 {
   struct spead_item_group *ig;
   
-  if (datasize <= 0 || nitems <= 0)
+  //if (datasize <= 0 || nitems <= 0)
+  if (nitems <= 0)
     return NULL;
 
   ig = malloc(sizeof(struct spead_item_group));
@@ -713,6 +726,11 @@ struct spead_item_group *process_items(struct hash_table *ht)
           state = S_GET_PACKET;
         } else {
           /*still need to get any direct items*/
+
+          if (ps.p == NULL){
+            state = S_END;
+            break;
+          }
 #ifdef PROCESS
           fprintf(stderr, "[GET OBJECT] Last Direct ITEM[%d] in pkt(%p) SIZE [%ld] bytes\n", ps.j, ps.p, p->heap_len - ps.off);
 #endif
@@ -1170,6 +1188,7 @@ int store_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_
 #ifdef DEBUG
     fprintf(stderr, "%s: could not add packet to hash table [%ld]\n", __func__, p->heap_cnt);
 #endif 
+    unlock_mutex(&(ht->t_m));
     return -1;
   }
 
@@ -1187,6 +1206,10 @@ def DEBUG
     ht->t_processing = 1;
     flag_processing  = 1;
   }
+
+#ifdef DEBUG
+  fprintf(stderr, "dc: [%ld] packet heap len [%ld]\n", ht->t_data_count, p->heap_len);
+#endif
 
   /*have all packets by data count must process*/
   if (flag_processing){
@@ -1306,7 +1329,7 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
     iptr = SPEAD_ITEM(p->data, (i+1));
     id   = SPEAD_ITEM_ID(iptr);
     mode = SPEAD_ITEM_MODE(iptr);
-    fprintf(stderr, "ITEM[%d] mode[%d] id[%d] 0x%lx\n", i, mode, id, iptr);
+    fprintf(stderr, "%s: ITEM[%d] mode[%d] id[%d] 0x%lx\n", __func__, i, mode, id, iptr);
   }
 #endif
 
@@ -1317,7 +1340,7 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
     
     //for (i=0; !ship_heap_hs(hs, i); i++);
 
-    return -1;
+    return store_packet_hs(s, m, o);
   } else {
     rtn = store_packet_hs(s, m, o);
   }

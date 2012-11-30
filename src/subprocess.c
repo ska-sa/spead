@@ -58,7 +58,7 @@ struct spead_workers *create_spead_workers(void *data, long count, int (*call)(v
   }
 
   for (i=0; i<count; i++){
-    
+  
     c = fork_child_sp(NULL, data, call);
     if (c == NULL)
       continue;         /* continue starting other children*/

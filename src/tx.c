@@ -10,8 +10,10 @@
 #include <fcntl.h>
 #include <sysexits.h>
 #include <signal.h>
+#include <netdb.h>
 
 
+#include "avltree.h"
 #include "spead_api.h"
 
 static volatile int run = 1;
@@ -22,6 +24,7 @@ struct spead_tx {
   struct spead_workers  *t_w;
   struct data_file      *t_f;
   int                   t_pkt_size; 
+  struct avl_tree       *t_t;
 };
 
 void handle_us(int signum) 
@@ -82,6 +85,7 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
   tx->t_w         = NULL;
   tx->t_f         = NULL;
   tx->t_pkt_size  = pkt_size;
+  tx->t_t         = NULL;
 
   tx->t_x = create_spead_socket(host, port);
   if (tx->t_x == NULL){
@@ -97,24 +101,58 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
   if (bcast){
     set_broadcast_opt_spead_socket(tx->t_x);
   }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: pktsize: %d\n", __func__, pkt_size);
+#endif
   
   return tx;
 }
 
 int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 {
+  struct spead_packet *p;
   struct spead_tx *tx;
+  struct addrinfo *dst;
   pid_t pid;
+  int i, sb, sfd;
 
   tx = data;
   if (tx == NULL)
     return -1;
 
   pid = getpid();
+  sfd = get_fd_spead_socket(tx->t_x);
+  dst = get_addr_spead_socket(tx->t_x);
+
+  if (sfd <=0 || dst == NULL)
+    return -1;
+
+  p = malloc(sizeof(struct spead_packet));
+  if (p == NULL)
+    return -1;
 
 #ifdef DEBUG
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
 #endif
+  
+  spead_packet_init(p);
+  
+  p->n_items=6;
+  p->is_stream_ctrl_term = SPEAD_STREAM_CTRL_TERM_VAL;
+  
+  SPEAD_SET_ITEM(p->data, 0, SPEAD_HEADER_BUILD(p->n_items));
+  
+  SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_CNT_ID, 0x0));
+  SPEAD_SET_ITEM(p->data, 2, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_LEN_ID, 0x00));
+  SPEAD_SET_ITEM(p->data, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_OFF_ID, 0x0));
+  SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, 0x00));
+  SPEAD_SET_ITEM(p->data, 5, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, 0x99, 555));
+  SPEAD_SET_ITEM(p->data, 6, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_STREAM_CTRL_ID, SPEAD_STREAM_CTRL_TERM_VAL));
+
+
+#if 0
+  print_data(p->data, SPEAD_MAX_PACKET_LEN); 
 
   while(run){
     
@@ -122,12 +160,28 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     sleep(5);
 
   }
+#endif
+
+  sb = sendto(sfd, p->data, SPEAD_MAX_PACKET_LEN, 0, dst->ai_addr, dst->ai_addrlen);
+
+#ifdef DEBUG
+  fprintf(stderr, "[%d] sendto: %d bytes\n", pid, sb); 
+#endif
+
+
+  if (p)
+    free(p);
 
 #ifdef DEBUG
   fprintf(stderr, "%s: worker [%d] ending\n", __func__, pid);
 #endif
 
   return 0;
+}
+
+struct avl_tree *create_spead_database()
+{
+  return create_avltree(&compare_spead_workers);
 }
 
 int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size)
@@ -146,12 +200,26 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
     destroy_speadtx(tx);
     return EX_SOFTWARE;
   }
+
+#if 0
+  tx->t_t = create_spead_database();
+  if (tx->t_t == NULL){
+    destroy_speadtx(tx);
+    return EX_SOFTWARE;
+  }
+#endif
   
   tx->t_w = create_spead_workers(tx, workers, &worker_task_speadtx);
   if (tx->t_w == NULL){
     destroy_speadtx(tx);
     return EX_SOFTWARE;
   }
+
+  
+
+
+  
+  
 
   
   while (run){
@@ -183,7 +251,7 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
 
 int usage(char **argv, long cpus)
 {
-  fprintf(stderr, "usage:\n\t%s (options) destination port\n\n\tOptions\n\t\t-w [workers (d:%ld)]\n\t\t-x (enable send to broadcast [priv])\n\n", argv[0], cpus);
+  fprintf(stderr, "usage:\n\t%s (options) destination port\n\n\tOptions\n\t\t-w [workers (d:%ld)]\n\t\t-x (enable send to broadcast [priv])\n\t\t-s [spead packet size]\n\n", argv[0], cpus);
   return EX_USAGE;
 }
 
@@ -248,6 +316,8 @@ int main(int argc, char **argv)
               break;
             case 's':
               pkt_size = atoi(argv[i] + j);
+              if (pkt_size == 0)
+                return usage(argv, cpus);
               break;
           }
           i++;

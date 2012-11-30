@@ -314,14 +314,24 @@ void *get_data_hash_o(struct hash_o *o)
 int add_o_ht(struct hash_table *t, struct hash_o *o)
 {
   struct hash_o *to;
-  uint64_t id;
+  int64_t id;
   int i;
 
   if (t == NULL || t->t_hfn == NULL || t->t_os == NULL || o == NULL)
     return -1;
   
   id = (*t->t_hfn)(t, o);
+  
+#ifdef DEBUG
+  fprintf(stderr, "%s: api hashfn return id [%ld]\n", __func__, id);
+#endif
 
+  if (id < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: hfn error!\n", __func__);
+#endif
+    return -1;
+  }
   //lock_mutex(&(t->t_m));
 
   if (t->t_os[id] == NULL){
