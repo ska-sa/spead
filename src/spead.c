@@ -100,6 +100,81 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
   return id;
 }
 
+int64_t hash_heap_hs(struct spead_heap_store *hs, int64_t hid)
+{
+  if (hs == NULL)
+    return -1;
+
+  return hid % hs->s_backlog;
+}
+
+struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, uint64_t hid)
+{
+  uint64_t id;
+  struct hash_table *ht;
+
+  if (hs == NULL || id < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: parameter error", __func__);
+#endif
+    return NULL;
+  }
+
+  id = hash_heap_hs(hs, hid);
+  
+  if (hs->s_hash == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: hs->s_hash is null", __func__);
+#endif
+    return NULL;
+  }
+
+  ht = hs->s_hash[id];
+  if (ht == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: hs->s_hash[%ld] is null", __func__, id);
+#endif
+    return NULL;
+  }
+
+  lock_mutex(&(ht->t_m));
+  if (ht->t_data_id < 0){
+    ht->t_data_id = hid;
+  } 
+  
+  if (ht->t_data_id != hid){
+#ifdef DISCARD
+    fprintf(stderr, "heap_cnt[%ld] maps to[%ld] / however have [%ld] at [%ld]\n", hid, id, ht->t_data_id, id);
+    fprintf(stderr, "old heap has datacount [%ld]\n", ht->t_data_count);
+#endif
+   
+    if (empty_hash_table(ht, 0) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error empting hash table", __func__);
+#endif
+      unlock_mutex(&(ht->t_m));
+      return NULL;
+    }
+
+
+    if (s){
+      lock_mutex(&(s->s_m));
+      s->s_hdcount++;
+      unlock_mutex(&(s->s_m));
+    }
+
+#if 0
+    unlock_mutex(&(ht->t_m));
+    return NULL;
+#endif
+
+  }
+
+  //unlock_mutex(&(ht->t_m));
+
+  return ht;
+}
+
 struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_count, uint64_t hash_table_size)
 {
   struct spead_heap_store *hs;
@@ -268,6 +343,41 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   return ig;
 }
 
+struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spead_item_group *ig, int pkt_size, uint64_t hid)
+{
+  struct spead_packet *p;
+  struct hash_table *ht;
+  struct spead_api_item *itm;
+  uint64_t off;
+  
+  if (hs == NULL || ig == NULL || pkt_size <= 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: parameter error\n", __func__);
+#endif
+    return -1;
+  }
+  
+  ht = get_ht_hs(NULL, hs, hid);
+  /*NOTE: mutex is locked for table*/
+  
+  /*do some cals*/
+  itm = NULL;
+
+  while ((itm = get_next_spead_item(ig, itm))){
+    
+
+  }
+  
+    
+  
+  
+  
+  
+   
+  
+  return 0;
+}
+
 #if 0 
 int grow_spead_item_group(struct spead_item_group *ig, uint64_t datasize, uint64_t nitems)
 {
@@ -368,6 +478,21 @@ struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64
     return NULL;
 
   return itm;
+}
+
+struct spead_api_item *get_next_spead_item(struct spead_item_group *ig, struct spead_api_item *current)
+{
+  static uint64_t off = 0;
+  struct spead_api_item *itm;
+
+  if (current == NULL){
+    off = 0;
+    return get_spead_item_at_off(ig, 0);
+  }
+
+  off += sizeof(struct spead_api_item) + itm->i_len;
+
+  return get_spead_item_at_off(ig, off);
 }
 
 int set_spead_item_io_data(struct spead_api_item *itm, void *ptr, size_t size)
@@ -1046,78 +1171,6 @@ void print_store_stats(struct spead_heap_store *hs)
 }
 
 
-int64_t hash_heap_hs(struct spead_heap_store *hs, int64_t hid)
-{
-  if (hs == NULL)
-    return -1;
-
-  return hid % hs->s_backlog;
-}
-
-
-struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, uint64_t hid)
-{
-  uint64_t id;
-  struct hash_table *ht;
-
-  if (s == NULL || hs == NULL || id < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: parameter error", __func__);
-#endif
-    return NULL;
-  }
-
-  id = hash_heap_hs(hs, hid);
-  
-  if (hs->s_hash == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: hs->s_hash is null", __func__);
-#endif
-    return NULL;
-  }
-
-  ht = hs->s_hash[id];
-  if (ht == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: hs->s_hash[%ld] is null", __func__, id);
-#endif
-    return NULL;
-  }
-
-  lock_mutex(&(ht->t_m));
-  if (ht->t_data_id < 0){
-    ht->t_data_id = hid;
-  } 
-  
-  if (ht->t_data_id != hid){
-#ifdef DISCARD
-    fprintf(stderr, "heap_cnt[%ld] maps to[%ld] / however have [%ld] at [%ld]\n", hid, id, ht->t_data_id, id);
-    fprintf(stderr, "old heap has datacount [%ld]\n", ht->t_data_count);
-#endif
-   
-    if (empty_hash_table(ht, 0) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: error empting hash table", __func__);
-#endif
-      unlock_mutex(&(ht->t_m));
-      return NULL;
-    }
-
-    lock_mutex(&(s->s_m));
-    s->s_hdcount++;
-    unlock_mutex(&(s->s_m));
-
-#if 0
-    unlock_mutex(&(ht->t_m));
-    return NULL;
-#endif
-
-  }
-
-  //unlock_mutex(&(ht->t_m));
-
-  return ht;
-}
 
 int store_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o)
 {

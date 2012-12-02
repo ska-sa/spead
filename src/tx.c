@@ -20,11 +20,12 @@ static volatile int run = 1;
 static volatile int child = 0;
 
 struct spead_tx {
-  struct spead_socket   *t_x;
-  struct spead_workers  *t_w;
-  struct data_file      *t_f;
-  int                   t_pkt_size; 
-  struct avl_tree       *t_t;
+  struct spead_socket       *t_x;
+  struct spead_workers      *t_w;
+  struct data_file          *t_f;
+  int                       t_pkt_size; 
+  struct avl_tree           *t_t;
+  struct spead_heap_store   *t_hs;
 };
 
 void handle_us(int signum) 
@@ -64,6 +65,7 @@ void destroy_speadtx(struct spead_tx *tx)
   if (tx){
     destroy_spead_workers(tx->t_w);
     destroy_spead_socket(tx->t_x);
+    destroy_store_hs(tx->t_hs);
     destroy_raw_data_file(tx->t_f);
     free(tx);
   }
@@ -86,6 +88,7 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
   tx->t_f         = NULL;
   tx->t_pkt_size  = pkt_size;
   tx->t_t         = NULL;
+  tx->t_hs        = NULL;
 
   tx->t_x = create_spead_socket(host, port);
   if (tx->t_x == NULL){
@@ -132,6 +135,8 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   if (p == NULL)
     return -1;
 
+  bzero(p, sizeof(struct spead_packet));
+
 #ifdef DEBUG
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
 #endif
@@ -147,7 +152,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   SPEAD_SET_ITEM(p->data, 2, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_LEN_ID, 0x00));
   SPEAD_SET_ITEM(p->data, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_OFF_ID, 0x0));
   SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, 0x00));
-  SPEAD_SET_ITEM(p->data, 5, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, 0x99, 555));
+  SPEAD_SET_ITEM(p->data, 5, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, 0xFD, 12345));
   SPEAD_SET_ITEM(p->data, 6, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_STREAM_CTRL_ID, SPEAD_STREAM_CTRL_TERM_VAL));
 
 
@@ -173,7 +178,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     free(p);
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: worker [%d] ending\n", __func__, pid);
+  fprintf(stderr, "%s: SPEADTX worker [%d] ending\n", __func__, pid);
 #endif
 
   return 0;
@@ -187,6 +192,7 @@ struct avl_tree *create_spead_database()
 int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size)
 {
   struct spead_tx *tx;
+  uint64_t heaps, packets;
   
   if (register_signals_us() < 0)
     return EX_SOFTWARE;
@@ -201,6 +207,15 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
     return EX_SOFTWARE;
   }
 
+  heaps = 10;
+  packets = 10;
+
+  tx->t_hs = create_store_hs(heaps*packets, heaps, packets);
+  if (tx->t_hs == NULL){
+    destroy_speadtx(tx);
+    return EX_SOFTWARE;
+  }
+  
 #if 0
   tx->t_t = create_spead_database();
   if (tx->t_t == NULL){
