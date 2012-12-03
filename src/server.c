@@ -140,7 +140,7 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus)
   }
 
   s = mmap(NULL, sizeof(struct u_server), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
-  if (s == NULL)
+  if (s == MAP_FAILED)
     return NULL;
   
   s->s_x       = NULL;

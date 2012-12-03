@@ -11,6 +11,11 @@
 #include "server.h"
 
 
+#define SPEAD_ZEROS_ID     0x112
+#define SPEAD_ONES_ID      0x113
+#define SPEAD_RAMP_ID      0x114
+
+
 /*API DATASTRUCTURES*/ 
 
 /*modules api*/
@@ -140,6 +145,10 @@ struct spead_api_item *get_next_spead_item(struct spead_item_group *ig, struct s
 struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64_t off);
 int set_spead_item_io_data(struct spead_api_item *itm, void *ptr, size_t size);
 int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len);
+
+int set_item_data_ones(struct spead_api_item *itm);
+int set_item_data_zeros(struct spead_api_item *itm);
+int set_item_data_ramp(struct spead_api_item *itm);
 
 #if 0
 struct spead_api_item *init_spead_api_item(struct spead_api_item *itm, int vaild, int id, int len, unsigned char *data);

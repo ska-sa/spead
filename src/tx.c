@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <netdb.h>
 
+#include <sys/mman.h>
 
 #include "avltree.h"
 #include "spead_api.h"
@@ -67,7 +68,7 @@ void destroy_speadtx(struct spead_tx *tx)
     destroy_spead_socket(tx->t_x);
     destroy_store_hs(tx->t_hs);
     destroy_raw_data_file(tx->t_f);
-    free(tx);
+    munmap(tx, sizeof(struct spead_tx));
   }
 }
 
@@ -75,8 +76,8 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
 {
   struct spead_tx *tx; 
 
-  tx = malloc(sizeof(struct spead_tx));
-  if (tx == NULL){
+  tx = mmap(NULL, sizeof(struct spead_tx), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
+  if (tx == MAP_FAILED){
 #ifdef DEUBG
     fprintf(stderr, "%s: logic cannot malloc\n", __func__);
 #endif
@@ -114,9 +115,12 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
 
 int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 {
+  struct spead_item_group *ig;
+  struct spead_api_item *itm;
   struct spead_packet *p;
   struct spead_tx *tx;
   struct addrinfo *dst;
+  struct hash_table *ht;
   pid_t pid;
   int i, sb, sfd;
 
@@ -131,15 +135,50 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   if (sfd <=0 || dst == NULL)
     return -1;
 
+#ifdef DEBUG
+  fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
+#endif
+
+  ig = create_item_group(1536, 3);
+  if (ig == NULL)
+    return -1;
+
+  print_list_stats(tx->t_hs->s_list, __func__);
+
+  itm = new_item_from_group(ig, 512);
+  if (set_item_data_ones(itm) < 0) {}
+
+  itm = new_item_from_group(ig, 512);
+  if (set_item_data_zeros(itm) < 0) {}
+
+  itm = new_item_from_group(ig, 512);
+  if (set_item_data_ramp(itm) < 0) {}
+    
+  ht = packetize_item_group(tx->t_hs, ig, 384, pid);
+  if (ht == NULL){
+    destroy_item_group(ig);
+#ifdef DEBUG
+    fprintf(stderr, "Packetize error\n");
+#endif
+    return -1;
+  }
+  
+  
+  
+   
+  
+  
+  unlock_mutex(&(ht->t_m));
+  
+  destroy_item_group(ig);
+
+
+#if 0
   p = malloc(sizeof(struct spead_packet));
   if (p == NULL)
     return -1;
 
   bzero(p, sizeof(struct spead_packet));
-
-#ifdef DEBUG
-  fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
-#endif
   
   spead_packet_init(p);
   
@@ -154,7 +193,6 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, 0x00));
   SPEAD_SET_ITEM(p->data, 5, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, 0xFD, 12345));
   SPEAD_SET_ITEM(p->data, 6, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_STREAM_CTRL_ID, SPEAD_STREAM_CTRL_TERM_VAL));
-
 
 #if 0
   print_data(p->data, SPEAD_MAX_PACKET_LEN); 
@@ -173,9 +211,10 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   fprintf(stderr, "[%d] sendto: %d bytes\n", pid, sb); 
 #endif
 
-
   if (p)
     free(p);
+#endif
+
 
 #ifdef DEBUG
   fprintf(stderr, "%s: SPEADTX worker [%d] ending\n", __func__, pid);

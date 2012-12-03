@@ -56,7 +56,6 @@ struct hash_table {
   uint64_t (*t_hfn)(struct hash_table *t, struct hash_o *o);
 };
 
-
 void destroy_hash_table(struct hash_table *t);
 struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, struct hash_o *o));
 

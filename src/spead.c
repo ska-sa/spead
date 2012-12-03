@@ -198,7 +198,7 @@ struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_
     return NULL;
   }
 
-#if DEBUG>1
+#ifdef DEBUG
   fprintf(stderr, "%s: created spead packet bank of size [%ld]\n", __func__, list_len);
 #endif
 
@@ -222,7 +222,7 @@ struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_
     }
   }
 
-#if DEBUG>1
+#ifdef DEBUG
   fprintf(stderr, "%s: created [%ld] spead packet hash tables of size [%ld]\n", __func__, hash_table_count, hash_table_size);
 #endif
 
@@ -308,8 +308,9 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   ig = malloc(sizeof(struct spead_item_group));
   if (ig == NULL)
     return NULL;
-
+#if 0
   ig->g_items = nitems;
+#endif
   ig->g_off   = 0;
 
 #if 0
@@ -343,30 +344,173 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   return ig;
 }
 
+struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size)
+{
+  struct spead_api_item *itm;
+  uint64_t item_size;
+
+  item_size = size + sizeof(struct spead_api_item);
+  
+  if (ig == NULL || size <= 0)
+    return NULL;
+    
+  if ((ig->g_off + item_size) > ig->g_size){
+#ifdef DEBUG
+    fprintf(stderr, "%s: parameter error (ig->g_off + size) %ld ig->g_size %ld\n", __func__, ig->g_off+item_size, ig->g_size);
+#endif
+    return NULL;
+  }
+
+  itm = (struct spead_api_item *) (ig->g_map + ig->g_off);
+  if (itm == NULL)
+    return NULL;
+
+  ig->g_off += item_size;
+  ig->g_items++;
+
+#if DEBUG>2
+  fprintf(stderr, "GROUP map (%p): size %ld offset: %ld data: %p\n", ig->g_map, ig->g_size, ig->g_off, itm->i_data);
+#endif
+
+  itm->i_valid = 0;
+  itm->i_id    = 0;
+  itm->io_data = NULL;
+  itm->io_size = 0;
+  itm->i_len   = size;
+
+  return itm;
+}
+
 struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spead_item_group *ig, int pkt_size, uint64_t hid)
 {
-  struct spead_packet *p;
-  struct hash_table *ht;
+#define PKTZ_END       0 
+#define PKTZ_GETPACKET 1
+#define PKTZ_COPYDATA  2
+
   struct spead_api_item *itm;
-  uint64_t off;
+  struct hash_table *ht;
+  struct hash_o *o;
+  struct spead_packet *p;
+
+  int state;
+  uint64_t payload_off, payload_len, heap_len, nitems, count;
   
   if (hs == NULL || ig == NULL || pkt_size <= 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: parameter error\n", __func__);
 #endif
-    return -1;
+    return NULL;
   }
-  
+
+   
   ht = get_ht_hs(NULL, hs, hid);
   /*NOTE: mutex is locked for table*/
-  
-  /*do some cals*/
-  itm = NULL;
+  if (ht == NULL){
+    return NULL;
+  }
 
+  /*do some cals*/
+  payload_off = 0;
+  payload_len = pkt_size;
+  heap_len    = 0;
+  nitems      = 4;
+  count       = 0;
+
+  itm         = NULL;
   while ((itm = get_next_spead_item(ig, itm))){
+    heap_len += itm->i_len;
+    nitems++;
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: [%ld] igitems [%ld] nitems into ht [%ld] heap_len [%ld]\n", __func__, ig->g_items, nitems, ht->t_id, heap_len);
+#endif
+
+  state       = PKTZ_GETPACKET;
+
+  while (state){
+    
+    switch (state){
+      
+      case PKTZ_GETPACKET:
+
+        o = pop_hash_o(hs->s_list);
+        if (o == NULL){
+          state = PKTZ_END;
+          break;
+        }
+
+        p = get_data_hash_o(o);
+        if (p == NULL){
+          state = PKTZ_END;
+          break;
+        }
+        
+        SPEAD_SET_ITEM(p->data, 0, SPEAD_HEADER_BUILD(nitems));
+        SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_CNT_ID, hid));
+        SPEAD_SET_ITEM(p->data, 2, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_LEN_ID, heap_len));
+        SPEAD_SET_ITEM(p->data, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_OFF_ID, payload_off));
+        SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, payload_len));
+
+        if (nitems > 4){
+          
+          nitems = 5;
+          itm    = NULL;
+          count  = 0;
+          while ((itm = get_next_spead_item(ig, itm))){
+            /*TODO deal with immediate items also*/
+            if (itm){
+              SPEAD_SET_ITEM(p->data, nitems++, SPEAD_ITEM_BUILD(SPEAD_DIRECTADDR, itm->i_id, count));
+              count += itm->i_len;
+            }
+          }
+          
+          nitems = 4;
+        }
+
+        if (spead_packet_unpack_header(p) < 0){
+#ifdef DEBUG
+          fprintf(stderr, "%s: error unpacking spead header\n", __func__);
+#endif
+          state = PKTZ_END;
+          break;
+        }
+        
+        if (SPEAD_HEADERLEN + p->n_items * SPEAD_ITEMLEN + payload_len >= SPEAD_MAX_PACKET_LEN) {
+#ifdef DEBUG
+          fprintf(stderr, "%s: error items and payload will not fit in packet!!!\n", __func__);
+#endif
+          state = PKTZ_END;
+          break;
+        }
+
+#ifdef DEBUG
+        fprintf(stderr, "%s: done a packet\n", __func__);
+#endif
+
+        state = PKTZ_COPYDATA;
+        break;
+
+
+      case PKTZ_COPYDATA:
+        
+        p->payload
+        
+        
+        
+        break;
     
 
+      case PKTZ_END:
+      default:
+#ifdef DEBUG
+        fprintf(stderr, "%s: packetize end\n", __func__);
+#endif
+        break;
+    }
+
   }
+
   
     
   
@@ -375,7 +519,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   
    
   
-  return 0;
+  return ht;
 }
 
 #if 0 
@@ -425,43 +569,6 @@ void destroy_item_group(struct spead_item_group *ig)
   }
 }
 
-struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size)
-{
-  struct spead_api_item *itm;
-  uint64_t item_size;
-
-  item_size = size + sizeof(struct spead_api_item);
-  
-  if (ig == NULL || size <= 0)
-    return NULL;
-    
-  if ((ig->g_off + item_size) > ig->g_size){
-#ifdef DEBUG
-    fprintf(stderr, "%s: parameter error (ig->g_off + size) %ld ig->g_size %ld\n", __func__, ig->g_off+item_size, ig->g_size);
-#endif
-    return NULL;
-  }
-
-  itm = (struct spead_api_item *) (ig->g_map + ig->g_off);
-  if (itm == NULL)
-    return NULL;
-
-  ig->g_off += item_size;
-  ig->g_items++;
-
-#if DEBUG>2
-  fprintf(stderr, "GROUP map (%p): size %ld offset: %ld data: %p\n", ig->g_map, ig->g_size, ig->g_off, itm->i_data);
-#endif
-
-  itm->i_valid = 0;
-  itm->i_id    = 0;
-  itm->io_data = NULL;
-  itm->io_size = 0;
-  itm->i_len   = size;
-
-  return itm;
-}
-
 struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64_t off)
 {
   struct spead_api_item *itm;
@@ -483,15 +590,16 @@ struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64
 struct spead_api_item *get_next_spead_item(struct spead_item_group *ig, struct spead_api_item *current)
 {
   static uint64_t off = 0;
-  struct spead_api_item *itm;
 
   if (current == NULL){
     off = 0;
     return get_spead_item_at_off(ig, 0);
   }
 
-  off += sizeof(struct spead_api_item) + itm->i_len;
-
+  off += sizeof(struct spead_api_item) + current->i_len;
+#if DEBUG> 2
+  fprintf(stderr, "%s: pid [%d] off now: %ld\n", __func__, getpid(), off);
+#endif
   return get_spead_item_at_off(ig, off);
 }
 
@@ -535,6 +643,67 @@ int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len)
   itm->i_len = len;
 
   return len;
+}
+
+int set_item_data_ones(struct spead_api_item *itm)
+{
+  if (itm){
+    itm->i_id = SPEAD_ONES_ID;
+    memset(itm->i_data, 0x11, itm->i_len);    
+    return 0;
+  }
+  return -1; 
+}
+
+int set_item_data_zeros(struct spead_api_item *itm)
+{
+  if (itm){
+    itm->i_id = SPEAD_ZEROS_ID;
+    memset(itm->i_data, 0, itm->i_len);    
+    return 0;
+  }
+  return -1; 
+}
+
+int set_item_data_ramp(struct spead_api_item *itm)
+{
+  uint64_t count;
+  register int n;
+  unsigned char *buf;
+
+  if (itm){
+    
+    itm->i_id = SPEAD_RAMP_ID;
+
+    buf = itm->i_data;
+
+    count = itm->i_len;
+    n = (count+15)/16;
+      
+    switch (count % 16){
+      case 0: do { 
+               *(buf++) = 0;
+      case 15: *(buf++) = 1;
+      case 14: *(buf++) = 2;
+      case 13: *(buf++) = 3;
+      case 12: *(buf++) = 4;
+      case 11: *(buf++) = 5;
+      case 10: *(buf++) = 6;
+      case 9:  *(buf++) = 7;
+      case 8:  *(buf++) = 8;
+      case 7:  *(buf++) = 9;
+      case 6:  *(buf++) = 10;
+      case 5:  *(buf++) = 11;
+      case 4:  *(buf++) = 12;
+      case 3:  *(buf++) = 13;
+      case 2:  *(buf++) = 14;
+      case 1:  *(buf++) = 15;
+              } while (--n > 0);
+    }
+
+    return 0;
+  }
+  return -1; 
 }
 
 #if 0
