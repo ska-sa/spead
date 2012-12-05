@@ -154,7 +154,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   itm = new_item_from_group(ig, 512);
   if (set_item_data_ramp(itm) < 0) {}
     
-  ht = packetize_item_group(tx->t_hs, ig, 384, pid);
+  ht = packetize_item_group(tx->t_hs, ig, 1200, pid);
   if (ht == NULL){
     destroy_item_group(ig);
 #ifdef DEBUG

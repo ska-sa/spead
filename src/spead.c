@@ -383,9 +383,12 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
 
 struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spead_item_group *ig, int pkt_size, uint64_t hid)
 {
-#define PKTZ_END       0 
-#define PKTZ_GETPACKET 1
-#define PKTZ_COPYDATA  2
+#define PZ_END              0 
+#define PZ_GETPACKET        1
+#define PZ_COPYDATA         2
+#define PZ_ADDIG_ITEMS      3
+#define PZ_INIT_PACKET      4
+#define PZ_HASHPACKET       5
 
   struct spead_api_item *itm;
   struct hash_table *ht;
@@ -393,7 +396,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   struct spead_packet *p;
 
   int state;
-  uint64_t payload_off, payload_len, heap_len, nitems, count;
+  uint64_t payload_off, payload_len, heap_len, nitems, count, off, remain;
   
   if (hs == NULL || ig == NULL || pkt_size <= 0){
 #ifdef DEBUG
@@ -402,7 +405,6 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
     return NULL;
   }
 
-   
   ht = get_ht_hs(NULL, hs, hid);
   /*NOTE: mutex is locked for table*/
   if (ht == NULL){
@@ -415,6 +417,8 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   heap_len    = 0;
   nitems      = 4;
   count       = 0;
+  off         = 0;
+  remain      = 0;
 
   itm         = NULL;
   while ((itm = get_next_spead_item(ig, itm))){
@@ -426,97 +430,196 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   fprintf(stderr, "%s: [%ld] igitems [%ld] nitems into ht [%ld] heap_len [%ld]\n", __func__, ig->g_items, nitems, ht->t_id, heap_len);
 #endif
 
-  state       = PKTZ_GETPACKET;
+  state       = PZ_GETPACKET;
 
   while (state){
     
     switch (state){
       
-      case PKTZ_GETPACKET:
+      case PZ_GETPACKET:
+
+#ifdef DEBUG
+        fprintf(stderr, "%s: GET a packet\n", __func__);
+#endif
 
         o = pop_hash_o(hs->s_list);
         if (o == NULL){
-          state = PKTZ_END;
+          state = PZ_END;
           break;
         }
 
         p = get_data_hash_o(o);
         if (p == NULL){
-          state = PKTZ_END;
+          state = PZ_END;
           break;
         }
-        
+
+#ifdef DEBUG
+        fprintf(stderr, "%s: payload off %ld\n", __func__, payload_off);
+#endif
+
         SPEAD_SET_ITEM(p->data, 0, SPEAD_HEADER_BUILD(nitems));
         SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_CNT_ID, hid));
         SPEAD_SET_ITEM(p->data, 2, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_LEN_ID, heap_len));
         SPEAD_SET_ITEM(p->data, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_OFF_ID, payload_off));
         SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, payload_len));
 
-        if (nitems > 4){
-          
-          nitems = 5;
-          itm    = NULL;
-          count  = 0;
-          while ((itm = get_next_spead_item(ig, itm))){
-            /*TODO deal with immediate items also*/
-            if (itm){
-              SPEAD_SET_ITEM(p->data, nitems++, SPEAD_ITEM_BUILD(SPEAD_DIRECTADDR, itm->i_id, count));
-              count += itm->i_len;
-            }
-          }
-          
-          nitems = 4;
+        if (nitems > 4 && count == 0){
+          state = PZ_ADDIG_ITEMS;
+          break;
         }
+        
+        state = PZ_INIT_PACKET;
+        break;
+
+      case PZ_ADDIG_ITEMS:
+
+#ifdef DEBUG
+        fprintf(stderr, "%s: Add Item Group Items\n", __func__);
+#endif
+
+        nitems = 5;
+        itm    = NULL;
+        count  = 0;
+
+        while ((itm = get_next_spead_item(ig, itm))){
+          /*TODO deal with immediate items also*/
+          if (itm){
+            SPEAD_SET_ITEM(p->data, nitems++, SPEAD_ITEM_BUILD(SPEAD_DIRECTADDR, itm->i_id, count));
+            count += itm->i_len;
+          }
+        }
+
+        nitems = 4;
+        itm    = NULL;
+
+        state = PZ_INIT_PACKET;
+        break;
+
+
+      case PZ_INIT_PACKET:
 
         if (spead_packet_unpack_header(p) < 0){
 #ifdef DEBUG
           fprintf(stderr, "%s: error unpacking spead header\n", __func__);
 #endif
-          state = PKTZ_END;
+          state = PZ_END;
           break;
         }
         
+        if (spead_packet_unpack_items(p) == SPEAD_ERR){
+#ifdef DEBUG
+          fprintf(stderr, "%s: unable to unpack spead items for packet (%p)\n", __func__, p);
+#endif
+          state = PZ_END;
+          break;
+        } 
+
         if (SPEAD_HEADERLEN + p->n_items * SPEAD_ITEMLEN + payload_len >= SPEAD_MAX_PACKET_LEN) {
 #ifdef DEBUG
           fprintf(stderr, "%s: error items and payload will not fit in packet!!!\n", __func__);
 #endif
-          state = PKTZ_END;
+          state = PZ_END;
           break;
         }
 
 #ifdef DEBUG
-        fprintf(stderr, "%s: done a packet\n", __func__);
+        fprintf(stderr, "%s: done INIT a packet\n", __func__);
 #endif
 
-        state = PKTZ_COPYDATA;
+        state = PZ_COPYDATA;
         break;
 
 
-      case PKTZ_COPYDATA:
+      case PZ_COPYDATA:
         
-        p->payload
+        /*TODO: think about including the header into the total packet size specified*/
+        //copied = 0;
         
+#ifdef DEBUG
+        fprintf(stderr, "%s:------start copy data\n", __func__);
+#endif
+
+        if (!remain){
+          itm = get_next_spead_item(ig, itm);
+#ifdef DEBUG
+          fprintf(stderr, "%s: get next itm (%p)\n", __func__, p);
+#endif
+          if (itm == NULL){
+            state = PZ_END;
+            break;
+          }
+          remain = itm->i_len;
+        } else {
+          off = 0;
+        }
+
+#ifdef DEBUG
+        fprintf(stderr, "%s:\t\tcount %ld off %ld remain %ld\n", __func__, count, off, remain);
+#endif
+
+        if (off + remain < pkt_size) {
+
+          memcpy(p->payload + off, itm->i_data, remain);
+
+          count   -= remain;
+          off     += remain;
+          remain   = 0;
+          
+#ifdef DEBUG
+          fprintf(stderr, "%s: COPYMORE  count %ld off %ld remain %ld\n", __func__, count, off, remain);
+#endif
+
+          state = (count > 0) ? PZ_COPYDATA : PZ_HASHPACKET;
+
+        } else if (off + remain >= pkt_size){
+
+          memcpy(p->payload + off, itm->i_data, (remain < pkt_size - off) ? remain : pkt_size - off);
+          
+          count  -= (remain < pkt_size - off) ? remain : pkt_size - off;
+          remain  = (remain < pkt_size - off) ? 0 : remain - (pkt_size - off);
+          off     = 0;
+
+#ifdef DEBUG
+          fprintf(stderr, "%s: NEW PCKT  count %ld off %ld remain %ld\n", __func__, count, off, remain);
+#endif
+
+          state = PZ_HASHPACKET;
+        }
         
-        
+#ifdef DEBUG
+        fprintf(stderr, "%s: end copy data------\n", __func__);
+#endif
         break;
     
+      case PZ_HASHPACKET:
+        state = PZ_GETPACKET;
 
-      case PKTZ_END:
+        if (add_o_ht(ht, o) < 0){
+          state = PZ_END;
+          break;
+        }
+
+        if (count == 0 && remain == 0){
+          state = PZ_END;
+          break;
+        }
+        
+        payload_off += pkt_size;
+        
+        break;
+
+      case PZ_END:
       default:
 #ifdef DEBUG
         fprintf(stderr, "%s: packetize end\n", __func__);
 #endif
         break;
+
     }
 
   }
 
-  
-    
-  
-  
-  
-  
    
   
   return ht;
