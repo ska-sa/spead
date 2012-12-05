@@ -147,12 +147,15 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 
   itm = new_item_from_group(ig, 512);
   if (set_item_data_ones(itm) < 0) {}
+  print_data(itm->i_data, itm->i_len);
 
   itm = new_item_from_group(ig, 512);
   if (set_item_data_zeros(itm) < 0) {}
+  print_data(itm->i_data, itm->i_len);
 
   itm = new_item_from_group(ig, 512);
   if (set_item_data_ramp(itm) < 0) {}
+  print_data(itm->i_data, itm->i_len);
     
   ht = packetize_item_group(tx->t_hs, ig, 384, pid);
   if (ht == NULL){
