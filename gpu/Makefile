@@ -1,52 +1,66 @@
+CFLAGS += -DIKATCP
 CFLAGS += -DDEBUG
-NFLAGS += --compiler-options '-fPIC' --shared -x 'c'
 CFLAGS += -Wall
 CFLAGS += -ggdb
 CFLAGS += -O3
+
 LIB = -lspead
+
 OCLLIB = -lOpenCL -lm
 OFLAGS = -shared -Wl,-x
 KDIR = -DKERNELDIR=\"$(shell pwd)\"
 
+NFLAGS += --compiler-options '-fPIC' --shared -x 'c'
+NLIB = -lcufft
+NCC = nvcc
+
 IDIR = -I../src
 LDIR = -L../src
 
+<<<<<<< HEAD
 #.PHONY: all
 #.SUFFIXES: 
 #.SUFFIXES: .c .o .so
 .SECONDARY:
+=======
+.SECONDARY:
+#.PRECIOUS: %.o
+>>>>>>> 39ce05f1085238c39067354d36604c80936ce2cd
 
 #-arch=sm_20
 #USECUFFT = 1
-#NCC = nvcc
-CC  = gcc
+#CC  = gcc
 
-#gcc -shared -Wl,-x in.o -o out.so
-
-UTILS = cudafft.cu dedisperse.cu
+#UTILS = cudafft.cu dedisperse.cu
 
 #OBJ = $(patsubst %.cu,%.so,$(UTILS))
+EXE= demo
+MODS=         dummy.so ocl.so fft.so dumpdata.so
+SRC= shared.c dummy.c  ocl.c         dumpdata.c
+
 HDR= shared.h
-SRC= shared.c dummy.c ocl.c 
-OBJ= $(patsubst %.c,%.o, $(SRC))
+OBJ= $(patsubst %.c,%.o,$(SRC))
 
+all: $(MODS) $(EXE)
 
-all: ocl.so dummy.so  
-
-#%.so: %.cu
-#	$(NCC) -DDEBUG $(NFLAGS) $(LIB) $(IDIR) $(LDIR) $< -o $@
-
-%.so: %.o shared.o
-	$(CC) $(CFLAGS) $(OCLLIB) $(LIB) $(LDIR) $(OFLAGS) $^ -o $@ 
+%.so: %.cu
+	$(NCC) -DDEBUG $(NFLAGS) $(NLIB) $(LIB) $(LDIR) $(IDIR) $< -o $@
 
 %.o:: %.c $(HDR)
 	$(CC) $(CFLAGS) $(KDIR) $(IDIR) -fPIC -c $< -o $@
 
-clean:
-	$(RM) -f $(OBJ) core vgcore* *.o *.so
+%.so: %.o shared.o
+	$(CC) $(OFLAGS) $^ -o $@ $(OCLLIB) $(LIB) $(LDIR) 
 
-#ocl: ocldd.o shared.o
-#	$(CC) $^ -o $@ $(CFLAGS) -DSTANDALONE $(OCLLIB) $(LIB) $(LDIR)
+clean:
+	$(RM) $(OBJ) $(EXE) core vgcore* *.o *.so
+
+$(EXE): $(EXE).c
+	$(CC) $(CFLAGS) -Wl,-rpath,\"$(shell pwd)/\" $< -o $@ $(LIB) $(IDIR) $(LDIR)
+
+
+#ocl: ocl.c shared.c
+#	$(CC) $(CFLAGS) -DSTANDALONE $(KDIR) $^ -o $@ $(OCLLIB) $(LIB) $(IDIR) $(LDIR) 
 
 #dummy.so: dummy.o
 #	$(CC) $(CFLAGS) $^ -o $@  $(LIB) $(LDIR) $(OFLAGS)

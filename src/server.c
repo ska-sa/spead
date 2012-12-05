@@ -22,13 +22,14 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#ifndef IKATCP
 #include <katcl.h>
 #include <katcp.h>
+#endif
 
-#include "spead_api.h"
 #include "server.h"
+#include "spead_api.h"
 #include "hash.h"
-#include "sharedmem.h"
 #include "mutex.h"
 
 
@@ -109,6 +110,11 @@ int register_signals_us()
   if (sigaction(SIGTERM, &sa, NULL) < 0)
     return -1;
 
+#if 0
+  if (sigaction(SIGFPE, &sa, NULL) < 0)
+    return -1;
+#endif
+
   sa.sa_handler   = child_us;
 
   if (sigaction(SIGCHLD, &sa, NULL) < 0)
@@ -134,9 +140,10 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus)
   }
 
   s = mmap(NULL, sizeof(struct u_server), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
-  if (s == NULL)
+  if (s == MAP_FAILED)
     return NULL;
   
+  s->s_x       = NULL;
   s->s_fd      = 0;
   s->s_bc      = 0;
   s->s_hpcount = 0;
@@ -146,7 +153,9 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus)
   s->s_hs      = NULL;
   s->s_m       = 0;
   s->s_mod     = m;
+#ifndef IKATCP
   s->s_kl      = NULL;
+#endif
 
   return s;
 }
@@ -159,23 +168,27 @@ void destroy_server_us(struct u_server *s)
     
     if (s->s_cs){
 
-      /*WARNING: review code --ed should be ok now*/
       for (i=0; i < s->s_cpus; i++){
         destroy_child_sp(s->s_cs[i]);
       }
 
       free(s->s_cs);
     }
-  
+    
+    destroy_spead_socket(s->s_x);
+    
+#ifndef IKATCP
     if (s->s_kl){
       destroy_katcl(s->s_kl, 0);
     }
+#endif
 
     unload_api_user_module(s->s_mod);
 
     destroy_store_hs(s->s_hs);
     munmap(s, sizeof(struct u_server));
   }
+
 #ifdef DEBUG
   fprintf(stderr, "%s: destroyed server\n",  __func__);
 #endif
@@ -183,74 +196,29 @@ void destroy_server_us(struct u_server *s)
 
 int startup_server_us(struct u_server *s, char *port, int broadcast)
 {
-  struct addrinfo hints;
-  struct addrinfo *res, *rp;
-  uint64_t reuse_addr;
-
   if (s == NULL || port == NULL)
     return -1;
-
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family     = AF_UNSPEC;
-  hints.ai_socktype   = SOCK_DGRAM;
-  hints.ai_flags      = AI_PASSIVE;
-  hints.ai_protocol   = 0;
-  hints.ai_canonname  = NULL;
-  hints.ai_addr       = NULL;
-  hints.ai_next       = NULL;
   
-  if ((reuse_addr = getaddrinfo(NULL, port, &hints, &res)) != 0) {
+  s->s_x = create_spead_socket(NULL, port);
+  if (s->s_x == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(reuse_addr));
+    fprintf(stderr, "%s: cannot create spead socket\n", __func__);
 #endif
     return -1;
   }
-
-  for (rp = res; rp != NULL; rp = rp->ai_next) {
-#if DEBUG>1
-    fprintf(stderr, "%s: res (%p) with: %d\n", __func__, rp, rp->ai_protocol);
-#endif
-    if (rp->ai_family == AF_INET6)
-      break;
-  }
-
-  rp = (rp == NULL) ? res : rp;
-
-  s->s_fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-  if (s->s_fd < 0){
-#ifdef DEBUG
-    fprintf(stderr,"%s: error socket\n", __func__);
-#endif
-    freeaddrinfo(res);
+  
+  if (bind_spead_socket(s->s_x) < 0)
     return -1;
-  }
-
-  reuse_addr   = 1;
-  setsockopt(s->s_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
-
-  reuse_addr = 1024*1024*1024;
-  if (setsockopt(s->s_fd, SOL_SOCKET, SO_RCVBUF, &reuse_addr, sizeof(reuse_addr)) < 0){
+  
+  if (broadcast){
+    if (set_broadcast_opt_spead_socket(s->s_x) < 0){
 #ifdef DEBUG
-    fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
+      fprintf(stderr, "%s: WARN spead socket broadcast option not set\n", __func__);
 #endif
+    }
   }
 
-  reuse_addr = 1;
-  if (setsockopt(s->s_fd, SOL_SOCKET, SO_BROADCAST, &reuse_addr, sizeof(reuse_addr)) < 0){
-#ifdef DEBUG
-    fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
-#endif
-  }
-
-  if (bind(s->s_fd, rp->ai_addr, rp->ai_addrlen) < 0){
-#ifdef DEBUG
-    fprintf(stderr,"%s: error bind on port: %s\n", __func__, port);
-#endif
-    freeaddrinfo(res);
-    return -1;
-  }
-
-  freeaddrinfo(res);
+  s->s_fd = get_fd_spead_socket(s->s_x);
 
 #ifdef DEBUG
   fprintf(stderr,"\tSERVER:\t\t[%d]\n\tport:\t\t%s\n\tnice:\t\t%d\n", getpid(), port, nice(0));
@@ -262,11 +230,13 @@ int startup_server_us(struct u_server *s, char *port, int broadcast)
 void shutdown_server_us(struct u_server *s)
 {
   if (s){
+#if 0
     if (close(s->s_fd) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: error server shutdown: %s\n", __func__, strerror(errno));
 #endif
     }
+#endif
     destroy_server_us(s);
   }
 #ifdef DEBUG
@@ -274,23 +244,6 @@ void shutdown_server_us(struct u_server *s)
 #endif
 } 
 
-int add_child_us(struct u_server *s, struct u_child *c, int size)
-{
-  if (s == NULL || c == NULL)
-    return -1;
-
-  s->s_cs = realloc(s->s_cs, sizeof(struct u_child*) * (size+1));
-  if (s->s_cs == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: logic error cannot realloc for worker list\n", __func__);
-#endif 
-    return -1;
-  }
-
-  s->s_cs[size] = c;
-  
-  return size + 1;
-}
 
 void print_format_bitrate(char x, uint64_t bps)
 {
@@ -329,8 +282,9 @@ void print_format_bitrate(char x, uint64_t bps)
 #endif
 }
 
-int worker_task_us(struct u_server *s, struct spead_api_module *m, int cfd)
+int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 {
+  struct u_server *s;
   struct spead_packet *p;
   struct spead_heap_store *hs;
   struct hash_o *o;
@@ -351,6 +305,9 @@ int worker_task_us(struct u_server *s, struct spead_api_module *m, int cfd)
   p      = NULL;
   o      = NULL;
   pid    = getpid();
+  
+
+  s = data;
 
   if (s == NULL || s->s_hs == NULL)
     return -1;
@@ -374,6 +331,9 @@ int worker_task_us(struct u_server *s, struct spead_api_module *m, int cfd)
 #ifndef RATE
     o = pop_hash_o(hs->s_list);
     if (o == NULL){
+#ifdef DEBUG
+      fprintf(stderr, "%s: cannot pop object!\n", __func__);
+#endif
       run = 0;
       break;
       //sleep(1);
@@ -460,6 +420,11 @@ int worker_task_us(struct u_server *s, struct spead_api_module *m, int cfd)
   print_format_bitrate('T', bcount);
   unlock_mutex(&(s->s_m));
 
+#ifdef RATE
+  if (p)
+    free(p);
+#endif
+
   return 0;
 }
 
@@ -467,8 +432,11 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 {
   struct spead_heap_store *hs;
   struct u_child *c;
-  int status, i, hi_fd, rtn, rb;
+  int status, i, hi_fd, rtn;
+#if 0
+  int rb;
   unsigned char buf[BUF];
+#endif
   fd_set ins;
   pid_t sp;
   sigset_t empty_mask;
@@ -506,7 +474,7 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 
   do {
 
-    c = fork_child_sp(s, &worker_task_us);
+    c = fork_child_sp(s->s_mod, s, &worker_task_us);
     if (c == NULL){
 #ifdef DEBUG
       fprintf(stderr, "%s: fork_child_sp fail\n", __func__);
@@ -514,7 +482,7 @@ int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
       continue;
     }
 
-    if (add_child_us(s, c, i) < 0){
+    if (add_child_us(&s->s_cs, c, i) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: could not store worker pid [%d]\n", __func__, c->c_pid);
 #endif
@@ -688,10 +656,10 @@ def DEBUG
   return 0;
 }
 
+#ifndef IKATCP
 int setup_katcp_us(struct u_server *s)
 {
   struct katcl_line *kl;
-  int flags;
 
   if (s == NULL)
     return -1;
@@ -719,6 +687,7 @@ ndef DEBUG
 
   return 0;
 }
+#endif
 
 int register_client_handler_server(struct spead_api_module *m, char *port, long cpus, uint64_t hashes, uint64_t hashsize, int broadcast)
 {
@@ -742,11 +711,13 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
     return -1;
   }
 
+#ifndef IKATCP
   if (setup_katcp_us(s) < 0){
     fprintf(stderr,"%s: error in startup\n", __func__);
     shutdown_server_us(s);
     return -1;
   }
+#endif
 
   if (spawn_workers_us(s, hashes, hashsize) < 0){ 
     fprintf(stderr,"%s: error during run\n", __func__);
@@ -771,7 +742,6 @@ int main(int argc, char *argv[])
   char *port, *dylib;
   uint64_t hashes, hashsize;
 
-  //int (*cbh)(struct spead_item_group *ig);
   struct spead_api_module *m;
 
   i = 1;
@@ -811,7 +781,7 @@ int main(int argc, char *argv[])
           break;
 
         case 'h':
-          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\t\t-x (enable receive from broadcast)\n\n", argv[0], cpus, port, hashes, hashsize);
+          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\t\t-x (enable receive from broadcast [priv])\n\n", argv[0], cpus, port, hashes, hashsize);
           return EX_OK;
 
         /*settings*/

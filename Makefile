@@ -1,4 +1,3 @@
-
 APPS = src utils gpu
 
 all: $(patsubst %,%-all,$(APPS))

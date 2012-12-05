@@ -1,3 +1,8 @@
+/* (c) 2012 SKA SA */
+/* Released under the GNU GPLv3 - see COPYING */
+
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,23 +12,52 @@
 
 #include <sys/types.h>
 #include <sys/ipc.h>
-#if 0
-#include <sys/shm.h>
-#include <sys/sem.h>
-#endif
 #include <sys/wait.h>
 #include <sys/mman.h>
 
-
-#include "sharedmem.h"
+#include "spead_api.h"
 #include "server.h"
 
-#define KEYPATH     "/dev/null"
-#define MAX_RETRIES 10
 
 
 static struct shared_mem *m_area = NULL;
 
+
+/*effects of aliasing*/
+#if 0
+int grow_shared_mem(uint64_t size)
+{
+  uint64_t osize;
+  void *ptr;
+  
+  if (m_area == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: FATAL m_area null\n", __func__);
+#endif
+    return -1;
+  }
+  
+  osize = m_area->m_size;
+ 
+  ptr = mremap(m_area->m_ptr, osize, osize + size, MREMAP_FIXED | MREMAP_MAYMOVE, m_area->m_ptr);
+
+  if (ptr == MAP_FAILED){
+#ifdef DEBUG
+    fprintf(stderr, "%s: FAILED (%s) growth of [%ld] bytes reverting to [%ld] bytes\n", __func__, strerror(errno), size, osize);
+#endif
+    return -1;
+  }
+
+  m_area->m_ptr = ptr;
+  m_area->m_size += size;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: by [%ld] bytes to (%p)\n", __func__, size, ptr);
+#endif
+
+  return 0;
+}
+#endif
 
 int create_shared_mem(uint64_t size)
 {
@@ -33,13 +67,6 @@ int create_shared_mem(uint64_t size)
 #endif
   void *ptr;
 
-  if (m_area != NULL) {
-#ifdef DEBUG
-    fprintf(stderr, "%s: a shared memory segment is already assigned\n", __func__); 
-#endif
-    return -1;
-  }
-
   if (size < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: a shared memory segment must have a positive size\n", __func__); 
@@ -47,42 +74,27 @@ int create_shared_mem(uint64_t size)
     return -1;
   }
 
+  if (m_area != NULL) {
+#ifdef DEBUG
+    fprintf(stderr, "%s: a shared memory segment is already assigned\n", __func__); 
+#endif
 #if 0
-  key = ftok(KEYPATH, 'A');
-  if (key < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: ftok error: %s\n", __func__, strerror(errno));
-#endif
-    return -1;
-  }
-  
-  id = shmget(key, size, 0644 | IPC_CREAT);
-  if (id < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: shmget error: %s\n", __func__, strerror(errno)); 
+    return grow_shared_mem(size);
 #endif
     return -1;
   }
 
-  ptr = shmat(id, (void *) 0, 0);
-  if (ptr == (void *) -1){
+  m_area = malloc(sizeof(struct shared_mem));
+  if (m_area == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "%s: shmat error %s\n", __func__, strerror(errno));
+    fprintf(stderr, "%s: could not allocate memory for shared memory store\n", __func__); 
 #endif
-    if (shmctl(id, IPC_RMID, NULL) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: shmctl error %s\n", __func__, strerror(errno)); 
-#endif
-      return -2;
-    }
+
     return -1;
   }
-
-  memset(ptr, 0, size);
-#endif
 
   ptr = mmap(NULL, size, PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
-  if (ptr == NULL){
+  if (ptr == MAP_FAILED){
 #ifdef DEBUG
     fprintf(stderr, "%s: mmap error %s\n", __func__, strerror(errno));
 #endif
@@ -91,41 +103,9 @@ int create_shared_mem(uint64_t size)
 
   memset(ptr, 0, size);
 
-  m_area = malloc(sizeof(struct shared_mem));
-  if (m_area == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: could not allocate memory for shared memory store\n", __func__); 
-#endif
-
-#if 0
-    if (shmdt(ptr) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: shmdt error %s\n", __func__, strerror(errno)); 
-#endif
-    }
-    if (shmctl(id, IPC_RMID, NULL) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: shmctl error %s\n", __func__, strerror(errno)); 
-#endif
-      return -2;
-    }
-#endif
-    return -1;
-  }
-
-#if 0
-  m_area->m_key  = key;
-  m_area->m_id   = id;
-#endif
   m_area->m_size = size;
   m_area->m_off  = 0;
   m_area->m_ptr  = ptr;
-
-#ifdef DEBUG
-  //fprintf(stderr, "%s: shared memory or size [%ld] created shared_malloc now available\n", __func__, size);
-  print_format_bitrate('D', size);
-#endif
-
 
   return 0;
 }
@@ -137,19 +117,6 @@ void destroy_shared_mem()
     if (m_area->m_ptr == NULL){
       munmap(m_area->m_ptr, m_area->m_size);
     }
-#if 0
-    if (shmdt(m_area->m_ptr) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: shmdt error %s\n", __func__, strerror(errno)); 
-#endif
-    }
-
-    if (shmctl(m_area->m_id, IPC_RMID, NULL) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: shmctl error %s\n", __func__, strerror(errno)); 
-#endif
-    }
-#endif
     free(m_area);
     m_area = NULL;
   }
@@ -161,12 +128,29 @@ void *shared_malloc(size_t size)
   void *ptr;
 
   m = m_area;
-  if (m == NULL)
-    return NULL;
- 
-  if (size < 0 || (size + m->m_off) > m->m_size){
+  if (m == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "%s: FAIL shared_malloc size req [%ld] mem stats msize [%ld] m_off [%ld]\n", __func__, size, m->m_size, m->m_off); 
+    fprintf(stderr, "%s: shared memory doesn't exist\n",__func__);
+#endif
+    return NULL;
+  }
+
+  if (size < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: a shared memory segment must have a positive size\n", __func__); 
+#endif
+    return NULL;
+  }
+ 
+  if ((size + m->m_off) > m->m_size){
+#ifdef DEBUG
+    fprintf(stderr, "%s: WARN shared_malloc size req [%ld] mem stats msize [%ld] m_off [%ld] @ (%p)\n", __func__, size, m->m_size, m->m_off, m->m_ptr); 
+#endif
+
+#if 0
+    if (grow_shared_mem(size * 13) < 0){
+      return NULL;
+    }
 #endif
     return NULL;
   }
@@ -174,7 +158,7 @@ void *shared_malloc(size_t size)
   ptr       = m->m_ptr + m->m_off;
   m->m_off  = m->m_off + size;
   
-#if DEBUG>1
+#if DEBUG>2
   fprintf(stderr, "%s: allocated [%ld] from sharedmem\n", __func__, size);
 #endif
 

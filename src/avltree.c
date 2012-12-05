@@ -1,3 +1,6 @@
+/* (c) 2012 SKA SA */
+/* Released under the GNU GPLv3 - see COPYING */
+
 /***
   An AVLTree Implementation
   with parent pointers 
@@ -16,20 +19,24 @@
 
 #include "avltree.h"
 
-struct avl_tree *create_avltree()
+struct avl_tree *create_avltree(int (*cmp)(const void *v1, const void *v2))
 {
   struct avl_tree *t;
+  
+  if (cmp == NULL)
+    return NULL;
 
-  t = malloc(sizeof(struct avl_tree));
+  t =malloc(sizeof(struct avl_tree));
   if (t == NULL)
     return NULL;
 
   t->t_root = NULL;
+  t->t_cmp  = cmp;
 
   return t;
 }
 
-struct avl_node *create_node_avltree(char *key, void *data)
+struct avl_node *create_node_avltree(void *key, void *data)
 {
   struct avl_node *n;
 
@@ -41,12 +48,13 @@ struct avl_node *create_node_avltree(char *key, void *data)
   if (n == NULL)
     return NULL;
 
-  n->n_key = strdup(key);
+  n->n_key = key;
+#if 0
   if (n->n_key == NULL) {
     free(n);
     return NULL;
   }
-  
+#endif
   n->n_parent  = NULL;
   n->n_data    = data;
   n->n_left    = NULL;
@@ -56,7 +64,7 @@ struct avl_node *create_node_avltree(char *key, void *data)
   return n;
 }
 
-char *get_node_name_avltree(struct avl_node *n)
+const void *get_node_key_avltree(struct avl_node *n)
 {
   return (n != NULL) ? n->n_key : NULL;
 }
@@ -339,7 +347,7 @@ int check_balances_avltree(struct avl_node *n, int depth)
     
 #ifdef DEBUG 
     if ((r_bal-l_bal) != n->n_balance)
-      fprintf(stderr,"avltree: ERROR %s\tn_bal: %d\t %d-%d=%d %s\n", n->n_key, n->n_balance, r_bal, l_bal, r_bal-l_bal, ((r_bal-l_bal)!=n->n_balance)?"ERROR":"OKAY");
+      fprintf(stderr,"avltree: ERROR (%p)\tn_bal: %d\t %d-%d=%d %s\n", n->n_key, n->n_balance, r_bal, l_bal, r_bal-l_bal, ((r_bal-l_bal)!=n->n_balance)?"ERROR":"OKAY");
 #endif
     
     bal = (r_bal > l_bal) ? r_bal : l_bal;
@@ -624,7 +632,9 @@ int add_node_avltree(struct avl_tree *t, struct avl_node *n)
 {
   struct avl_node *c;
   int cmp, run, flag;
+#if 0
   char rtype;
+#endif
 
   if (t == NULL)
     return -1;
@@ -642,7 +652,7 @@ int add_node_avltree(struct avl_tree *t, struct avl_node *n)
   }
 
   while (run){
-    cmp = strcmp(c->n_key, n->n_key);
+    cmp = (*(t->t_cmp))(c->n_key, n->n_key);
     if (cmp < 0){
       if (c->n_right == NULL){
         c->n_right = n;
@@ -679,7 +689,7 @@ int add_node_avltree(struct avl_tree *t, struct avl_node *n)
       c = c->n_left;
     } else if (cmp == 0){
 #ifdef DEBUG
-      fprintf(stderr,"avl_tree: error node seems to match an existing node <%s>\n", c->n_key);
+      fprintf(stderr,"avl_tree: error node seems to match an existing node <%p>\n", c->n_key);
 #endif
       run = 0;
       return -1;
@@ -687,7 +697,9 @@ int add_node_avltree(struct avl_tree *t, struct avl_node *n)
   }
 
   run = 1;
+#if 0
   rtype = 0;
+#endif
   while (run && !flag){
     
     if (c->n_parent == NULL){
@@ -721,7 +733,9 @@ int add_node_avltree(struct avl_tree *t, struct avl_node *n)
 #if DEBUG > 3
         fprintf(stderr,"avl_tree:\tPOSTROT: %s (%p) p(%p) balance %d\n", c->n_key, c, c->n_parent, c->n_balance);
 #endif
+#if 0
         rtype = 0;
+#endif
         run = 0; 
       }
     }
@@ -757,7 +771,9 @@ void free_node_avltree(struct avl_node *n, void (*d_free)(void *))
   if (n->n_left != NULL) { n->n_left = NULL; }
   if (n->n_right != NULL) { n->n_right = NULL; }
   n->n_balance = 0;
+#if 0
   if (n->n_key != NULL) { free(n->n_key); n->n_key = NULL; }
+#endif
 #if 1 
   if (n->n_data != NULL && d_free != NULL) { 
     //free(n->n_data); 
@@ -981,7 +997,7 @@ int del_node_avltree(struct avl_tree *t, struct avl_node *n, void (*d_free)(void
   return 0;
 }
 
-struct avl_node *find_name_node_avltree(struct avl_tree *t, char *key)
+struct avl_node *find_name_node_avltree(struct avl_tree *t, const void *key)
 {
   struct avl_node *c;
   int run, cmp;
@@ -998,7 +1014,7 @@ struct avl_node *find_name_node_avltree(struct avl_tree *t, char *key)
       run = 0;
     } else {
       
-      cmp = strcmp(key, c->n_key);
+      cmp = (*(t->t_cmp))(key, c->n_key);
 
       if (cmp == 0){
 #if DEBUG > 1
@@ -1022,7 +1038,7 @@ struct avl_node *find_name_node_avltree(struct avl_tree *t, char *key)
   return NULL;
 }
 
-void *find_data_avltree(struct avl_tree *t, char *key)
+void *find_data_avltree(struct avl_tree *t, const void *key)
 {
   struct avl_node *n;
 
@@ -1033,7 +1049,7 @@ void *find_data_avltree(struct avl_tree *t, char *key)
   return get_node_data_avltree(n);
 }
 
-int del_name_node_avltree(struct avl_tree *t, char *key, void (*d_free)(void *))
+int del_name_node_avltree(struct avl_tree *t, const void *key, void (*d_free)(void *))
 {
   struct avl_node *dn;
   
@@ -1093,7 +1109,9 @@ void destroy_avltree(struct avl_tree *t, void (*d_free)(void *))
             c->n_right = NULL;
         } 
 
+#if 0
         if (dn->n_key) { free(dn->n_key); dn->n_key = NULL; }
+#endif
 #if 1
         if (dn->n_data && d_free) { 
           //free(dn->n_data); 
@@ -1151,7 +1169,7 @@ char *gen_id_avltree(char *prefix)
   return id;
 }
 
-int store_named_node_avltree(struct avl_tree *t, char *key, void *data)
+int store_named_node_avltree(struct avl_tree *t, void *key, void *data)
 {
   struct avl_node *n;
 

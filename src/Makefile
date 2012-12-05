@@ -1,5 +1,6 @@
 #CFLAGS += -DDEBUG=3
-CFLAGS += -DPROCESS
+#CFLAGS += -DPROCESS
+#CFLAGS += -DIKATCP
 CFLAGS += -DDISCARD
 CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
@@ -9,7 +10,11 @@ CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
 
-LIB = -ldl -lspead -L. -lkatcp
+LIB = -lspead -L.
+
+ifeq (,$(findstring -DIKATCP,$(CFLAGS)))
+	LIB += -lkatcp
+endif
 
 ###############
 #   VERSION   #
@@ -18,33 +23,39 @@ CFLAGS += -DVERSION=\"$(GITVER)\"
 
 ################
 
-EXE = spead
+RXEXE = speadrx
+TXEXE = speadtx
 
-SHDR = spead_api.h spead_packet.h
-HDR = mutex.h sharedmem.h hash.h $(SHDR) server.h
+RXSRC = server.c
+TXSRC = tx.c
 
-SRC = module.c mutex.c sharedmem.c hash.c subprocess.c server.c
+SHDR = avltree.h mutex.h hash.h spead_api.h spead_packet.h
+HDR  = $(SHDR) server.h
 
-SSRC = spead.c spead_packet.c
+SSRC = avltree.c spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c datafile.c net.c subprocess.c
 SLIB = libspead.so
 
-
-OBJ  = $(patsubst %.c,%.o,$(SRC))
 SOBJ = $(patsubst %.c,%.lo,$(SSRC))
 
+TXOBJ  = $(patsubst %.c,%.o,$(TXSRC))
+RXOBJ  = $(patsubst %.c,%.o,$(RXSRC))
 
-all: $(EXE)
+
+all: $(RXEXE) $(TXEXE)
 
 
 $(SLIB): $(SOBJ)
-	$(CC) -o $@ $^ -shared -Wl,-x 
+	$(CC) -o $@ $^ -shared -Wl,-x -ldl 
 
 %.lo: %.c $(SHDR)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC) -fPIC
 
 
-$(EXE): $(OBJ) $(SLIB)
-	$(CC) -o $@ $(OBJ) $(LIB)
+$(RXEXE): $(RXOBJ) $(SLIB)
+	$(CC) -o $@ $< $(LIB)
+
+$(TXEXE): $(TXOBJ) $(SLIB)
+	$(CC) -o $@ $< $(LIB)
 
 %.o: %.c $(HDR)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC)
@@ -52,10 +63,11 @@ $(EXE): $(OBJ) $(SLIB)
 
 
 install: all
-	$(INSTALL) $(EXE) $(PREFIX)/sbin
+	ln -s $(PWD)/$(SLIB) $(PREFIX)/lib/$(SLIB)
+#	$(INSTALL) $(EXE) $(PREFIX)/sbin
 
 clean: 
-	$(RM) $(EXE) $(SLIB) *.o *.lo core vgcore* test-*
+	$(RM) $(TXEXE) $(RXEXE) $(SLIB) *.o *.lo core vgcore* test-*
 
 test-hash: sharedmem.c hash.c
 	$(CC) $(CFLAGS) -DTEST_HASH -o $@ $^

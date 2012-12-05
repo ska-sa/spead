@@ -1,11 +1,14 @@
+/* (c) 2012 SKA SA */
+/* Released under the GNU GPLv3 - see COPYING */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <string.h>
 
+#include "spead_api.h"
 #include "hash.h"
-#include "sharedmem.h"
 #include "mutex.h"
 
 void print_list_stats(struct hash_o_list *l, const char *func) 
@@ -22,7 +25,9 @@ void print_list_stats(struct hash_o_list *l, const char *func)
     obt   = len * l->l_len;
 
     fprintf(stderr, "%s: object bank (%p)\n\tobjects\t\t%ld\n\tbank size\t%ld bytes\n\to->o size\t%ld bytes\n", func, l, l->l_len, total, obt);
-  }
+  } else {
+    fprintf(stderr, "%s: param error (null list)\n", func);
+  } 
 }
 
 struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, struct hash_o *o))
@@ -273,7 +278,7 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
 
 void destroy_o_list(struct hash_o_list *l)
 {
-
+  /*TODO: is this the final place mem is needed?*/
   destroy_shared_mem();
 
 #if 0
@@ -311,14 +316,25 @@ void *get_data_hash_o(struct hash_o *o)
 int add_o_ht(struct hash_table *t, struct hash_o *o)
 {
   struct hash_o *to;
-  uint64_t id;
+  int64_t id;
   int i;
 
   if (t == NULL || t->t_hfn == NULL || t->t_os == NULL || o == NULL)
     return -1;
   
   id = (*t->t_hfn)(t, o);
+  
+#if 0 
+def DEBUG
+  fprintf(stderr, "%s: api hashfn return id [%ld]\n", __func__, id);
+#endif
 
+  if (id < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: hfn error!\n", __func__);
+#endif
+    return -1;
+  }
   //lock_mutex(&(t->t_m));
 
   if (t->t_os[id] == NULL){
@@ -351,7 +367,8 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
 
   //unlock_mutex(&(t->t_m));
 
-#ifdef DEBUG
+#if 0 
+def DEBUG
   fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld] LIST pos [%d]\t(%p)\n", getpid(), t->t_id, id, i, o);
 #endif
 

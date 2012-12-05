@@ -1,3 +1,6 @@
+/* (c) 2012 SKA SA */
+/* Released under the GNU GPLv3 - see COPYING */
+
 #ifndef HASH_H
 #define HASH_H
 
@@ -52,7 +55,6 @@ struct hash_table {
   struct hash_o       **t_os;
   uint64_t (*t_hfn)(struct hash_table *t, struct hash_o *o);
 };
-
 
 void destroy_hash_table(struct hash_table *t);
 struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_t len, uint64_t (*hfn)(struct hash_table *t, struct hash_o *o));

@@ -177,7 +177,6 @@ const char* oclErrorString(cl_int error)
 
 }
 
-
 int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl_program *program)
 {
   cl_platform_id platform;
@@ -369,13 +368,18 @@ cl_kernel get_kernel(char *name, cl_program *p)
   return k;
 }
 
+#if 0
 void destroy(cl_kernel *kernel, cl_context *context, cl_command_queue *command_queue, cl_program *program)
+#endif
+void destroy(cl_context *context, cl_command_queue *command_queue, cl_program *program)
 {
   if(program)
     clReleaseProgram(*program);
 
+#if 0
   if(kernel)
     clReleaseKernel(*kernel); 
+#endif
 
   if(command_queue)
     clReleaseCommandQueue(*command_queue);
