@@ -351,8 +351,12 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
 
   item_size = size + sizeof(struct spead_api_item);
   
-  if (ig == NULL || size <= 0)
+  if (ig == NULL || size <= 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s param error\n", __func__);
+#endif
     return NULL;
+  }
     
   if ((ig->g_off + item_size) > ig->g_size){
 #ifdef DEBUG
