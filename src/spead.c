@@ -353,7 +353,7 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   
   if (ig == NULL || size <= 0){
 #ifdef DEBUG
-    fprintf(stderr, "%s param error\n", __func__);
+    fprintf(stderr, "%s param error %ld\n", __func__ size);
 #endif
     return NULL;
   }
