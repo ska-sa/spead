@@ -412,6 +412,8 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   }
 
   /*do some cals*/
+  p = NULL;
+  o = NULL;
   payload_off = 0;
   payload_len = pkt_size;
   heap_len    = 0;

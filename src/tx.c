@@ -154,7 +154,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   itm = new_item_from_group(ig, 512);
   if (set_item_data_ramp(itm) < 0) {}
     
-  ht = packetize_item_group(tx->t_hs, ig, 1200, pid);
+  ht = packetize_item_group(tx->t_hs, ig, 384, pid);
   if (ht == NULL){
     destroy_item_group(ig);
 #ifdef DEBUG
@@ -163,7 +163,56 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     return -1;
   }
   
-  
+  struct hash_o *o;
+
+  i = 0; 
+  int state = S_GET_OBJECT;    
+  while (state){
+    
+    switch(state){
+      
+      case S_GET_OBJECT:
+        if (i < ht->t_len){
+          o = ht->t_os[i];
+          if (o == NULL){
+            i++;
+            state = S_GET_OBJECT;
+            break;
+          }
+          state = S_GET_PACKET;
+        } else 
+          state = S_END;
+        break;
+
+      case S_GET_PACKET:
+        p = get_data_hash_o(o);
+        if (p == NULL){
+          state = S_NEXT_PACKET;
+          break;
+        }
+        
+        sb = sendto(sfd, p->data, SPEAD_MAX_PACKET_LEN, 0, dst->ai_addr, dst->ai_addrlen);
+        
+#ifdef DEBUG
+        fprintf(stderr, "%s: packet %d (%p) sb [%d] bytes\n", __func__, i, p, sb);
+#endif
+        
+        state = S_NEXT_PACKET;
+        break;
+
+      case S_NEXT_PACKET:
+        if (o->o_next != NULL){
+          o = o->o_next;
+          state = S_GET_PACKET;
+        } else {
+          i++;
+          state = S_GET_OBJECT;
+        }
+        break;
+
+    }
+
+  }
   
    
   
