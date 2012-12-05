@@ -11,8 +11,10 @@ KDIR = -DKERNELDIR=\"$(shell pwd)\"
 IDIR = -I../src
 LDIR = -L../src
 
-.IMPLICT = 
-.PHONY = all
+#.PHONY: all
+#.SUFFIXES: 
+#.SUFFIXES: .c .o .so
+.SECONDARY:
 
 #-arch=sm_20
 #USECUFFT = 1
@@ -37,7 +39,7 @@ all: ocl.so dummy.so
 %.so: %.o shared.o
 	$(CC) $(CFLAGS) $(OCLLIB) $(LIB) $(LDIR) $(OFLAGS) $^ -o $@ 
 
-%.o: %.c $(HDR)
+%.o:: %.c $(HDR)
 	$(CC) $(CFLAGS) $(KDIR) $(IDIR) -fPIC -c $< -o $@
 
 clean:
