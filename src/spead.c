@@ -528,11 +528,9 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
           state = PZ_END;
           break;
         }
-
 #ifdef DEBUG
         fprintf(stderr, "%s: done INIT a packet\n", __func__);
 #endif
-
         state = PZ_COPYDATA;
         break;
 
@@ -623,12 +621,73 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
         break;
 
     }
-
   }
-
-   
   
   return ht;
+}
+
+int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data)
+{
+  struct hash_o *o;
+  struct spead_packet *p;
+
+  int state, i;
+  
+  if (ht == NULL || call == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+
+  i = 0; 
+  o = NULL;
+  p = NULL;
+  state = S_GET_OBJECT;    
+
+  while (state){
+    
+    switch(state){
+      
+      case S_GET_OBJECT:
+        if (i < ht->t_len){
+          o = ht->t_os[i];
+          if (o == NULL){
+            i++;
+            state = S_GET_OBJECT;
+            break;
+          }
+          state = S_GET_PACKET;
+        } else 
+          state = S_END;
+        break;
+
+      case S_GET_PACKET:
+        p = get_data_hash_o(o);
+        if (p == NULL){
+          state = S_NEXT_PACKET;
+          break;
+        }
+        
+        if ((*call)(data, p) < 0)
+          return -1;
+
+        state = S_NEXT_PACKET;
+        break;
+
+      case S_NEXT_PACKET:
+        if (o->o_next != NULL){
+          o = o->o_next;
+          state = S_GET_PACKET;
+        } else {
+          i++;
+          state = S_GET_OBJECT;
+        }
+        break;
+    }
+  }
+
+  return 0;
 }
 
 #if 0 

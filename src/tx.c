@@ -113,27 +113,52 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
   return tx;
 }
 
+int send_packet(void *data, struct spead_packet *p)
+{
+  struct spead_tx *tx;
+  int sb, sfd;
+  struct addrinfo *dst;
+
+  tx = data;
+  sfd = get_fd_spead_socket(tx->t_x);
+  dst = get_addr_spead_socket(tx->t_x);
+
+  if (tx == NULL || p == NULL || sfd <=0 || dst == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+
+  sb = sendto(sfd, p->data, SPEAD_MAX_PACKET_LEN, 0, dst->ai_addr, dst->ai_addrlen);
+  if (sb < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: sendto err (%s)\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: packet (%p) sb [%d] bytes\n", __func__, p, sb);
+#endif
+
+  return 0;
+}
+
 int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 {
   struct spead_item_group *ig;
   struct spead_api_item *itm;
-  struct spead_packet *p;
   struct spead_tx *tx;
-  struct addrinfo *dst;
   struct hash_table *ht;
   pid_t pid;
-  int i, sb, sfd;
 
   tx = data;
   if (tx == NULL)
     return -1;
 
   pid = getpid();
-  sfd = get_fd_spead_socket(tx->t_x);
-  dst = get_addr_spead_socket(tx->t_x);
 
-  if (sfd <=0 || dst == NULL)
-    return -1;
 
 #ifdef DEBUG
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
@@ -166,64 +191,17 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     return -1;
   }
   
-  struct hash_o *o;
-
-  i = 0; 
-  int state = S_GET_OBJECT;    
-  while (state){
-    
-    switch(state){
-      
-      case S_GET_OBJECT:
-        if (i < ht->t_len){
-          o = ht->t_os[i];
-          if (o == NULL){
-            i++;
-            state = S_GET_OBJECT;
-            break;
-          }
-          state = S_GET_PACKET;
-        } else 
-          state = S_END;
-        break;
-
-      case S_GET_PACKET:
-        p = get_data_hash_o(o);
-        if (p == NULL){
-          state = S_NEXT_PACKET;
-          break;
-        }
-        
-        sb = sendto(sfd, p->data, SPEAD_MAX_PACKET_LEN, 0, dst->ai_addr, dst->ai_addrlen);
-        
+  if (inorder_traverse_hash_table(ht, &send_packet, data) < 0){
+    unlock_mutex(&(ht->t_m));
+    destroy_item_group(ig);
 #ifdef DEBUG
-        fprintf(stderr, "%s: packet %d (%p) sb [%d] bytes\n", __func__, i, p, sb);
+    fprintf(stderr, "%s: send inorder trav fail\n", __func__);
 #endif
-        
-        state = S_NEXT_PACKET;
-        break;
-
-      case S_NEXT_PACKET:
-        if (o->o_next != NULL){
-          o = o->o_next;
-          state = S_GET_PACKET;
-        } else {
-          i++;
-          state = S_GET_OBJECT;
-        }
-        break;
-
-    }
-
+    return -1;
   }
-  
-   
-  
-  
+    
   unlock_mutex(&(ht->t_m));
-  
   destroy_item_group(ig);
-
 
 #if 0
   p = malloc(sizeof(struct spead_packet));
@@ -266,7 +244,6 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   if (p)
     free(p);
 #endif
-
 
 #ifdef DEBUG
   fprintf(stderr, "%s: SPEADTX worker [%d] ending\n", __func__, pid);
