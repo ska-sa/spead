@@ -690,6 +690,34 @@ int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, s
   return 0;
 }
 
+int send_spead_stream_terminator(void *data, int (*call)(void *data, struct spead_packet *p))
+{
+  struct spead_packet pkt, *p;
+  
+  if (call == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+
+  p = &pkt;
+
+  bzero(p, sizeof(struct spead_packet));
+  spead_packet_init(p);
+
+  p->n_items = 1;
+  p->is_stream_ctrl_term = SPEAD_STREAM_CTRL_TERM_VAL;
+  
+  SPEAD_SET_ITEM(p->data, 0, SPEAD_HEADER_BUILD(p->n_items));
+  SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_STREAM_CTRL_ID, SPEAD_STREAM_CTRL_TERM_VAL));
+
+  if ((*call)(data, p) < 0)
+    return -1;
+
+  return 0;
+}
+
 #if 0 
 int grow_spead_item_group(struct spead_item_group *ig, uint64_t datasize, uint64_t nitems)
 {

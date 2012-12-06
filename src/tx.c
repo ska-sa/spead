@@ -182,7 +182,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   if (set_item_data_ramp(itm) < 0) {}
   print_data(itm->i_data, itm->i_len);
     
-  ht = packetize_item_group(tx->t_hs, ig, 384, pid);
+  ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, pid);
   if (ht == NULL){
     destroy_item_group(ig);
 #ifdef DEBUG
@@ -197,6 +197,15 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 #ifdef DEBUG
     fprintf(stderr, "%s: send inorder trav fail\n", __func__);
 #endif
+    return -1;
+  }
+  
+  if (empty_hash_table(ht, 0) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error empting hash table", __func__);
+#endif
+    unlock_mutex(&(ht->t_m));
+    destroy_item_group(ig);
     return -1;
   }
     
@@ -303,13 +312,10 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
 
   
   
-
-  
   while (run){
     
     fprintf(stderr, ".");
     sleep(1);
-
 
     /*do stuff*/
     
@@ -318,10 +324,15 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
       wait_spead_workers(tx->t_w);
     }
     
-    
-
   }
 
+  if (send_spead_stream_terminator(tx, &send_packet) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: could not terminat stream\n", __func__);
+#endif
+    destroy_speadtx(tx);
+    return -1;
+  }
   
   destroy_speadtx(tx);
 
