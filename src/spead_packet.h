@@ -12,10 +12,10 @@
 #define htonll(x)   ((uint64_t)x)
 #define ntohll(x)   ((uint64_t)x)
 #else
-//#define htonll(x)   ((((uint64_t)htonl((uint32_t)(x))) << 32) + htonl((uint32_t)(((uint64_t)(x)) >> 32)))
-//#define ntohll(x)   ((((uint64_t)ntohl((uint32_t)(x))) << 32) + ntohl((uint32_t)(((uint64_t)(x)) >> 32)))
-#define htonll(x)   ((((uint64_t)htonl(x)) << 32) + htonl(((uint64_t)x) >> 32))
-#define ntohll(x)   ((((uint64_t)ntohl(x)) << 32) + ntohl(((uint64_t)x) >> 32))
+#define htonll(x)   ((((uint64_t)htonl((uint32_t)(x))) << 32) + htonl((uint32_t)(((uint64_t)(x)) >> 32)))
+#define ntohll(x)   ((((uint64_t)ntohl((uint32_t)(x))) << 32) + ntohl((uint32_t)(((uint64_t)(x)) >> 32)))
+//#define htonll(x)   ((((uint64_t)htonl(x)) << 32) + htonl(((uint64_t)x) >> 32))
+//#define ntohll(x)   ((((uint64_t)ntohl(x)) << 32) + ntohl(((uint64_t)x) >> 32))
 #endif
 #endif
 
@@ -29,10 +29,10 @@
 #define SPEAD_ITEMLEN             (SPEAD_ITEMSIZE/8)
 #define SPEAD_ADDRLEN             (SPEAD_ADDRSIZE/8)
 
-#define SPEAD_ITEMMASK              0xFFFFFFFFFFFFFFFFLL
+#define SPEAD_ITEMMASK              0xFFFFFFFFFFFFFFFFULL
 #define SPEAD_ADDRMASK              (SPEAD_ITEMMASK >> (SPEAD_ITEMSIZE-SPEAD_ADDRSIZE))
 #define SPEAD_IDMASK                (SPEAD_ITEMMASK >> (SPEAD_ADDRSIZE+1))
-#define SPEAD_ADDRMODEMASK          0x1LL
+#define SPEAD_ADDRMODEMASK          0x1ULL
 #define SPEAD_DIRECTADDR            0
 #define SPEAD_IMMEDIATEADDR         1
 
@@ -60,7 +60,7 @@
 // Header Macros
 #define SPEAD_HEADERLEN             8
 #define SPEAD_HEADER(data) (ntohll(((uint64_t *)(data))[0]))
-#define SPEAD_HEADER_BUILD(nitems) ((((uint64_t) SPEAD_MAGIC) << 56) | (((uint64_t) SPEAD_VERSION) << 48) | (((uint64_t) SPEAD_ITEM_PTR_WIDTH) << 40) | (((uint64_t) SPEAD_HEAP_ADDR_WIDTH) << 32) | (0xFFFFLL & (nitems)))
+#define SPEAD_HEADER_BUILD(nitems) ((((uint64_t) SPEAD_MAGIC) << 56) | (((uint64_t) SPEAD_VERSION) << 48) | (((uint64_t) SPEAD_ITEM_PTR_WIDTH) << 40) | (((uint64_t) SPEAD_HEAP_ADDR_WIDTH) << 32) | (0xFFFFULL & (nitems)))
 #define SPEAD_GET_MAGIC(hdr) (0xFF & ((hdr) >> 56))
 #define SPEAD_GET_VERSION(hdr) (0xFF & ((hdr) >> 48))
 #define SPEAD_GET_ITEMSIZE(hdr) (0xFF & ((hdr) >> 40))
