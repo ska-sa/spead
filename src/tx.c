@@ -113,37 +113,6 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
   return tx;
 }
 
-int send_packet(void *data, struct spead_packet *p)
-{
-  struct spead_tx *tx;
-  int sb, sfd;
-  struct addrinfo *dst;
-
-  tx = data;
-  sfd = get_fd_spead_socket(tx->t_x);
-  dst = get_addr_spead_socket(tx->t_x);
-
-  if (tx == NULL || p == NULL || sfd <=0 || dst == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: param error\n", __func__);
-#endif
-    return -1;
-  }
-
-  sb = sendto(sfd, p->data, SPEAD_MAX_PACKET_LEN, 0, dst->ai_addr, dst->ai_addrlen);
-  if (sb < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: sendto err (%s)\n", __func__, strerror(errno));
-#endif
-    return -1;
-  }
-
-#ifdef DEBUG
-  fprintf(stderr, "%s: packet (%p) sb [%d] bytes\n", __func__, p, sb);
-#endif
-
-  return 0;
-}
 
 int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 {
@@ -191,7 +160,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     return -1;
   }
   
-  if (inorder_traverse_hash_table(ht, &send_packet, data) < 0){
+  if (inorder_traverse_hash_table(ht, &send_packet, tx->t_x) < 0){
     unlock_mutex(&(ht->t_m));
     destroy_item_group(ig);
 #ifdef DEBUG
@@ -211,48 +180,6 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     
   unlock_mutex(&(ht->t_m));
   destroy_item_group(ig);
-
-#if 0
-  p = malloc(sizeof(struct spead_packet));
-  if (p == NULL)
-    return -1;
-
-  bzero(p, sizeof(struct spead_packet));
-  
-  spead_packet_init(p);
-  
-  p->n_items=6;
-  p->is_stream_ctrl_term = SPEAD_STREAM_CTRL_TERM_VAL;
-  
-  SPEAD_SET_ITEM(p->data, 0, SPEAD_HEADER_BUILD(p->n_items));
-  
-  SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_CNT_ID, 0x0));
-  SPEAD_SET_ITEM(p->data, 2, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_LEN_ID, 0x00));
-  SPEAD_SET_ITEM(p->data, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_OFF_ID, 0x0));
-  SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, 0x00));
-  SPEAD_SET_ITEM(p->data, 5, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, 0xFD, 12345));
-  SPEAD_SET_ITEM(p->data, 6, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_STREAM_CTRL_ID, SPEAD_STREAM_CTRL_TERM_VAL));
-
-#if 0
-  print_data(p->data, SPEAD_MAX_PACKET_LEN); 
-
-  while(run){
-    
-    fprintf(stderr, "[%d]", pid);
-    sleep(5);
-
-  }
-#endif
-
-  sb = sendto(sfd, p->data, SPEAD_MAX_PACKET_LEN, 0, dst->ai_addr, dst->ai_addrlen);
-
-#ifdef DEBUG
-  fprintf(stderr, "[%d] sendto: %d bytes\n", pid, sb); 
-#endif
-
-  if (p)
-    free(p);
-#endif
 
 #ifdef DEBUG
   fprintf(stderr, "%s: SPEADTX worker [%d] ending\n", __func__, pid);
@@ -308,9 +235,6 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   }
 
   
-
-
-  
   
   while (run){
     
@@ -326,7 +250,7 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
     
   }
 
-  if (send_spead_stream_terminator(tx, &send_packet) < 0){
+  if (send_spead_stream_terminator(tx->t_x) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: could not terminat stream\n", __func__);
 #endif

@@ -353,7 +353,7 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   
   if (ig == NULL || size <= 0){
 #ifdef DEBUG
-    fprintf(stderr, "%s param error %ld\n", __func__ ,size);
+    fprintf(stderr, "%s: param error size: %ld\n", __func__ ,size);
 #endif
     return NULL;
   }
@@ -398,6 +398,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   struct hash_table *ht;
   struct hash_o *o;
   struct spead_packet *p;
+  uint64_t *pktd;
 
   int state;
   uint64_t payload_off, payload_len, heap_len, nitems, count, off, remain;
@@ -433,7 +434,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: [%ld] igitems [%ld] nitems into ht [%ld] heap_len [%ld]\n", __func__, ig->g_items, nitems, ht->t_id, heap_len);
+  fprintf(stderr, "%s: [%ld] igitems [%ld] nitems into ht [%ld] heap_len [%ld] into [%ld] byte packets\n", __func__, ig->g_items, nitems, ht->t_id, heap_len, pkt_size);
 #endif
 
   state       = PZ_GETPACKET;
@@ -460,15 +461,16 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
           break;
         }
 
+        pktd = (uint64_t *) p->data;
 #ifdef DEBUG
         fprintf(stderr, "%s: payload off %ld\n", __func__, payload_off);
 #endif
 
-        SPEAD_SET_ITEM(p->data, 0, SPEAD_HEADER_BUILD(nitems));
-        SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_CNT_ID, hid));
-        SPEAD_SET_ITEM(p->data, 2, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_LEN_ID, heap_len));
-        SPEAD_SET_ITEM(p->data, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_OFF_ID, payload_off));
-        SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, payload_len));
+        SPEAD_SET_ITEM(pktd, 0, SPEAD_HEADER_BUILD(nitems));
+        SPEAD_SET_ITEM(pktd, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_CNT_ID, hid));
+        SPEAD_SET_ITEM(pktd, 2, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_LEN_ID, heap_len));
+        SPEAD_SET_ITEM(pktd, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_OFF_ID, payload_off));
+        SPEAD_SET_ITEM(pktd, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, payload_len));
 
         if (nitems > 4 && count == 0){
           state = PZ_ADDIG_ITEMS;
@@ -690,11 +692,12 @@ int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, s
   return 0;
 }
 
-int send_spead_stream_terminator(void *data, int (*call)(void *data, struct spead_packet *p))
+int send_spead_stream_terminator(struct spead_socket *x)
 {
   struct spead_packet pkt, *p;
+  uint64_t *pktd;
   
-  if (call == NULL){
+  if (x == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: param error\n", __func__);
 #endif
@@ -706,13 +709,16 @@ int send_spead_stream_terminator(void *data, int (*call)(void *data, struct spea
   bzero(p, sizeof(struct spead_packet));
   spead_packet_init(p);
 
+  pktd = (uint64_t *)p->data;
+
   p->n_items = 1;
   p->is_stream_ctrl_term = SPEAD_STREAM_CTRL_TERM_VAL;
   
-  SPEAD_SET_ITEM(p->data, 0, SPEAD_HEADER_BUILD(p->n_items));
-  SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_STREAM_CTRL_ID, SPEAD_STREAM_CTRL_TERM_VAL));
+  SPEAD_SET_ITEM(pktd, 0, SPEAD_HEADER_BUILD(p->n_items));
+  
+  SPEAD_SET_ITEM(pktd, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_STREAM_CTRL_ID, SPEAD_STREAM_CTRL_TERM_VAL));
 
-  if ((*call)(data, p) < 0)
+  if (send_packet(x, p) < 0)
     return -1;
 
   return 0;
@@ -1239,6 +1245,10 @@ struct spead_item_group *process_items(struct hash_table *ht)
               ds.o   = o;
               ds.off = ps.off;
             }
+          } else {
+            fprintf(stderr, "\033[31mMALFORMED packet\033[0m\n");
+            state = S_END;
+            break;
           }
 
           state = S_DIRECT_COPY;
@@ -1747,7 +1757,7 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
     iptr = SPEAD_ITEM(p->data, (i+1));
     id   = SPEAD_ITEM_ID(iptr);
     mode = SPEAD_ITEM_MODE(iptr);
-    fprintf(stderr, "%s: ITEM[%d] mode[%d] id[%d] 0x%lx\n", __func__, i, mode, id, iptr);
+    fprintf(stderr, "%s: ITEM[%d] mode[%d] id[%d or 0x%lx] 0x%lx\n", __func__, i, mode, id, id, iptr);
   }
 #endif
 

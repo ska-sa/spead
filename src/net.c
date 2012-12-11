@@ -183,3 +183,40 @@ struct addrinfo *get_addr_spead_socket(struct spead_socket *x)
   return x->x_active;
 }
 
+int send_packet(void *data, struct spead_packet *p)
+{
+  int sb, sfd;
+  struct addrinfo *dst;
+  struct spead_socket *x;
+
+  x = data;
+
+  if (x == NULL || p == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+
+  sfd = get_fd_spead_socket(x);
+  dst = get_addr_spead_socket(x);
+
+  if (sfd <=0 || dst == NULL){
+    return -1;
+  }
+
+  sb = sendto(sfd, p->data, SPEAD_MAX_PACKET_LEN, 0, dst->ai_addr, dst->ai_addrlen);
+  if (sb < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: sendto err (%s)\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: packet (%p) sb [%d] bytes\n", __func__, p, sb);
+#endif
+
+  return 0;
+}
+

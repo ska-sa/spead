@@ -12,6 +12,8 @@
 #define htonll(x)   ((uint64_t)x)
 #define ntohll(x)   ((uint64_t)x)
 #else
+//#define htonll(x)   ((((uint64_t)htonl((uint32_t)(x))) << 32) + htonl((uint32_t)(((uint64_t)(x)) >> 32)))
+//#define ntohll(x)   ((((uint64_t)ntohl((uint32_t)(x))) << 32) + ntohl((uint32_t)(((uint64_t)(x)) >> 32)))
 #define htonll(x)   ((((uint64_t)htonl(x)) << 32) + htonl(((uint64_t)x) >> 32))
 #define ntohll(x)   ((((uint64_t)ntohl(x)) << 32) + ntohl(((uint64_t)x) >> 32))
 #endif
