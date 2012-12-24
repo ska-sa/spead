@@ -179,7 +179,7 @@ int connect_spead_socket(struct spead_socket *x);
 int set_broadcast_opt_spead_socket(struct spead_socket *x);
 int get_fd_spead_socket(struct spead_socket *x);
 struct addrinfo *get_addr_spead_socket(struct spead_socket *x);
-int send_packet(void *data, struct spead_packet *p); // data should be a spead_socket
+int send_packet_spead_socket(void *data, struct spead_packet *p); // data should be a spead_socket
 int send_spead_stream_terminator(struct spead_socket *x);
 
 

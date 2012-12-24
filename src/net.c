@@ -183,7 +183,7 @@ struct addrinfo *get_addr_spead_socket(struct spead_socket *x)
   return x->x_active;
 }
 
-int send_packet(void *data, struct spead_packet *p)
+int send_packet_spead_socket(void *data, struct spead_packet *p)
 {
   int sb, sfd;
   struct addrinfo *dst;

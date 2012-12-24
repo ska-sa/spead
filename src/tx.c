@@ -133,6 +133,8 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
 #endif
 
+
+
   ig = create_item_group(1536, 3);
   if (ig == NULL)
     return -1;
@@ -141,44 +143,51 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 
   itm = new_item_from_group(ig, 512);
   if (set_item_data_ones(itm) < 0) {}
-  print_data(itm->i_data, itm->i_len);
+  //print_data(itm->i_data, itm->i_len);
 
   itm = new_item_from_group(ig, 512);
   if (set_item_data_zeros(itm) < 0) {}
-  print_data(itm->i_data, itm->i_len);
+  //print_data(itm->i_data, itm->i_len);
 
   itm = new_item_from_group(ig, 512);
   if (set_item_data_ramp(itm) < 0) {}
-  print_data(itm->i_data, itm->i_len);
-    
-  ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, pid);
-  if (ht == NULL){
-    destroy_item_group(ig);
-#ifdef DEBUG
-    fprintf(stderr, "Packetize error\n");
-#endif
-    return -1;
-  }
+  //print_data(itm->i_data, itm->i_len);
   
-  if (inorder_traverse_hash_table(ht, &send_packet, tx->t_x) < 0){
-    unlock_mutex(&(ht->t_m));
-    destroy_item_group(ig);
+  while (run) {
+    ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, pid);
+    if (ht == NULL){
+      destroy_item_group(ig);
 #ifdef DEBUG
-    fprintf(stderr, "%s: send inorder trav fail\n", __func__);
+      fprintf(stderr, "Packetize error\n");
 #endif
-    return -1;
-  }
-  
-  if (empty_hash_table(ht, 0) < 0){
+      return -1;
+    }
+
+    if (inorder_traverse_hash_table(ht, &send_packet_spead_socket, tx->t_x) < 0){
+      unlock_mutex(&(ht->t_m));
+      destroy_item_group(ig);
 #ifdef DEBUG
-    fprintf(stderr, "%s: error empting hash table", __func__);
+      fprintf(stderr, "%s: send inorder trav fail\n", __func__);
 #endif
+      return -1;
+    }
+
+    if (empty_hash_table(ht, 0) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error empting hash table", __func__);
+#endif
+      unlock_mutex(&(ht->t_m));
+      destroy_item_group(ig);
+      return -1;
+    }
+
     unlock_mutex(&(ht->t_m));
-    destroy_item_group(ig);
-    return -1;
+
+    usleep(10);
   }
-    
+
   unlock_mutex(&(ht->t_m));
+
   destroy_item_group(ig);
 
 #ifdef DEBUG

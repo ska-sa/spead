@@ -729,7 +729,7 @@ int send_spead_stream_terminator(struct spead_socket *x)
   
   SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_STREAM_CTRL_ID, SPEAD_STREAM_CTRL_TERM_VAL));
 
-  if (send_packet(x, p) < 0)
+  if (send_packet_spead_socket(x, p) < 0)
     return -1;
 
   return 0;
@@ -1493,7 +1493,7 @@ DC_GET_PKT:
   
           /*TODO: more checks*/
           if (ds.cc < 0){ 
-            fprintf(stderr, "\033[31mDATA STATE ERROR\033[0m\n");
+            fprintf(stderr, "\033[31mDATA STATE ERROR ds.cc %ld\033[0m\n", ds.cc);
             state = S_END;
             break;
           }
@@ -1518,7 +1518,7 @@ DC_GET_PKT:
           //fprintf(stderr, "\tdestination offset [%ld]\n", itm->i_len - ds.cc);
 #endif
           if (ds.p->payload_len - ds.off < 0){
-            fprintf(stderr, "\033[31mDATA STATE ERROR\033[0m\n");
+            fprintf(stderr, "\033[31mDATA STATE ERROR payload_len - ds.off %ld\033[0m\n", ds.p->payload_len - ds.off);
             state = S_END;
             break;
           }
@@ -1763,7 +1763,7 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
   fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
 #endif
 
-#ifdef DEBUG
+#if DEBUG>1
   for (i=0; i<p->n_items; i++){
     iptr = SPEAD_ITEM(p->data, (i+1));
     id   = SPEAD_ITEM_ID(iptr);
