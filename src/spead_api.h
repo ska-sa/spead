@@ -5,6 +5,7 @@
 #define SPEAD_API_H
 
 #include <sys/stat.h>
+#include <sys/select.h>
 
 #include "spead_packet.h"
 #include "hash.h"
@@ -109,6 +110,8 @@ struct u_child {
 struct spead_workers {
   struct avl_tree   *w_tree;
   int               w_count;
+  fd_set            w_in;
+  int               w_hfd;
 };
 
 
@@ -192,6 +195,10 @@ struct spead_workers *create_spead_workers(void *data, long count, int (*call)(v
 void destroy_spead_workers(struct spead_workers *w);
 int wait_spead_workers(struct spead_workers *w);
 int get_count_spead_workers(struct spead_workers *w);
+int populate_fdset_spead_workers(struct spead_workers *w);
+
+int get_high_fd_spead_workers(struct spead_workers *w);
+fd_set *get_in_fd_set_spead_workers(struct spead_workers *w);
 
 /*spead worker compare function*/
 int compare_spead_workers(const void *v1, const void *v2);

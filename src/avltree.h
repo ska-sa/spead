@@ -13,9 +13,10 @@
 #define AVL_LEFTLEFT    0xA
 #define AVL_RIGHTRIGHT  0X5
 
-#define WALK_INIT       0
+#define WALK_INIT       3
 #define WALK_PUSH       1
 #define WALK_POP        2
+#define WALK_END        0
 
 struct avl_tree {
   struct avl_node *t_root;
@@ -49,8 +50,11 @@ int del_name_node_avltree(struct avl_tree *t, const void *key, void (*d_free)(vo
 void free_node_avltree(struct avl_node *n, void (*d_free)(void *));
 void destroy_avltree(struct avl_tree *t, void (*d_free)(void *));
 
+#if 0
 struct avl_node *walk_inorder_avltree(struct avl_node *n);
 void *walk_data_inorder_avltree(struct avl_node *n);
+#endif
+int walk_inorder_avltree(struct avl_tree *t, int (*call)(void *data, void *node_data), void *data);
 
 /*node api*/
 

@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -18,6 +19,7 @@
 #include <fcntl.h>
 
 #include "avltree.h"
+#include "stack.h"
 
 struct avl_tree *create_avltree(int (*cmp)(const void *v1, const void *v2))
 {
@@ -146,43 +148,62 @@ void print_inorder_avltree(struct katcp_dispatch *d, struct avl_node *n, void (*
 
 #if 0
 struct avl_node *walk_inorder_avltree(struct avl_node *n)
+#endif
+int walk_inorder_avltree(struct avl_tree *t, int (*call)(void *data, void *node_data), void *data)
 {
+#if 0
   static struct katcp_stack *s = NULL;
   static int state = WALK_INIT;
   static struct avl_node *c;
+#endif
+  
+  struct stack *s;
+  int state;
+  struct avl_node *c;
 
-  struct avl_node *rtn;
+  if (t == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
 
-  while (1){
+  state = WALK_INIT;
+  s     = NULL;
+  c     = NULL;
+
+  while (state){
 
     switch (state) {
 
       case WALK_INIT:
 
-#if DEBUG>2
+#if DEBUG>1
         fprintf(stderr, "walk: about to init\n");
 #endif
 
-        s = create_stack_katcp();
-        if (s == NULL)
-          return NULL;
+        s = create_stack();
+        if (s == NULL){
+          state = WALK_END;
+          break;
+        }
 
-        c = n;
+        c = t->t_root;
 
       case WALK_PUSH:
 
-#if DEBUG>2
-        fprintf(stderr, "walk: about to push\n");
-#endif
-
         if (c != NULL){ 
 
-          if (push_stack_katcp(s, c, NULL) < 0) {
-            destroy_stack_katcp(s);
-            s = NULL;
-            state = WALK_INIT;
-            return NULL;
+          if (push_stack(s, c) < 0) {
+            destroy_stack(s);
+            //s = NULL;
+            //state = WALK_INIT;
+            return -1;
           }
+
+#if DEBUG>1
+          fprintf(stderr, "walk: push\n");
+#endif
 
           c = c->n_left;
         } 
@@ -195,39 +216,39 @@ struct avl_node *walk_inorder_avltree(struct avl_node *n)
         break;
 
       case WALK_POP:
-#if DEBUG>2
-        fprintf(stderr, "walk: about to pop\n");
+
+        if (pop_stack(s, (void **) &c) < 0){
+          state = WALK_END;
+          break;
+          //destroy_stack(s);
+          //return -1;
+        }
+
+#if DEBUG>1
+        fprintf(stderr, "walk: pop\n");
 #endif
 
-        if (!is_empty_stack_katcp(s)){
-          
-          c = pop_data_stack_katcp(s);
-          if (c != NULL){
-            
-            rtn = c;
-            c = c->n_right;
-            state = WALK_PUSH;
+        if (call){
+          if ((*call)(data, get_node_data_avltree(c)) < 0){
+#ifdef DEBUG
+            fprintf(stderr, "%s: walk callback failed\n", __func__);
+#endif
+          }
+        }
 
-            return rtn;            
-            
-          } 
-
-       } else {
-         destroy_stack_katcp(s);
-         s = NULL;
-         state = WALK_INIT;
-         return NULL;
-       }
-
+        c = c->n_right;
+        state = WALK_PUSH;
 
         break;
-
     }
   }
+
+  destroy_stack(s);
   
-  return NULL;  
+  return 0;  
 }
 
+#if 0
 void *walk_data_inorder_avltree(struct avl_node *n)
 {
   struct avl_node *c;

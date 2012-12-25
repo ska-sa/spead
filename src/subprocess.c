@@ -12,6 +12,7 @@
 
 #include <sys/types.h> 
 #include <sys/wait.h>
+#include <sys/select.h>
 
 #include "server.h"
 #include "spead_api.h"
@@ -50,6 +51,8 @@ struct spead_workers *create_spead_workers(void *data, long count, int (*call)(v
 
   w->w_tree   = NULL;
   w->w_count  = 0;
+  FD_ZERO(&(w->w_in));
+  w->w_hfd    = 0;
 
   w->w_tree = create_avltree(&compare_spead_workers);
   if (w->w_tree == NULL){
@@ -73,6 +76,47 @@ struct spead_workers *create_spead_workers(void *data, long count, int (*call)(v
   }
 
   return w;
+}
+
+int walk_callback_spead_workers(void *data, void *node_data)
+{
+  struct spead_workers *w;
+  struct u_child *c;
+
+  w = data;
+  c = node_data;
+
+  if (w == NULL || c == NULL)
+    return -1;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: populating FDSET for pid[%d] fd[%d]\n", __func__, c->c_pid, c->c_fd);
+#endif
+
+  FD_SET(c->c_fd, &(w->w_in));
+  w->w_hfd = (c->c_fd > w->w_hfd) ? c->c_fd : w->w_hfd;
+
+  return 0;
+}
+
+int populate_fdset_spead_workers(struct spead_workers *w)
+{ 
+  if (w == NULL)
+    return -1;
+  
+  FD_ZERO(&(w->w_in));
+  
+  return walk_inorder_avltree(w->w_tree, &walk_callback_spead_workers, w);
+}
+
+int get_high_fd_spead_workers(struct spead_workers *w)
+{
+  return (w) ? w->w_hfd : -1;
+}
+
+fd_set *get_in_fd_set_spead_workers(struct spead_workers *w)
+{
+  return (w) ? &(w->w_in) : NULL;
 }
 
 int get_count_spead_workers(struct spead_workers *w)
@@ -155,11 +199,15 @@ void destroy_child_sp(void *data)
     
     if (c->c_fd)
       close(c->c_fd);
+
 #ifdef DEBUG
     fprintf(stderr, "%s: about to send SIGTERM to child [%d]\n", __func__, c->c_pid);
 #endif
 
+#if 0
     kill(c->c_pid, SIGTERM); 
+#endif
+    kill(c->c_pid, SIGKILL); 
     
     free(c);
   }
@@ -191,8 +239,11 @@ struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s
 struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd))
 {
   int pipefd[2];
+  int excode;
   pid_t cpid;
 
+  excode = EX_OK;
+  
   if (call == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: null callback\n", __func__);
@@ -242,6 +293,7 @@ struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call
 #ifdef DEBUG
     fprintf(stderr, "%s: child [%d] task returned error\n", __func__, getpid());
 #endif
+    excode = EX_SOFTWARE;
   }
 
   /*destroy module data*/
@@ -251,7 +303,7 @@ struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call
 #endif
   }
 
-  exit(EX_OK);
+  exit(excode);
   return NULL;
 }
 

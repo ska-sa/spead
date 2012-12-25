@@ -497,7 +497,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
           if (itm){
             SPEAD_SET_ITEM(p->data, nitems++, SPEAD_ITEM_BUILD(SPEAD_DIRECTADDR, itm->i_id, count));
 #ifdef DEBUG
-            fprintf(stderr, "%s: Item at offset [%ld or 0x%x]\n", __func__, count, count);
+            fprintf(stderr, "%s: Item at offset [%ld or 0x%lx]\n", __func__, count, count);
 #endif
             count += itm->i_len;
           }

@@ -1,8 +1,8 @@
-#CFLAGS += -DDEBUG=3
-CFLAGS += -DPROCESS
+#CFLAGS += -DDEBUG=2
+#CFLAGS += -DPROCESS
 CFLAGS += -DIKATCP
 CFLAGS += -DDISCARD
-CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
 CFLAGS += -ggdb
@@ -29,10 +29,10 @@ TXEXE = speadtx
 RXSRC = server.c
 TXSRC = tx.c
 
-SHDR = avltree.h mutex.h hash.h spead_api.h spead_packet.h
+SHDR = avltree.h mutex.h hash.h spead_api.h spead_packet.h stack.h
 HDR  = $(SHDR) server.h
 
-SSRC = avltree.c spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c datafile.c net.c subprocess.c
+SSRC = avltree.c spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c datafile.c net.c subprocess.c stack.c
 SLIB = libspead.so
 
 SOBJ = $(patsubst %.c,%.lo,$(SSRC))

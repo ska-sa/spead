@@ -21,12 +21,14 @@ static volatile int run = 1;
 static volatile int child = 0;
 
 struct spead_tx {
+  mutex                     t_m;
   struct spead_socket       *t_x;
   struct spead_workers      *t_w;
   struct data_file          *t_f;
   int                       t_pkt_size; 
   struct avl_tree           *t_t;
   struct spead_heap_store   *t_hs;
+  uint64_t                  t_count;
 };
 
 void handle_us(int signum) 
@@ -84,12 +86,14 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
     return NULL;
   }
 
+  tx->t_m         = 0;
   tx->t_x         = NULL;
   tx->t_w         = NULL;
   tx->t_f         = NULL;
   tx->t_pkt_size  = pkt_size;
   tx->t_t         = NULL;
   tx->t_hs        = NULL;
+  tx->t_count     = 0;
 
   tx->t_x = create_spead_socket(host, port);
   if (tx->t_x == NULL){
@@ -113,6 +117,19 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
   return tx;
 }
 
+uint64_t get_count_speadtx(struct spead_tx *tx)
+{
+  if (tx == NULL)
+    return -1;
+
+  lock_mutex(&(tx->t_m));
+  
+  tx->t_count++;
+
+  unlock_mutex(&(tx->t_m));
+
+  return tx->t_count;
+}
 
 int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 {
@@ -133,13 +150,11 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
 #endif
 
-
-
   ig = create_item_group(1536, 3);
   if (ig == NULL)
     return -1;
 
-  print_list_stats(tx->t_hs->s_list, __func__);
+  //print_list_stats(tx->t_hs->s_list, __func__);
 
   itm = new_item_from_group(ig, 512);
   if (set_item_data_ones(itm) < 0) {}
@@ -153,8 +168,9 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   if (set_item_data_ramp(itm) < 0) {}
   //print_data(itm->i_data, itm->i_len);
   
+
   while (run) {
-    ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, pid);
+    ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, get_count_speadtx(tx));
     if (ht == NULL){
       destroy_item_group(ig);
 #ifdef DEBUG
@@ -186,7 +202,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     usleep(10);
   }
 
-  unlock_mutex(&(ht->t_m));
+  //unlock_mutex(&(ht->t_m));
 
   destroy_item_group(ig);
 
@@ -206,6 +222,8 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
 {
   struct spead_tx *tx;
   uint64_t heaps, packets;
+  sigset_t empty_mask;
+  int rtn;
   
   if (register_signals_us() < 0)
     return EX_SOFTWARE;
@@ -243,12 +261,37 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
     return EX_SOFTWARE;
   }
 
-  
-  
+  sigemptyset(&empty_mask);
+
   while (run){
+
+    if (populate_fdset_spead_workers(tx->t_w) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error populating fdset\n", __func__);
+#endif
+      run = 0;
+      break;
+    }
+
+    rtn = pselect(get_high_fd_spead_workers(tx->t_w) + 1, get_in_fd_set_spead_workers(tx->t_w), (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask);
+    if (rtn < 0){
+      switch(errno){
+        case EAGAIN:
+        case EINTR:
+          //continue;
+          break;
+        default:
+#ifdef DEBUG
+          fprintf(stderr, "%s: pselect error\n", __func__);
+#endif    
+          run = 0;
+          continue;
+      }
+    }
     
+
     fprintf(stderr, ".");
-    sleep(1);
+    //sleep(1);
 
     /*do stuff*/
     

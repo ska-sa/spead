@@ -207,9 +207,7 @@ int send_packet_spead_socket(void *data, struct spead_packet *p)
 
   sb = sendto(sfd, p->data, SPEAD_MAX_PACKET_LEN, 0, dst->ai_addr, dst->ai_addrlen);
   if (sb < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: sendto err (%s)\n", __func__, strerror(errno));
-#endif
+    fprintf(stderr, "%s: sendto err (\033[31m%s\033[0m)\n", __func__, strerror(errno));
     return -1;
   }
 
