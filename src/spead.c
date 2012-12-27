@@ -445,7 +445,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
       
       case PZ_GETPACKET:
 
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s: GET a packet\n", __func__);
 #endif
 
@@ -461,7 +461,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
           break;
         }
 
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s: payload off %ld\n", __func__, payload_off);
 #endif
         pktd = (uint64_t *)p->data;
@@ -484,7 +484,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
 
       case PZ_ADDIG_ITEMS:
 
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s: Add Item Group Items\n", __func__);
 #endif
 
@@ -496,7 +496,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
           /*TODO deal with immediate items also*/
           if (itm){
             SPEAD_SET_ITEM(p->data, nitems++, SPEAD_ITEM_BUILD(SPEAD_DIRECTADDR, itm->i_id, count));
-#ifdef DEBUG
+#ifdef PROCESS
             fprintf(stderr, "%s: Item at offset [%ld or 0x%lx]\n", __func__, count, count);
 #endif
             count += itm->i_len;
@@ -513,7 +513,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
       case PZ_INIT_PACKET:
 
         if (spead_packet_unpack_header(p) < 0){
-#ifdef DEBUG
+#ifdef PROCESS
           fprintf(stderr, "%s: error unpacking spead header\n", __func__);
 #endif
           state = PZ_END;
@@ -521,7 +521,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
         }
         
         if (spead_packet_unpack_items(p) == SPEAD_ERR){
-#ifdef DEBUG
+#ifdef PROCESS
           fprintf(stderr, "%s: unable to unpack spead items for packet (%p)\n", __func__, p);
 #endif
           state = PZ_END;
@@ -529,13 +529,13 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
         } 
 
         if (SPEAD_HEADERLEN + p->n_items * SPEAD_ITEMLEN + payload_len >= SPEAD_MAX_PACKET_LEN) {
-#ifdef DEBUG
+#ifdef PROCESS
           fprintf(stderr, "%s: error items and payload will not fit in packet!!!\n", __func__);
 #endif
           state = PZ_END;
           break;
         }
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s: done INIT a packet\n", __func__);
 #endif
         state = PZ_COPYDATA;
@@ -547,13 +547,13 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
         /*TODO: think about including the header into the total packet size specified*/
         //copied = 0;
         
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s:------start copy data\n", __func__);
 #endif
 
         if (!remain){
           itm = get_next_spead_item(ig, itm);
-#ifdef DEBUG
+#ifdef PROCESS
           fprintf(stderr, "%s: get next itm (%p)\n", __func__, p);
 #endif
           if (itm == NULL){
@@ -565,7 +565,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
           off = 0;
         }
 
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s:\t\tcount %ld off %ld remain %ld\n", __func__, count, off, remain);
 #endif
 
@@ -580,7 +580,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
           
           SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, off));
 
-#ifdef DEBUG
+#ifdef PROCESS
           fprintf(stderr, "%s: COPYMORE  count %ld off %ld remain %ld\n", __func__, count, off, remain);
 #endif
 
@@ -595,7 +595,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
           remain   = (remain < pkt_size - off) ? 0 : remain - (pkt_size - off);
           off      = 0;
 
-#ifdef DEBUG
+#ifdef PROCESS
           fprintf(stderr, "%s: NEW PCKT  count %ld off %ld remain %ld\n", __func__, count, off, remain);
 #endif
 
@@ -603,7 +603,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
         }
         
         SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, didcopy));
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s: set payload_len to %ld bytes\n", __func__, didcopy);
         fprintf(stderr, "%s: end copy data------\n", __func__);
 #endif
@@ -629,7 +629,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
 
       case PZ_END:
       default:
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s: packetize end\n", __func__);
 #endif
         break;
@@ -1647,7 +1647,7 @@ def DEBUG
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: data count: [%ld] packet heap len [%ld]\n", __func__, ht->t_data_count, p->heap_len);
+  fprintf(stderr, "%s: HID [%ld] HCNT [%ld] data count: [%ld] packet heap len [%ld]\n", __func__, ht->t_id, p->heap_cnt, ht->t_data_count, p->heap_len);
 #endif
 
   /*have all packets by data count must process*/
@@ -1696,7 +1696,7 @@ def DEBUG
 #endif
 
     if(run_api_user_callback_module(m, ig) < 0){
-#ifdef DEBUG 
+#if DEBUG>1
       fprintf(stderr, "%s: user callback failed\n", __func__);
 #endif
     }

@@ -139,12 +139,13 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   struct hash_table *ht;
   pid_t pid;
 
+  uint64_t hid;
+
   tx = data;
   if (tx == NULL)
     return -1;
 
   pid = getpid();
-
 
 #ifdef DEBUG
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
@@ -169,8 +170,12 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   //print_data(itm->i_data, itm->i_len);
   
 
+  //while (run && hid < 20) {
   while (run) {
-    ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, get_count_speadtx(tx));
+
+    hid = get_count_speadtx(tx);
+
+    ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, hid);
     if (ht == NULL){
       destroy_item_group(ig);
 #ifdef DEBUG
@@ -198,6 +203,11 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     }
 
     unlock_mutex(&(ht->t_m));
+
+#if 0 
+def DATA
+    fprintf(stderr, "[%d] %s: hid %ld\n", pid, __func__, hid);
+#endif
 
     usleep(10);
   }
