@@ -5,6 +5,7 @@
 #define SPEAD_API_H
 
 #include <sys/stat.h>
+#include <sys/select.h>
 
 #include "spead_packet.h"
 #include "hash.h"
@@ -109,6 +110,8 @@ struct u_child {
 struct spead_workers {
   struct avl_tree   *w_tree;
   int               w_count;
+  fd_set            w_in;
+  int               w_hfd;
 };
 
 
@@ -137,6 +140,7 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems);
 void destroy_item_group(struct spead_item_group *ig);
 struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size);
 struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spead_item_group *ig, int pkt_size, uint64_t hid);
+int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data);
 #if 0
 int grow_spead_item_group(struct spead_item_group *ig, uint64_t extradata, uint64_t extranitems);
 struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n);
@@ -178,9 +182,11 @@ int connect_spead_socket(struct spead_socket *x);
 int set_broadcast_opt_spead_socket(struct spead_socket *x);
 int get_fd_spead_socket(struct spead_socket *x);
 struct addrinfo *get_addr_spead_socket(struct spead_socket *x);
+int send_packet_spead_socket(void *data, struct spead_packet *p); // data should be a spead_socket
+int send_spead_stream_terminator(struct spead_socket *x);
 
 
-/*spead workers ubprocess api*/
+/*spead workers subprocess api*/
 void destroy_child_sp(void *data);
 struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd));
 int add_child_us(struct u_child ***cs, struct u_child *c, int size);
@@ -189,6 +195,10 @@ struct spead_workers *create_spead_workers(void *data, long count, int (*call)(v
 void destroy_spead_workers(struct spead_workers *w);
 int wait_spead_workers(struct spead_workers *w);
 int get_count_spead_workers(struct spead_workers *w);
+int populate_fdset_spead_workers(struct spead_workers *w);
+
+int get_high_fd_spead_workers(struct spead_workers *w);
+fd_set *get_in_fd_set_spead_workers(struct spead_workers *w);
 
 /*spead worker compare function*/
 int compare_spead_workers(const void *v1, const void *v2);

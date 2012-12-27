@@ -353,7 +353,7 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   
   if (ig == NULL || size <= 0){
 #ifdef DEBUG
-    fprintf(stderr, "%s param error %ld\n", __func__ ,size);
+    fprintf(stderr, "%s: param error size: %ld\n", __func__ ,size);
 #endif
     return NULL;
   }
@@ -400,7 +400,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   struct spead_packet *p;
 
   int state;
-  uint64_t payload_off, payload_len, heap_len, nitems, count, off, remain;
+  uint64_t *pktd, payload_off, payload_len, heap_len, nitems, count, off, remain, didcopy;
   
   if (hs == NULL || ig == NULL || pkt_size <= 0){
 #ifdef DEBUG
@@ -420,6 +420,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   o = NULL;
   payload_off = 0;
   payload_len = pkt_size;
+  didcopy     = 0;
   heap_len    = 0;
   nitems      = 4;
   count       = 0;
@@ -433,7 +434,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: [%ld] igitems [%ld] nitems into ht [%ld] heap_len [%ld]\n", __func__, ig->g_items, nitems, ht->t_id, heap_len);
+  fprintf(stderr, "%s: [%ld] igitems [%ld] nitems into ht [%ld] heap_len [%ld] into [%d] byte packets\n", __func__, ig->g_items, nitems, ht->t_id, heap_len, pkt_size);
 #endif
 
   state       = PZ_GETPACKET;
@@ -444,7 +445,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
       
       case PZ_GETPACKET:
 
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s: GET a packet\n", __func__);
 #endif
 
@@ -460,15 +461,18 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
           break;
         }
 
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s: payload off %ld\n", __func__, payload_off);
 #endif
+        pktd = (uint64_t *)p->data;
 
-        SPEAD_SET_ITEM(p->data, 0, SPEAD_HEADER_BUILD(nitems));
+        SPEAD_SET_ITEM(pktd, 0, SPEAD_HEADER_BUILD(nitems));
         SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_CNT_ID, hid));
         SPEAD_SET_ITEM(p->data, 2, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_LEN_ID, heap_len));
         SPEAD_SET_ITEM(p->data, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_OFF_ID, payload_off));
+#if 0
         SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, payload_len));
+#endif
 
         if (nitems > 4 && count == 0){
           state = PZ_ADDIG_ITEMS;
@@ -480,7 +484,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
 
       case PZ_ADDIG_ITEMS:
 
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s: Add Item Group Items\n", __func__);
 #endif
 
@@ -492,6 +496,9 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
           /*TODO deal with immediate items also*/
           if (itm){
             SPEAD_SET_ITEM(p->data, nitems++, SPEAD_ITEM_BUILD(SPEAD_DIRECTADDR, itm->i_id, count));
+#ifdef PROCESS
+            fprintf(stderr, "%s: Item at offset [%ld or 0x%lx]\n", __func__, count, count);
+#endif
             count += itm->i_len;
           }
         }
@@ -506,7 +513,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
       case PZ_INIT_PACKET:
 
         if (spead_packet_unpack_header(p) < 0){
-#ifdef DEBUG
+#ifdef PROCESS
           fprintf(stderr, "%s: error unpacking spead header\n", __func__);
 #endif
           state = PZ_END;
@@ -514,7 +521,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
         }
         
         if (spead_packet_unpack_items(p) == SPEAD_ERR){
-#ifdef DEBUG
+#ifdef PROCESS
           fprintf(stderr, "%s: unable to unpack spead items for packet (%p)\n", __func__, p);
 #endif
           state = PZ_END;
@@ -522,17 +529,15 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
         } 
 
         if (SPEAD_HEADERLEN + p->n_items * SPEAD_ITEMLEN + payload_len >= SPEAD_MAX_PACKET_LEN) {
-#ifdef DEBUG
+#ifdef PROCESS
           fprintf(stderr, "%s: error items and payload will not fit in packet!!!\n", __func__);
 #endif
           state = PZ_END;
           break;
         }
-
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s: done INIT a packet\n", __func__);
 #endif
-
         state = PZ_COPYDATA;
         break;
 
@@ -542,13 +547,13 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
         /*TODO: think about including the header into the total packet size specified*/
         //copied = 0;
         
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s:------start copy data\n", __func__);
 #endif
 
         if (!remain){
           itm = get_next_spead_item(ig, itm);
-#ifdef DEBUG
+#ifdef PROCESS
           fprintf(stderr, "%s: get next itm (%p)\n", __func__, p);
 #endif
           if (itm == NULL){
@@ -560,7 +565,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
           off = 0;
         }
 
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s:\t\tcount %ld off %ld remain %ld\n", __func__, count, off, remain);
 #endif
 
@@ -568,11 +573,14 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
 
           memcpy(p->payload + off, itm->i_data, remain);
 
+          didcopy += remain;
           count   -= remain;
           off     += remain;
           remain   = 0;
           
-#ifdef DEBUG
+          SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, off));
+
+#ifdef PROCESS
           fprintf(stderr, "%s: COPYMORE  count %ld off %ld remain %ld\n", __func__, count, off, remain);
 #endif
 
@@ -582,18 +590,21 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
 
           memcpy(p->payload + off, itm->i_data, (remain < pkt_size - off) ? remain : pkt_size - off);
           
-          count  -= (remain < pkt_size - off) ? remain : pkt_size - off;
-          remain  = (remain < pkt_size - off) ? 0 : remain - (pkt_size - off);
-          off     = 0;
+          didcopy += (remain < pkt_size - off) ? remain : pkt_size - off;
+          count   -= (remain < pkt_size - off) ? remain : pkt_size - off;
+          remain   = (remain < pkt_size - off) ? 0 : remain - (pkt_size - off);
+          off      = 0;
 
-#ifdef DEBUG
+#ifdef PROCESS
           fprintf(stderr, "%s: NEW PCKT  count %ld off %ld remain %ld\n", __func__, count, off, remain);
 #endif
 
           state = PZ_HASHPACKET;
         }
         
-#ifdef DEBUG
+        SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, didcopy));
+#ifdef PROCESS
+        fprintf(stderr, "%s: set payload_len to %ld bytes\n", __func__, didcopy);
         fprintf(stderr, "%s: end copy data------\n", __func__);
 #endif
         break;
@@ -612,23 +623,116 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
         }
         
         payload_off += pkt_size;
-        
+        didcopy = 0; 
+
         break;
 
       case PZ_END:
       default:
-#ifdef DEBUG
+#ifdef PROCESS
         fprintf(stderr, "%s: packetize end\n", __func__);
 #endif
         break;
 
     }
-
   }
-
-   
   
   return ht;
+}
+
+int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data)
+{
+  struct hash_o *o;
+  struct spead_packet *p;
+
+  int state, i;
+  
+  if (ht == NULL || call == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+
+  i = 0; 
+  o = NULL;
+  p = NULL;
+  state = S_GET_OBJECT;    
+
+  while (state){
+    
+    switch(state){
+      
+      case S_GET_OBJECT:
+        if (i < ht->t_len){
+          o = ht->t_os[i];
+          if (o == NULL){
+            i++;
+            state = S_GET_OBJECT;
+            break;
+          }
+          state = S_GET_PACKET;
+        } else 
+          state = S_END;
+        break;
+
+      case S_GET_PACKET:
+        p = get_data_hash_o(o);
+        if (p == NULL){
+          state = S_NEXT_PACKET;
+          break;
+        }
+        
+        if ((*call)(data, p) < 0)
+          return -1;
+
+        state = S_NEXT_PACKET;
+        break;
+
+      case S_NEXT_PACKET:
+        if (o->o_next != NULL){
+          o = o->o_next;
+          state = S_GET_PACKET;
+        } else {
+          i++;
+          state = S_GET_OBJECT;
+        }
+        break;
+    }
+  }
+
+  return 0;
+}
+
+int send_spead_stream_terminator(struct spead_socket *x)
+{
+  struct spead_packet pkt, *p;
+  uint64_t *pktd;
+  
+  if (x == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+
+  p = &pkt;
+
+  bzero(p, sizeof(struct spead_packet));
+  spead_packet_init(p);
+
+  p->n_items = 1;
+  p->is_stream_ctrl_term = SPEAD_STREAM_CTRL_TERM_VAL;
+  
+  pktd = (uint64_t *)p->data;
+  SPEAD_SET_ITEM(pktd, 0, SPEAD_HEADER_BUILD(p->n_items));
+  
+  SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_STREAM_CTRL_ID, SPEAD_STREAM_CTRL_TERM_VAL));
+
+  if (send_packet_spead_socket(x, p) < 0)
+    return -1;
+
+  return 0;
 }
 
 #if 0 
@@ -1152,6 +1256,10 @@ struct spead_item_group *process_items(struct hash_table *ht)
               ds.o   = o;
               ds.off = ps.off;
             }
+          } else {
+            fprintf(stderr, "\033[31mMALFORMED packet\033[0m\n");
+            state = S_END;
+            break;
           }
 
           state = S_DIRECT_COPY;
@@ -1385,7 +1493,7 @@ DC_GET_PKT:
   
           /*TODO: more checks*/
           if (ds.cc < 0){ 
-            fprintf(stderr, "\033[31mDATA STATE ERROR\033[0m\n");
+            fprintf(stderr, "\033[31mDATA STATE ERROR ds.cc %ld\033[0m\n", ds.cc);
             state = S_END;
             break;
           }
@@ -1410,7 +1518,7 @@ DC_GET_PKT:
           //fprintf(stderr, "\tdestination offset [%ld]\n", itm->i_len - ds.cc);
 #endif
           if (ds.p->payload_len - ds.off < 0){
-            fprintf(stderr, "\033[31mDATA STATE ERROR\033[0m\n");
+            fprintf(stderr, "\033[31mDATA STATE ERROR payload_len - ds.off %ld\033[0m\n", ds.p->payload_len - ds.off);
             state = S_END;
             break;
           }
@@ -1539,7 +1647,7 @@ def DEBUG
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "dc: [%ld] packet heap len [%ld]\n", ht->t_data_count, p->heap_len);
+  fprintf(stderr, "%s: HID [%ld] HCNT [%ld] data count: [%ld] packet heap len [%ld]\n", __func__, ht->t_id, p->heap_cnt, ht->t_data_count, p->heap_len);
 #endif
 
   /*have all packets by data count must process*/
@@ -1588,7 +1696,7 @@ def DEBUG
 #endif
 
     if(run_api_user_callback_module(m, ig) < 0){
-#ifdef DEBUG 
+#if DEBUG>1
       fprintf(stderr, "%s: user callback failed\n", __func__);
 #endif
     }
@@ -1655,12 +1763,12 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
   fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
 #endif
 
-#ifdef DEBUG
+#if DEBUG>1
   for (i=0; i<p->n_items; i++){
     iptr = SPEAD_ITEM(p->data, (i+1));
     id   = SPEAD_ITEM_ID(iptr);
     mode = SPEAD_ITEM_MODE(iptr);
-    fprintf(stderr, "%s: ITEM[%d] mode[%d] id[%d] 0x%lx\n", __func__, i, mode, id, iptr);
+    fprintf(stderr, "%s: ITEM[%d] mode[%d] id[%d or 0x%x] 0x%lx\n", __func__, i, mode, id, id, iptr);
   }
 #endif
 
