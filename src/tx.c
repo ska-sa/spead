@@ -241,12 +241,13 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   tx = create_speadtx(host, port, broadcast, pkt_size);
   if (tx == NULL)
     return EX_SOFTWARE;
-
+#if 0
   tx->t_f = load_raw_data_file("/srv/pulsar/test.dat");
   if (tx->t_f == NULL){
     destroy_speadtx(tx);
     return EX_SOFTWARE;
   }
+#endif
 
   heaps = 10;
   packets = 10;
