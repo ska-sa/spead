@@ -151,23 +151,26 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
 #endif
 
-  ig = create_item_group(1536, 3);
+  ig = create_item_group(8192, 3);
   if (ig == NULL)
     return -1;
 
   //print_list_stats(tx->t_hs->s_list, __func__);
 
-  itm = new_item_from_group(ig, 512);
+  itm = new_item_from_group(ig, 2048);
   if (set_item_data_ones(itm) < 0) {}
   //print_data(itm->i_data, itm->i_len);
 
-  itm = new_item_from_group(ig, 512);
+  itm = new_item_from_group(ig, 2048);
   if (set_item_data_zeros(itm) < 0) {}
   //print_data(itm->i_data, itm->i_len);
 
-  itm = new_item_from_group(ig, 512);
+  itm = new_item_from_group(ig, 2048);
   if (set_item_data_ramp(itm) < 0) {}
   //print_data(itm->i_data, itm->i_len);
+
+  itm = new_item_from_group(ig, 2048);
+  if (set_item_data_ones(itm) < 0) {}
   
   //hid = get_count_speadtx(tx);
   
