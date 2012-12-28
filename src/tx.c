@@ -169,12 +169,12 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   if (set_item_data_ramp(itm) < 0) {}
   //print_data(itm->i_data, itm->i_len);
   
-  hid = get_count_speadtx(tx);
+  //hid = get_count_speadtx(tx);
   
   //while (run && hid < 20) {
   while (run) {
 
-   // hid = get_count_speadtx(tx);
+    hid = get_count_speadtx(tx);
 
     ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, hid);
     if (ht == NULL){
