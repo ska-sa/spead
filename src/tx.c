@@ -151,7 +151,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
 #endif
 
-  ig = create_item_group(8192, 3);
+  ig = create_item_group(8192, 4);
   if (ig == NULL)
     return -1;
 
@@ -174,7 +174,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   
   //hid = get_count_speadtx(tx);
   
-  //while (run && hid < 20) {
+  //while (run && hid < 1) {
   while (run) {
 
     hid = get_count_speadtx(tx);

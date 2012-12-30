@@ -1,7 +1,7 @@
 #CFLAGS += -DDEBUG=2
 #CFLAGS += -DPROCESS
 CFLAGS += -DIKATCP
-#CFLAGS += -DDISCARD
+CFLAGS += -DDISCARD
 #CFLAGS += -DDEBUG
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
@@ -15,6 +15,8 @@ LIB = -lspead -L.
 ifeq (,$(findstring -DIKATCP,$(CFLAGS)))
 	LIB += -lkatcp
 endif
+
+PWD = $(shell pwd)
 
 ###############
 #   VERSION   #
@@ -68,6 +70,9 @@ install: all
 
 clean: 
 	$(RM) $(TXEXE) $(RXEXE) $(SLIB) *.o *.lo core vgcore* test-*
+
+fresh: 
+	make clean && make
 
 test-hash: sharedmem.c hash.c
 	$(CC) $(CFLAGS) -DTEST_HASH -o $@ $^

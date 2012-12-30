@@ -91,7 +91,7 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
   if (id <= 0)
     return -1;
 
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: po [%ld] hl [%ld] tlen [%ld]\n", __func__,  po, hl, t->t_len);
 #endif 
 
@@ -611,6 +611,22 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
     
       case PZ_HASHPACKET:
         state = PZ_GETPACKET;
+        /*****************extra*********************/
+        if (spead_packet_unpack_header(p) < 0){
+#ifdef PROCESS
+          fprintf(stderr, "%s: error unpacking spead header\n", __func__);
+#endif
+          state = PZ_END;
+          break;
+        }
+        if (spead_packet_unpack_items(p) == SPEAD_ERR){
+#ifdef PROCESS
+          fprintf(stderr, "%s: unable to unpack spead items for packet (%p)\n", __func__, p);
+#endif
+          state = PZ_END;
+          break;
+        } 
+        /*******************************************/
 
         if (add_o_ht(ht, o) < 0){
           state = PZ_END;
@@ -721,14 +737,31 @@ int send_spead_stream_terminator(struct spead_socket *x)
   bzero(p, sizeof(struct spead_packet));
   spead_packet_init(p);
 
-  p->n_items = 1;
+  p->n_items = 6;
   p->is_stream_ctrl_term = SPEAD_STREAM_CTRL_TERM_VAL;
   
   pktd = (uint64_t *)p->data;
   SPEAD_SET_ITEM(pktd, 0, SPEAD_HEADER_BUILD(p->n_items));
   
   SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_STREAM_CTRL_ID, SPEAD_STREAM_CTRL_TERM_VAL));
+  SPEAD_SET_ITEM(p->data, 2, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_LEN_ID, 0x0));
+  SPEAD_SET_ITEM(p->data, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_OFF_ID, 0x0));
+  SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, 0x0));
+  SPEAD_SET_ITEM(p->data, 5, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_CNT_ID, 0xFFFFFFFF));
 
+#if 1
+  if (spead_packet_unpack_header(p) < 0){
+#ifdef PROCESS
+    fprintf(stderr, "%s: error unpacking spead header\n", __func__);
+#endif
+  }
+  if (spead_packet_unpack_items(p) == SPEAD_ERR){
+#ifdef PROCESS
+    fprintf(stderr, "%s: unable to unpack spead items for packet (%p)\n", __func__, p);
+#endif
+  } 
+#endif
+        
   if (send_packet_spead_socket(x, p) < 0)
     return -1;
 
@@ -1763,7 +1796,7 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
   fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
 #endif
 
-#if DEBUG>1
+#ifdef DEBUG
   for (i=0; i<p->n_items; i++){
     iptr = SPEAD_ITEM(p->data, (i+1));
     id   = SPEAD_ITEM_ID(iptr);

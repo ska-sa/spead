@@ -324,7 +324,7 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   
   id = (*t->t_hfn)(t, o);
   
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: api hashfn return id [%ld]\n", __func__, id);
 #endif
 

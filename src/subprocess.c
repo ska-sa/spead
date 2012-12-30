@@ -201,13 +201,17 @@ void destroy_child_sp(void *data)
       close(c->c_fd);
 
 #ifdef DEBUG
-    fprintf(stderr, "%s: about to send SIGTERM to child [%d]\n", __func__, c->c_pid);
+    fprintf(stderr, "%s: about to send SIGKILL to child [%d]\n", __func__, c->c_pid);
 #endif
 
 #if 0
     kill(c->c_pid, SIGTERM); 
 #endif
-    kill(c->c_pid, SIGKILL); 
+    if (kill(c->c_pid, SIGKILL) < 0) {
+#ifdef DEBUG
+      fprintf(stderr, "%s: kill err (%s)\n", __func__, strerror(errno));
+#endif
+    }
     
     free(c);
   }
