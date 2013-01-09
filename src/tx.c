@@ -139,23 +139,24 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   struct hash_table *ht;
   pid_t pid;
 
-  uint64_t hid;
+  void *ptr;
+  uint64_t hid, got;
 
   tx = data;
   if (tx == NULL)
     return -1;
 
   pid = getpid();
+  hid = 0;
 
 #ifdef DEBUG
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
 #endif
 
+#if 0
   ig = create_item_group(8192, 4);
   if (ig == NULL)
     return -1;
-
-  //print_list_stats(tx->t_hs->s_list, __func__);
 
   itm = new_item_from_group(ig, 2048);
   if (set_item_data_ones(itm) < 0) {}
@@ -171,15 +172,42 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 
   itm = new_item_from_group(ig, 2048);
   if (set_item_data_ones(itm) < 0) {}
-  
+#endif
+
+  ig = create_item_group(8192,1);
+  if (ig == NULL)
+    return -1;
+
+  itm = new_item_from_group(ig, 8192);
+
   //hid = get_count_speadtx(tx);
   
   //while (run && hid < 1) {
   while (run) {
 
+    got = request_chunk_datafile(tx->t_f, 8192, &ptr);
+    if (got == 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: got 0 ending\n", __func__);
+#endif
+      run = 0;
+      break;
+    } else if (got < 0){
+      destroy_item_group(ig);
+      return -1;
+    }
+
+    if (copy_to_spead_item(itm, ptr, got) < 0){
+      destroy_item_group(ig);
+      return -1;
+    }
+
+    print_data(itm->i_data, itm->i_len);
+
     hid = get_count_speadtx(tx);
 
     ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, hid);
+    //ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, pid);
     if (ht == NULL){
       destroy_item_group(ig);
 #ifdef DEBUG
@@ -232,7 +260,7 @@ struct avl_tree *create_spead_database()
   return create_avltree(&compare_spead_workers);
 }
 
-int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size)
+int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size, char *ifile)
 {
   struct spead_tx *tx;
   uint64_t heaps, packets;
@@ -245,9 +273,11 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   tx = create_speadtx(host, port, broadcast, pkt_size);
   if (tx == NULL)
     return EX_SOFTWARE;
-#if 0
-  tx->t_f = load_raw_data_file("/srv/pulsar/test.dat");
+
+#if 1
+  tx->t_f = load_raw_data_file(ifile);
   if (tx->t_f == NULL){
+    fprintf(stderr, "%s: FATAL could not load file\n", __func__);
     destroy_speadtx(tx);
     return EX_SOFTWARE;
   }
@@ -336,14 +366,14 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
 
 int usage(char **argv, long cpus)
 {
-  fprintf(stderr, "usage:\n\t%s (options) destination port\n\n\tOptions\n\t\t-w [workers (d:%ld)]\n\t\t-x (enable send to broadcast [priv])\n\t\t-s [spead packet size]\n\n", argv[0], cpus);
+  fprintf(stderr, "usage:\n\t%s (options) destination port\n\n\tOptions\n\t\t-w [workers (d:%ld)]\n\t\t-x (enable send to broadcast [priv])\n\t\t-s [spead packet size]\n\t\t-i [input file]\n\n", argv[0], cpus);
   return EX_USAGE;
 }
 
 int main(int argc, char **argv)
 {
   long cpus;
-  char c, *port, *host, broadcast;
+  char c, *port, *host, broadcast, *ifile;
   int i,j,k, pkt_size;
 
   i = 1;
@@ -351,6 +381,7 @@ int main(int argc, char **argv)
   k = 0;
 
   host = NULL;
+  ifile = NULL;
 
   broadcast = 0;
   
@@ -358,7 +389,7 @@ int main(int argc, char **argv)
   port      = PORT;
   cpus      = sysconf(_SC_NPROCESSORS_ONLN);
 
-  if (argc < 2)
+  if (argc < 4)
     return usage(argv, cpus);
 
   while (i < argc){
@@ -384,6 +415,7 @@ int main(int argc, char **argv)
           return usage(argv, cpus);
 
         /*settings*/
+        case 'i':
         case 's':
         case 'w':
           j++;
@@ -403,6 +435,9 @@ int main(int argc, char **argv)
               pkt_size = atoi(argv[i] + j);
               if (pkt_size == 0)
                 return usage(argv, cpus);
+              break;
+            case 'i':
+              ifile = argv[i] + j;
               break;
           }
           i++;
@@ -436,6 +471,6 @@ int main(int argc, char **argv)
   
   
 
-  return register_speadtx(host, port, cpus, broadcast, pkt_size);
+  return register_speadtx(host, port, cpus, broadcast, pkt_size, ifile);
 }
   

@@ -338,6 +338,8 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   }
 #endif
 
+  bzero(ig->g_map, ig->g_size);
+
 #ifdef DEBUG
   fprintf(stderr, "CREATE ITEM GROUP with map size [%ld] bytes\n", ig->g_size);
 #endif
