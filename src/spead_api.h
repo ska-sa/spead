@@ -79,9 +79,11 @@ struct shared_mem {
 
 /*spead data_file api*/
 struct data_file{
+  mutex       f_m;
   struct stat f_fs;
   int         f_fd;
   void        *f_fmap;
+  uint64_t    f_off;
 };
 
 
@@ -172,6 +174,7 @@ struct data_file *load_raw_data_file(char *fname);
 void destroy_raw_data_file(struct data_file *f);
 size_t get_data_file_size(struct data_file *f);
 void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off);
+int request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr);
 
 
 /*spead socket api*/
