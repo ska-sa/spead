@@ -202,7 +202,9 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
       return -1;
     }
 
+#ifdef DEBUG
     print_data(itm->i_data, itm->i_len);
+#endif
 
     hid = get_count_speadtx(tx);
 
