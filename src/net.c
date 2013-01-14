@@ -185,7 +185,7 @@ struct addrinfo *get_addr_spead_socket(struct spead_socket *x)
 
 int send_packet_spead_socket(void *data, struct spead_packet *p)
 {
-  int sb, sfd;
+  int sb, sfd, mw;
   struct addrinfo *dst;
   struct spead_socket *x;
 
@@ -205,14 +205,20 @@ int send_packet_spead_socket(void *data, struct spead_packet *p)
     return -1;
   }
 
-  sb = sendto(sfd, p->data, SPEAD_MAX_PACKET_LEN, 0, dst->ai_addr, dst->ai_addrlen);
+  mw = SPEAD_HEADERLEN + p->n_items * SPEAD_ITEMLEN + p->payload_len;
+
+  print_data(p->data, mw);
+
+  //mw = SPEAD_MAX_PACKET_LEN;
+
+  sb = sendto(sfd, p->data, mw, 0, dst->ai_addr, dst->ai_addrlen);
   if (sb < 0){
     fprintf(stderr, "%s: sendto err (\033[31m%s\033[0m)\n", __func__, strerror(errno));
     return -1;
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: packet (%p) sb [%d] bytes\n", __func__, p, sb);
+  fprintf(stderr, "%s: packet (%p) size [%ld] sb [%d] bytes\n", __func__, p, mw, sb);
 #endif
 
   return 0;

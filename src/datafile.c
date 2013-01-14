@@ -28,6 +28,8 @@ struct data_file *load_raw_data_file(char *fname)
     return NULL;
   }
   
+  f->f_m    = 0;
+  f->f_off  = 0;
   f->f_fd   = 0;
   f->f_fmap = NULL;
 
@@ -90,11 +92,39 @@ void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off)
   if (f == NULL)
     return NULL;
 
-  if (f->f_fs.st_size <= off)
+  if (f->f_fs.st_size <= off){
     return NULL;
+  }
 
   return f->f_fmap + off;
 }
 
+int request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr)
+{
+  int rtn;
 
+  if (f == NULL || len < 0 || ptr == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error params\n", __func__);
+#endif
+    return -1; 
+  }
+  
+  lock_mutex(&(f->f_m));
+
+  if ((*ptr = get_data_file_ptr_at_off(f, f->f_off)) == NULL){
+    unlock_mutex(&(f->f_m));
+#ifdef DEBUG
+    fprintf(stderr, "%s: EOF\n", __func__);
+#endif
+    return 0;
+  }
+ 
+  rtn       = (f->f_fs.st_size > f->f_off+len) ? len : f->f_fs.st_size - f->f_off;
+  f->f_off += rtn;
+
+  unlock_mutex(&(f->f_m));
+
+  return rtn;
+}
 
