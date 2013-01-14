@@ -119,6 +119,9 @@ int64_t spead_packet_unpack_header(SpeadPacket *pkt) {
     }
     pkt->n_items = SPEAD_GET_NITEMS(hdr);
     pkt->payload = pkt->data + SPEAD_HEADERLEN + pkt->n_items * SPEAD_ITEMLEN;
+#ifdef DEBUG
+    fprintf(stderr, "%s: setting pkt payload @ (%p) have [%ld] items\n", __func__, pkt->payload - pkt->data, pkt->n_item);
+#endif
     return SPEAD_HEADERLEN;  // Return # of bytes read
 }
     

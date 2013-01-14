@@ -66,8 +66,12 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
   po = 0;
   hl = 0;
 
-  if (t == NULL || o == NULL)
+  if (t == NULL || o == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: null param\n", __func__);
+#endif  
     return -1;
+  }
 
   p = get_data_hash_o(o);
   if (p == NULL){
@@ -80,16 +84,28 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
   po = (uint64_t) p->payload_off;
   hl = (uint64_t) p->heap_len;
 
-  if (hl <= 0)
+  if (hl <= 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: packet heap len %ld\n", __func__, hl);
+#endif  
     return 0;
+  }
 
-  if (t->t_len <= 0)
+  if (t->t_len <= 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: table t_len %ld\n", __func__, t->t_len);
+#endif  
     return -1;
+  }
 
   id = hl / t->t_len;
 
-  if (id <= 0)
-    return -1;
+  if (id <= 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: hl[%ld] / t_len[%ld] = %ld\n", __func__, hl, t->t_len, id);
+#endif  
+    return 0;
+  }
 
 #if DEBUG>1
   fprintf(stderr, "%s: po [%ld] hl [%ld] tlen [%ld]\n", __func__,  po, hl, t->t_len);
@@ -262,7 +278,7 @@ void print_data(unsigned char *buf, int size)
   count = 0;
   fprintf(stderr, "\t\t   ");
   for (count2=0; count2<COLS; count2++){
-    fprintf(stderr, "%02x ", count2);
+    fprintf(stderr, "%02x ", count2+1);
   }
   fprintf(stderr,"\n\t\t   ");
   for (count2=0; count2<COLS; count2++){
@@ -1053,8 +1069,8 @@ void process_descriptor_item(struct spead_api_item *itm)
 #endif
 #ifdef PROCESS
             fprintf(stderr, "\tstart final direct copy: len: %ld\n", off - lastoff);
-#endif
             print_data((unsigned char *)(p.payload+off), off-lastoff);
+#endif
           }
 
         }

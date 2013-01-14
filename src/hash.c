@@ -319,8 +319,12 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   int64_t id;
   int i;
 
-  if (t == NULL || t->t_hfn == NULL || t->t_os == NULL || o == NULL)
+  if (t == NULL || t->t_hfn == NULL || t->t_os == NULL || o == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
     return -1;
+  }
   
   id = (*t->t_hfn)(t, o);
   

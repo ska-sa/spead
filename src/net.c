@@ -206,6 +206,9 @@ int send_packet_spead_socket(void *data, struct spead_packet *p)
   }
 
   mw = p->n_items * SPEAD_ITEMLEN + p->payload_len;
+
+  print_data(p->data, mw);
+
   //mw = SPEAD_MAX_PACKET_LEN;
 
   sb = sendto(sfd, p->data, mw, 0, dst->ai_addr, dst->ai_addrlen);
