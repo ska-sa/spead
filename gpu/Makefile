@@ -17,15 +17,10 @@ NCC = nvcc
 IDIR = -I../src
 LDIR = -L../src
 
-<<<<<<< HEAD
 #.PHONY: all
 #.SUFFIXES: 
 #.SUFFIXES: .c .o .so
 .SECONDARY:
-=======
-.SECONDARY:
-#.PRECIOUS: %.o
->>>>>>> 39ce05f1085238c39067354d36604c80936ce2cd
 
 #-arch=sm_20
 #USECUFFT = 1
@@ -35,8 +30,9 @@ LDIR = -L../src
 
 #OBJ = $(patsubst %.cu,%.so,$(UTILS))
 EXE= demo
-MODS=         dummy.so ocl.so fft.so dumpdata.so
-SRC= shared.c dummy.c  ocl.c         dumpdata.c
+MODS=         dummy.so ocl.so dumpdata.so
+#MODS+= fft.so
+SRC= shared.c dummy.c  ocl.c  dumpdata.c
 
 HDR= shared.h
 OBJ= $(patsubst %.c,%.o,$(SRC))
