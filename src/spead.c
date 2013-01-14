@@ -427,11 +427,14 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
     return NULL;
   }
 
+  /************************************/
+  /*NOTE: mutex is locked for table   */
+  /*      after this call             */
   ht = get_ht_hs(NULL, hs, hid);
-  /*NOTE: mutex is locked for table*/
   if (ht == NULL){
     return NULL;
   }
+  /***********************************/
 
   /*do some cals*/
   p = NULL;
@@ -755,7 +758,7 @@ int send_spead_stream_terminator(struct spead_socket *x)
   bzero(p, sizeof(struct spead_packet));
   spead_packet_init(p);
 
-  p->n_items = 6;
+  p->n_items = 3;
   p->is_stream_ctrl_term = SPEAD_STREAM_CTRL_TERM_VAL;
   
   pktd = (uint64_t *)p->data;
@@ -763,9 +766,9 @@ int send_spead_stream_terminator(struct spead_socket *x)
   
   SPEAD_SET_ITEM(p->data, 1, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_STREAM_CTRL_ID, SPEAD_STREAM_CTRL_TERM_VAL));
   SPEAD_SET_ITEM(p->data, 2, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_LEN_ID, 0x0));
-  SPEAD_SET_ITEM(p->data, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_OFF_ID, 0x0));
-  SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, 0x0));
-  SPEAD_SET_ITEM(p->data, 5, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_CNT_ID, 0xFFFFFFFF));
+  //SPEAD_SET_ITEM(p->data, 2, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_OFF_ID, 0x0));
+  //SPEAD_SET_ITEM(p->data, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, 0x0));
+  SPEAD_SET_ITEM(p->data, 3, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_HEAP_CNT_ID, 0xFFFFFFFF));
 
 #if 1
   if (spead_packet_unpack_header(p) < 0){

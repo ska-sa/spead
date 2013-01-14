@@ -134,7 +134,7 @@ uint64_t get_count_speadtx(struct spead_tx *tx)
 int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 {
   struct spead_item_group *ig;
-  struct spead_api_item *itm;
+  struct spead_api_item *itm, *itm2;
   struct spead_tx *tx;
   struct hash_table *ht;
   pid_t pid;
@@ -174,12 +174,23 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   if (set_item_data_ones(itm) < 0) {}
 #endif
 
-  ig = create_item_group(8192,1);
+  ig = create_item_group(8192+sizeof(uint64_t), 2);
   if (ig == NULL)
     return -1;
 
-  itm = new_item_from_group(ig, 8192);
-
+  itm  = new_item_from_group(ig, 8192);
+  if (itm == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot create item\n", __func__);
+#endif
+  }
+  itm2 = new_item_from_group(ig, sizeof(uint64_t));
+  if (itm2 == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot create item\n", __func__);
+#endif
+  }
+  
   //hid = get_count_speadtx(tx);
   
   //while (run && hid < 1) {
@@ -207,6 +218,15 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 #endif
 
     hid = get_count_speadtx(tx);
+
+    if (copy_to_spead_item(itm2, &hid, sizeof(uint64_t)) < 0){
+      destroy_item_group(ig);
+      return -1;
+    }
+
+#ifdef DEBUG
+    print_data(itm2->i_data, itm2->i_len);
+#endif
 
     ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, hid);
     //ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, pid);
@@ -243,7 +263,7 @@ def DATA
     fprintf(stderr, "[%d] %s: hid %ld\n", pid, __func__, hid);
 #endif
 
-    usleep(10);
+    //usleep(10);
   }
 
   //unlock_mutex(&(ht->t_m));
