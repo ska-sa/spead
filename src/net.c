@@ -205,7 +205,7 @@ int send_packet_spead_socket(void *data, struct spead_packet *p)
     return -1;
   }
 
-  mw = p->n_items * SPEAD_ITEMLEN + p->payload_len;
+  mw = SPEAD_HEADERLEN + p->n_items * SPEAD_ITEMLEN + p->payload_len;
 
   print_data(p->data, mw);
 
