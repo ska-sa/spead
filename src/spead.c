@@ -1824,6 +1824,9 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
     mode = SPEAD_ITEM_MODE(iptr);
     fprintf(stderr, "%s: ITEM[%d] mode[%d] id[%d or 0x%x] 0x%lx\n", __func__, i, mode, id, id, iptr);
   }
+
+  print_data(p->payload, p->payload_len);
+
 #endif
 
   if (p->is_stream_ctrl_term){

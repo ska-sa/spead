@@ -183,13 +183,18 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 #ifdef DEBUG
     fprintf(stderr, "%s: cannot create item\n", __func__);
 #endif
+  } else {
+    itm->i_id = 0x100;
   }
   itm2 = new_item_from_group(ig, sizeof(uint64_t));
   if (itm2 == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: cannot create item\n", __func__);
 #endif
+  } else {
+    itm2->i_id = 0x101;
   }
+
   
   //hid = get_count_speadtx(tx);
   
