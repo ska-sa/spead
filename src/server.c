@@ -297,9 +297,11 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 
   ssize_t nread;
   uint64_t rcount, bcount;
+  int rtn;
 
   pid_t pid;
 
+  rtn    = 0;
   rcount = 0;
   bcount = 0;
   p      = NULL;
@@ -380,14 +382,16 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
     unlock_mutex(&(s->s_m));
 
 #ifndef RATE
-    if (process_packet_hs(s, m, o) < 0){
-#if DEBUG>1
-      fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
-#endif
-      if (push_hash_o(hs->s_list, o) < 0){
+    if ((rtn = process_packet_hs(s, m, o)) < 0){
+      if (rtn == -1){
 #ifdef DEBUG
-        fprintf(stderr, "%s: cannot push object!\n", __func__);
+        fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
 #endif
+        if (push_hash_o(hs->s_list, o) < 0){
+#ifdef DEBUG
+          fprintf(stderr, "%s: cannot push object!\n", __func__);
+#endif
+        }
       }
       //continue; 
     }

@@ -58,6 +58,7 @@ struct spead_api_item{
   void          *io_data;
   size_t        io_size;
   uint64_t      i_len;
+  uint64_t      i_data_len;
   unsigned char i_data[];
 };
 
