@@ -37,9 +37,7 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   ig = malloc(sizeof(struct spead_item_group));
   if (ig == NULL)
     return NULL;
-#if 0
-  ig->g_items = nitems;
-#endif
+
   ig->g_off   = 0;
   ig->g_items = 0;
 
@@ -47,7 +45,9 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item));
 #endif
 
-  ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item) + sizeof(uint64_t));
+  /*TODO: note the size*/  
+  //ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item) + sizeof(uint64_t));
+  ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item));
 
 #if 0
   ig->g_map   = shared_malloc(ig->g_size);
@@ -73,6 +73,7 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
 #ifdef DEBUG
   fprintf(stderr, "%s: CREATE ITEM GROUP [%ld] items map size [%ld] bytes\n", __func__, ig->g_items, ig->g_size);
 #endif
+
   return ig;
 }
 
@@ -108,11 +109,12 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   fprintf(stderr, "GROUP map (%p): size %ld offset: %ld data: %p\n", ig->g_map, ig->g_size, ig->g_off, itm->i_data);
 #endif
 
-  itm->i_valid = 0;
-  itm->i_id    = 0;
-  itm->io_data = NULL;
-  itm->io_size = 0;
-  itm->i_len   = size;
+  itm->i_valid    = 0;
+  itm->i_id       = 0;
+  itm->io_data    = NULL;
+  itm->io_size    = 0;
+  itm->i_len      = size;
+  itm->i_data_len = 0;
 
   return itm;
 }
@@ -169,14 +171,14 @@ struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64
   struct spead_api_item *itm;
 
   if (ig == NULL){
-#ifdef DEBUG
+#if DEBUG>1
     fprintf(stderr, "%s: null params\n", __func__);
 #endif  
     return NULL;
   }
 
   if (off >= ig->g_size){
-#ifdef DEBUG
+#if DEBUG>1
     fprintf(stderr, "%s: off [%ld] >= ig size [%ld]\n", __func__, off, ig->g_size);
 #endif  
     return NULL;
@@ -185,7 +187,7 @@ struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64
   itm = (struct spead_api_item *) (ig->g_map + off);
 
   if (itm->i_len == 0){
-#ifdef DEBUG
+#if DEBUG>1
     fprintf(stderr, "%s: item has 0 lenght\n", __func__);
 #endif  
     return NULL;
@@ -200,6 +202,9 @@ struct spead_api_item *get_next_spead_item(struct spead_item_group *ig, struct s
 
   if (current == NULL){
     off = 0;
+#if DEBUG> 1
+    fprintf(stderr, "%s: pid [%d] off now: %ld\n", __func__, getpid(), off);
+#endif
     return get_spead_item_at_off(ig, 0);
   }
 
@@ -247,7 +252,8 @@ int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len)
   
   memcpy(itm->i_data, src, len);
 
-  itm->i_len = len;
+  //itm->i_len = len;
+  itm->i_data_len = len;
 
   return len;
 }
@@ -256,6 +262,7 @@ int set_item_data_ones(struct spead_api_item *itm)
 {
   if (itm){
     itm->i_id = SPEAD_ONES_ID;
+    itm->i_data_len = itm->i_len;
     memset(itm->i_data, 0x11, itm->i_len);    
     return 0;
   }
@@ -266,6 +273,7 @@ int set_item_data_zeros(struct spead_api_item *itm)
 {
   if (itm){
     itm->i_id = SPEAD_ZEROS_ID;
+    itm->i_data_len = itm->i_len;
     memset(itm->i_data, 0, itm->i_len);    
     return 0;
   }
@@ -285,6 +293,7 @@ int set_item_data_ramp(struct spead_api_item *itm)
     buf = itm->i_data;
 
     count = itm->i_len;
+    itm->i_data_len = itm->i_len;
     n = (count+15)/16;
       
     switch (count % 16){

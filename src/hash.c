@@ -477,8 +477,16 @@ int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, s
           break;
         }
         
-        if ((*call)(data, p) < 0)
+#ifdef DEBUG
+        fprintf(stderr, "%s: GOT PACKET [%d of %d] (%p)\n", __func__, i, ht->t_len, p);
+#endif
+
+        if ((*call)(data, p) < 0){
+#ifdef DEBUG
+          fprintf(stderr, "%s: callback err for packet (%p)\n", __func__, p);
+#endif
           return -1;
+        }
 
         state = S_NEXT_PACKET;
         break;
@@ -494,6 +502,10 @@ int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, s
         break;
     }
   }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: end traverse hash table on [%d]\n", __func__, i);
+#endif
 
   return 0;
 }

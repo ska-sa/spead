@@ -97,7 +97,7 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
     return -1;
   }
 
-  id = hl / t->t_len;
+  id = hl / (t->t_len-1);
 
   if (id <= 0){
 #ifdef DEBUG
@@ -106,11 +106,11 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
     return 0;
   }
 
-#if DEBUG>1
-  fprintf(stderr, "%s: po [%ld] hl [%ld] tlen [%ld]\n", __func__,  po, hl, t->t_len);
-#endif 
-
   id = po / id;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: po [%ld] hl [%ld] tlen [%ld] id [%ld]\n", __func__,  po, hl, t->t_len, id);
+#endif 
   
   return id;
 }
@@ -347,8 +347,8 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   /***********************************/
 
   /*do some cals*/
-  p = NULL;
-  o = NULL;
+  p           = NULL;
+  o           = NULL;
   payload_off = 0;
   payload_len = pkt_size;
   didcopy     = 0;
@@ -360,9 +360,14 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
 
   itm         = NULL;
   while ((itm = get_next_spead_item(ig, itm))){
-    heap_len += itm->i_len;
+    heap_len += itm->i_data_len;
     nitems++;
   }
+
+#if 0 
+def DEBUG
+  print_data(ig->g_map, ig->g_size);
+#endif
 
 #ifdef DEBUG
   fprintf(stderr, "%s: [%ld] igitems [%ld] nitems into ht [%ld] heap_len [%ld] into [%d] byte packets\n", __func__, ig->g_items, nitems, ht->t_id, heap_len, pkt_size);
@@ -430,7 +435,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
 #ifdef PROCESS
             fprintf(stderr, "%s: Item at offset [%ld or 0x%lx]\n", __func__, count, count);
 #endif
-            count += itm->i_len;
+            count += itm->i_data_len;
           }
         }
 
@@ -491,7 +496,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
             state = PZ_END;
             break;
           }
-          remain = itm->i_len;
+          remain = itm->i_data_len;
         } else {
           off = 0;
         }
@@ -560,11 +565,17 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
         /*******************************************/
 
         if (add_o_ht(ht, o) < 0){
+#ifdef PROCESS
+          fprintf(stderr, "%s: add o ht error\n", __func__);
+#endif
           state = PZ_END;
           break;
         }
 
         if (count == 0 && remain == 0){
+#ifdef PROCESS
+          fprintf(stderr, "%s: count and remain 0 END\n", __func__);
+#endif
           state = PZ_END;
           break;
         }
@@ -843,14 +854,18 @@ void process_descriptor_item(struct spead_api_item *itm)
 
 }
 
-struct coalesce_data {
-  struct spead_item_group *ig;
+struct coalesce_spead_data {
+  struct stack *d_stack;
+  struct spead_item_group *d_ig;
 };
+
+
+
 
 int coalesce_spead_items(void *data, struct spead_packet *p)
 {
   struct spead_item_group *ig;
-  struct coalesce_data    *cd;
+  struct coalesce_spead_data    *cd;
 
   if (data == NULL || p == NULL)
     return -1;
@@ -862,9 +877,6 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
   fprintf(stderr, "%s: [GET PACKET] --pkt-- [%d] items\n\tpayload_off: %ld\n\tpayload_len: %ld\n", __func__, p->n_items, p->payload_off, p->payload_len);
 #endif
 
-  
-
-
 
 
   return 0;
@@ -873,7 +885,7 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
 struct spead_item_group *process_items(struct hash_table *ht)
 {
   struct spead_item_group *ig;
-  struct coalesce_data cd;
+  struct coalesce_spead_data cd;
 
   if (ht == NULL || ht->t_os == NULL)
     return NULL;
@@ -885,8 +897,6 @@ struct spead_item_group *process_items(struct hash_table *ht)
 #endif
 
   if (inorder_traverse_hash_table(ht, &coalesce_spead_items, &cd) < 0){
-  
-
     return NULL;
   }
 

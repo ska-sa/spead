@@ -174,11 +174,11 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   if (set_item_data_ones(itm) < 0) {}
 #endif
 
-  ig = create_item_group(8192+sizeof(uint64_t), 2);
+  ig = create_item_group(100+sizeof(uint64_t), 2);
   if (ig == NULL)
     return -1;
 
-  itm  = new_item_from_group(ig, 8192);
+  itm  = new_item_from_group(ig, 100);
   if (itm == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: cannot create item\n", __func__);
@@ -201,7 +201,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   //while (run && hid < 1) {
   while (run) {
 
-    got = request_chunk_datafile(tx->t_f, 8192, &ptr);
+    got = request_chunk_datafile(tx->t_f, 100, &ptr);
     if (got == 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: got 0 ending\n", __func__);
@@ -219,7 +219,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     }
 
 #ifdef DEBUG
-    print_data(itm->i_data, itm->i_len);
+    print_data(itm->i_data, itm->i_data_len);
 #endif
 
     hid = get_count_speadtx(tx);
@@ -230,7 +230,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     }
 
 #ifdef DEBUG
-    print_data(itm2->i_data, itm2->i_len);
+    print_data(itm2->i_data, itm2->i_data_len);
 #endif
 
     ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, hid);
