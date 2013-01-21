@@ -10,6 +10,8 @@ struct stack *create_stack();
 void destroy_stack(struct stack *s);
 int push_stack(struct stack *s, void *o);
 int pop_stack(struct stack *s, void **o);
+void traverse_stack(struct stack *s, void (*call)(void *data));
+int funnel_stack(struct stack *src, struct stack *dst, int (*call)(void *so, void *data), void *data);
 
 #endif
 

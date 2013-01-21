@@ -71,7 +71,7 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
   bzero(ig->g_map, ig->g_size);
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: CREATE ITEM GROUP [%ld] items map size [%ld] bytes\n", __func__, ig->g_items, ig->g_size);
+  fprintf(stderr, "%s: CREATE ITEM GROUP [%ld] items map size [%ld] bytes\n", __func__, nitems, ig->g_size);
 #endif
 
   return ig;

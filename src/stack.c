@@ -75,3 +75,68 @@ int pop_stack(struct stack *s, void **o)
   return 0;
 }
 
+void traverse_stack(struct stack *s, void (*call)(void *data))
+{
+  uint64_t i;
+  void *o;
+
+  if (s && call){
+      
+    for(i=0; i<s->s_size; i++){
+
+      if (s->s_data){
+        o = s->s_data[i];
+
+        (*call)(o);
+
+      }
+    }
+  } else {
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+  }
+}
+
+int funnel_stack(struct stack *src, struct stack *dst, int (*call)(void *so, void *data), void *data)
+{
+  void *o;
+
+  if (src == NULL || dst == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+
+#if 0
+#ifdef DEBUG
+    fprintf(stderr, "%s: pop error\n", __func__);
+#endif
+    return -1;
+#endif
+
+  while (!pop_stack(src, (void **) &o)){
+  
+    if (call){
+      if ((*call)(o, data) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "%s: callback error\n", __func__);
+#endif
+        return -1;
+      }
+    }
+
+    if (push_stack(dst, o) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: push error\n", __func__);
+#endif
+      return -1;
+    }
+  
+  }
+  
+  
+  return 0;
+}
+

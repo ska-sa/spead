@@ -62,6 +62,13 @@ struct spead_api_item{
   unsigned char i_data[];
 };
 
+struct spead_api_item2{
+  int           i_id;
+  int           i_mode;
+  int64_t       i_off;
+  uint64_t      i_len;
+};
+
 struct spead_item_group {
   uint64_t  g_items;
   uint64_t  g_size;

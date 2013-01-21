@@ -10,6 +10,7 @@
 #include "hash.h"
 #include "spead_api.h"
 #include "server.h"
+#include "stack.h"
 
 struct spead_heap *create_spead_heap()
 {
@@ -854,30 +855,128 @@ void process_descriptor_item(struct spead_api_item *itm)
 
 }
 
+
 struct coalesce_spead_data {
   struct stack *d_stack;
   struct spead_item_group *d_ig;
+  uint64_t d_len;
+  uint64_t d_off;
+  void *d_data;
 };
-
-
 
 
 int coalesce_spead_items(void *data, struct spead_packet *p)
 {
   struct spead_item_group *ig;
-  struct coalesce_spead_data    *cd;
+  struct spead_api_item2 *itm;
+  struct coalesce_spead_data *cd;
+
+  int64_t iptr;
+  uint64_t id;
+
+  int j, mode;
 
   if (data == NULL || p == NULL)
     return -1;
 
   cd = data;
-  ig = cd->ig;
+  ig = cd->d_ig;
   
 #ifdef PROCESS
   fprintf(stderr, "%s: [GET PACKET] --pkt-- [%d] items\n\tpayload_off: %ld\n\tpayload_len: %ld\n", __func__, p->n_items, p->payload_off, p->payload_len);
 #endif
+  
+  for (j=0; j<p->n_items; j++){
+    iptr = SPEAD_ITEM(p->data, (j+1));
+    id   = SPEAD_ITEM_ID(iptr);
+    mode = SPEAD_ITEM_MODE(iptr);
+    
+    switch(id){
+      case SPEAD_HEAP_CNT_ID:
+      case SPEAD_HEAP_LEN_ID:
+      case SPEAD_PAYLOAD_OFF_ID:
+      case SPEAD_PAYLOAD_LEN_ID:
+      case SPEAD_STREAM_CTRL_ID:
+        continue; /*pass control back to the beginning of the loop with state S_NEXT_ITEM*/
+      case SPEAD_DESCRIPTOR_ID:
+#ifdef PROCESS
+        fprintf(stderr, "%s: ITEM_DESCRIPTOR_ID\n", __func__);
+#endif
+        break;
+      default:
+        break;
+    }
+    
+#ifdef PROCESS
+    fprintf(stderr, "%s: [GET ITEM] @@@ITEM[%d] mode[%d] id[%d] 0x%lx\n", __func__, j, mode, id, iptr);
+#endif
+    
+    itm = malloc(sizeof(struct spead_api_item2));
+    if (itm == NULL)
+      return -1;
+  
+    itm->i_id   = id;
+    itm->i_mode = mode;
+    itm->i_off  = (int64_t) SPEAD_ITEM_ADDR(iptr);
+    itm->i_len  = 0;
 
+    if (push_stack(cd->d_stack, itm) < 0){
+      if (itm)
+        free(itm);
+      return -1;
+    }
 
+  }
+
+  if (memcpy(cd->d_data + cd->d_off, p->payload, p->payload_len) == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: memcpy fail\n", __func__);
+#endif
+    return -1;
+  }
+
+  cd->d_off += p->payload_len;
+  
+  return 0;
+}
+
+void print_spead_item(void *data)
+{
+  struct spead_api_item2 *itm;
+  itm = data;
+  if (itm){
+#ifdef DEBUG
+    fprintf(stderr, "%s: item [mode %d id %d off %ld len %ld]\n", __func__, itm->i_mode, itm->i_id, itm->i_off, itm->i_len);
+#endif
+  }
+}
+
+int calculate_lengths(void *so, void *data)
+{
+  struct coalesce_spead_data *cd;
+  struct spead_api_item2     *itm;
+
+  if (so == NULL || data == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: null params\n", __func__);
+#endif
+    return -1;
+  }
+
+  cd = data;
+  itm = so;
+  
+  if (itm->i_mode == SPEAD_DIRECTADDR){
+    itm->i_len = cd->d_off - itm->i_off;
+    cd->d_off -= itm->i_len;
+#ifdef DEBUG
+    fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
+#endif
+  } else {
+#ifdef DEBUG
+    fprintf(stderr, "%s: IMMEDIATE item [%d]\n", __func__, itm->i_id);
+#endif
+  }
 
   return 0;
 }
@@ -885,6 +984,7 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
 struct spead_item_group *process_items(struct hash_table *ht)
 {
   struct spead_item_group *ig;
+  struct stack *temp;
   struct coalesce_spead_data cd;
 
   if (ht == NULL || ht->t_os == NULL)
@@ -896,9 +996,75 @@ struct spead_item_group *process_items(struct hash_table *ht)
   fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
 #endif
 
-  if (inorder_traverse_hash_table(ht, &coalesce_spead_items, &cd) < 0){
+  cd.d_stack = create_stack();
+  if (cd.d_stack == NULL){
     return NULL;
   }
+
+  temp = create_stack();
+  if (temp == NULL){
+    destroy_stack(cd.d_stack);
+    return NULL;
+  }
+
+  cd.d_data = malloc(ht->t_data_count);
+  if(cd.d_data == NULL){
+    destroy_stack(cd.d_stack);
+    destroy_stack(temp);
+    return NULL;
+  }
+
+  cd.d_len = ht->t_data_count;
+  cd.d_off = 0;
+
+  //ig = create_item2_group(ht->t_data_count, ht->t_items);
+
+  if (inorder_traverse_hash_table(ht, &coalesce_spead_items, &cd) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: coalesce_spead_items FAILED\n", __func__);
+#endif
+    
+    destroy_stack(cd.d_stack);
+    destroy_stack(temp);
+    
+    if (cd.d_data)
+      free(cd.d_data);
+
+    return NULL;
+  }
+  
+  if (funnel_stack(cd.d_stack, temp, &calculate_lengths, &cd) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: calculate lengths FAILED\n", __func__);
+#endif
+
+    destroy_stack(cd.d_stack);
+    destroy_stack(temp);
+    
+    if (cd.d_data)
+      free(cd.d_data);
+
+    return NULL;
+  }
+ 
+  destroy_stack(cd.d_stack);
+
+  cd.d_stack = temp;
+  
+
+
+#ifdef DEBUG
+  traverse_stack(cd.d_stack, &print_spead_item);
+  //print_data(cd.d_data, cd.d_len);
+#endif
+
+  
+
+
+
+  destroy_stack(cd.d_stack);
+  if (cd.d_data)
+    free(cd.d_data);
 
 
 
@@ -1375,7 +1541,7 @@ int store_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_
     return -1;
   }
 
-  /*NOTE: if we return the mutex is set*/
+  /*NOTE: if we are here the mutex is set*/
 
   if (add_o_ht(ht, o) < 0){
 #ifdef DEBUG
@@ -1401,13 +1567,13 @@ def DEBUG
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: HID [%ld] HCNT [%ld] data count: [%ld] packet heap len [%ld]\n", __func__, ht->t_id, p->heap_cnt, ht->t_data_count, p->heap_len);
+  fprintf(stderr, "%s: HID [%ld] HCNT [%ld] data count: [%ld] packet heap len [%ld] total items in ht [%ld]\n", __func__, ht->t_id, p->heap_cnt, ht->t_data_count, p->heap_len, ht->t_items);
 #endif
 
   /*have all packets by data count must process*/
   if (flag_processing){
 #ifdef DEBUG
-    fprintf(stderr, "FLAG ROCESSING [%d] data_count = %ld bytes == heap_len\n", getpid(), ht->t_data_count);
+    fprintf(stderr, "FLAG ROCESSING [%d] data_count = %ld bytes == heap_len total items [%ld]\n", getpid(), ht->t_data_count, ht->t_items);
 #endif
 
     
@@ -1470,7 +1636,8 @@ def DEBUG
     unlock_mutex(&(ht->t_m));
   }
 
-#ifdef DEBUG
+#if 0
+def DEBUG
   fprintf(stderr, "%s: complete\n", __func__);
 #endif
 
@@ -1529,7 +1696,8 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
   fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
 #endif
 
-#ifdef DEBUG
+#if 0
+def DEBUG
   for (i=0; i<p->n_items; i++){
     iptr = SPEAD_ITEM(p->data, (i+1));
     id   = SPEAD_ITEM_ID(iptr);
