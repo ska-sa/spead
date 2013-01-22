@@ -207,7 +207,8 @@ int send_packet_spead_socket(void *data, struct spead_packet *p)
 
   mw = SPEAD_HEADERLEN + p->n_items * SPEAD_ITEMLEN + p->payload_len;
 
-#ifdef DEBUG
+#if 0 
+def DEBUG
   print_data(p->data, mw);
 #endif
 

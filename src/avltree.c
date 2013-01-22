@@ -195,7 +195,7 @@ int walk_inorder_avltree(struct avl_tree *t, int (*call)(void *data, void *node_
         if (c != NULL){ 
 
           if (push_stack(s, c) < 0) {
-            destroy_stack(s);
+            destroy_stack(s, NULL);
             //s = NULL;
             //state = WALK_INIT;
             return -1;
@@ -243,7 +243,7 @@ int walk_inorder_avltree(struct avl_tree *t, int (*call)(void *data, void *node_
     }
   }
 
-  destroy_stack(s);
+  destroy_stack(s, NULL);
   
   return 0;  
 }

@@ -116,6 +116,10 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   itm->i_len      = size;
   itm->i_data_len = 0;
 
+#ifdef DEUBG
+  fprintf(stderr, "%s: item with size [%ld] from group\n", __func__, size)
+#endif
+
   return itm;
 }
 

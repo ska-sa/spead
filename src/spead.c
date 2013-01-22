@@ -857,8 +857,9 @@ void process_descriptor_item(struct spead_api_item *itm)
 
 
 struct coalesce_spead_data {
-  struct stack *d_stack;
   struct spead_item_group *d_ig;
+  struct stack *d_stack;
+  int      d_imm;
   uint64_t d_len;
   uint64_t d_off;
   void *d_data;
@@ -867,7 +868,6 @@ struct coalesce_spead_data {
 
 int coalesce_spead_items(void *data, struct spead_packet *p)
 {
-  struct spead_item_group *ig;
   struct spead_api_item2 *itm;
   struct coalesce_spead_data *cd;
 
@@ -880,7 +880,6 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
     return -1;
 
   cd = data;
-  ig = cd->d_ig;
   
 #ifdef PROCESS
   fprintf(stderr, "%s: [GET PACKET] --pkt-- [%d] items\n\tpayload_off: %ld\n\tpayload_len: %ld\n", __func__, p->n_items, p->payload_off, p->payload_len);
@@ -908,9 +907,10 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
     }
     
 #ifdef PROCESS
-    fprintf(stderr, "%s: [GET ITEM] @@@ITEM[%d] mode[%d] id[%d] 0x%lx\n", __func__, j, mode, id, iptr);
+    fprintf(stderr, "%s: [GET ITEM] @@@ITEM[%d] mode[%d] id[%ld] 0x%lx\n", __func__, j, mode, id, iptr);
 #endif
     
+    /*TODO: remove this malloc use shared malloc*/
     itm = malloc(sizeof(struct spead_api_item2));
     if (itm == NULL)
       return -1;
@@ -928,22 +928,34 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
 
   }
 
+  /*TODO: look into*/
+#if 1
   if (memcpy(cd->d_data + cd->d_off, p->payload, p->payload_len) == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: memcpy fail\n", __func__);
 #endif
     return -1;
   }
+#endif
 
   cd->d_off += p->payload_len;
   
   return 0;
 }
 
-void print_spead_item(void *data)
+void destroy_spead_item2(void *data)
 {
   struct spead_api_item2 *itm;
   itm = data;
+  if (itm){
+    free(itm);
+  }
+}
+
+void print_spead_item(void *so, void *data)
+{
+  struct spead_api_item2 *itm;
+  itm = so;
   if (itm){
 #ifdef DEBUG
     fprintf(stderr, "%s: item [mode %d id %d off %ld len %ld]\n", __func__, itm->i_mode, itm->i_id, itm->i_off, itm->i_len);
@@ -973,10 +985,59 @@ int calculate_lengths(void *so, void *data)
     fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
 #endif
   } else {
+    itm->i_len = sizeof(int64_t);
+    cd->d_imm++;
 #ifdef DEBUG
     fprintf(stderr, "%s: IMMEDIATE item [%d]\n", __func__, itm->i_id);
 #endif
   }
+
+  return 0;
+}
+
+int convert_to_ig(void *so, void *data)
+{
+  struct coalesce_spead_data *cd;
+  struct spead_api_item2 *i2;
+  struct spead_api_item  *itm;
+
+  if (so == NULL || data == NULL)
+    return -1;
+
+  i2 = so;
+  cd = data;
+
+  itm = new_item_from_group(cd->d_ig, i2->i_len);
+  if (itm == NULL)
+    return -1;
+
+  itm->i_id = i2->i_id;
+  itm->i_valid = i2->i_mode;
+  
+  if (i2->i_mode == SPEAD_DIRECTADDR){
+#ifdef DEBUG
+    fprintf(stderr, "%s:about to copy from (%p) @ off %ld len %ld\n", __func__, cd->d_data, i2->i_off, i2->i_len);
+    print_data(cd->d_data + i2->i_off, i2->i_len);
+#endif
+    #if 0
+    if (copy_to_spead_item(itm, cd->d_data + i2->i_off, i2->i_len) < 0){
+      destroy_spead_item2(i2);
+      return -1;
+    }
+#endif
+#ifdef DEBUG
+    fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
+#endif
+  } else {
+#if 0
+    if (copy_to_spead_item(itm, &(i2->i_off), sizeof(int64_t)) < 0){
+      destroy_spead_item2(i2);
+      return -1;
+    }
+#endif
+  }
+
+  destroy_spead_item2(i2);
 
   return 0;
 }
@@ -996,6 +1057,8 @@ struct spead_item_group *process_items(struct hash_table *ht)
   fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
 #endif
 
+  cd.d_imm = 0;
+
   cd.d_stack = create_stack();
   if (cd.d_stack == NULL){
     return NULL;
@@ -1003,33 +1066,29 @@ struct spead_item_group *process_items(struct hash_table *ht)
 
   temp = create_stack();
   if (temp == NULL){
-    destroy_stack(cd.d_stack);
+    destroy_stack(cd.d_stack, &destroy_spead_item2);
     return NULL;
   }
 
+  /*TODO:shared malloc*/
   cd.d_data = malloc(ht->t_data_count);
   if(cd.d_data == NULL){
-    destroy_stack(cd.d_stack);
-    destroy_stack(temp);
+    destroy_stack(cd.d_stack, &destroy_spead_item2);
+    destroy_stack(temp, &destroy_spead_item2);
     return NULL;
   }
 
   cd.d_len = ht->t_data_count;
   cd.d_off = 0;
 
-  //ig = create_item2_group(ht->t_data_count, ht->t_items);
-
   if (inorder_traverse_hash_table(ht, &coalesce_spead_items, &cd) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: coalesce_spead_items FAILED\n", __func__);
 #endif
-    
-    destroy_stack(cd.d_stack);
-    destroy_stack(temp);
-    
+    destroy_stack(cd.d_stack, &destroy_spead_item2);
+    destroy_stack(temp, &destroy_spead_item2);
     if (cd.d_data)
       free(cd.d_data);
-
     return NULL;
   }
   
@@ -1037,32 +1096,46 @@ struct spead_item_group *process_items(struct hash_table *ht)
 #ifdef DEBUG
     fprintf(stderr, "%s: calculate lengths FAILED\n", __func__);
 #endif
-
-    destroy_stack(cd.d_stack);
-    destroy_stack(temp);
-    
+    destroy_stack(cd.d_stack, &destroy_spead_item2);
+    destroy_stack(temp, &destroy_spead_item2);
     if (cd.d_data)
       free(cd.d_data);
-
     return NULL;
   }
  
-  destroy_stack(cd.d_stack);
+  destroy_stack(cd.d_stack, &destroy_spead_item2);
 
   cd.d_stack = temp;
   
-
-
-#ifdef DEBUG
-  traverse_stack(cd.d_stack, &print_spead_item);
-  //print_data(cd.d_data, cd.d_len);
+#if 0 
+  def DEBUG
+  traverse_stack(cd.d_stack, &print_spead_item, NULL);
 #endif
-
+  print_data(cd.d_data, cd.d_len);
   
+  ig = create_item_group(cd.d_len + cd.d_imm * sizeof(int64_t), get_size_stack(cd.d_stack));
+  if (ig == NULL){
+    destroy_stack(cd.d_stack, &destroy_spead_item2);
+    if (cd.d_data)
+      free(cd.d_data);
+    return NULL;
+  }
+
+  cd.d_ig = ig;
+
+  if (funnel_stack(cd.d_stack, NULL, &convert_to_ig, &cd) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: convert to item group FAILED\n", __func__);
+#endif
+    destroy_item_group(ig);
+    destroy_stack(cd.d_stack, &destroy_spead_item2);
+    if (cd.d_data)
+      free(cd.d_data);
+    return NULL;
+  }
 
 
-
-  destroy_stack(cd.d_stack);
+  destroy_stack(cd.d_stack, &destroy_spead_item2);
   if (cd.d_data)
     free(cd.d_data);
 
@@ -1624,7 +1697,7 @@ def DEBUG
 #endif
 
     if(run_api_user_callback_module(m, ig) < 0){
-#if DEBUG>1
+#ifdef DEBUG
       fprintf(stderr, "%s: user callback failed\n", __func__);
 #endif
     }

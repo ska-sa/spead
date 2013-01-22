@@ -196,7 +196,6 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   } else {
     itm->i_id = 0x100;
   }
-
   
   //hid = get_count_speadtx(tx);
   

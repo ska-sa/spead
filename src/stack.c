@@ -22,11 +22,18 @@ struct stack *create_stack()
   return s;
 }
 
-void destroy_stack(struct stack *s)
+void destroy_stack(struct stack *s, void (*call)(void *data))
 {
+  int i;
   if (s){
-    if (s->s_data)
+    if (s->s_data){
+      for (i=0; i<s->s_size; i++){
+        if (call){
+          (*call)(s->s_data[i]);
+        }
+      }
       free(s->s_data);
+    }
     free(s);
   }
 }
@@ -75,7 +82,7 @@ int pop_stack(struct stack *s, void **o)
   return 0;
 }
 
-void traverse_stack(struct stack *s, void (*call)(void *data))
+void traverse_stack(struct stack *s, void (*call)(void *so, void *data), void *data)
 {
   uint64_t i;
   void *o;
@@ -87,7 +94,7 @@ void traverse_stack(struct stack *s, void (*call)(void *data))
       if (s->s_data){
         o = s->s_data[i];
 
-        (*call)(o);
+        (*call)(o, data);
 
       }
     }
@@ -102,7 +109,7 @@ int funnel_stack(struct stack *src, struct stack *dst, int (*call)(void *so, voi
 {
   void *o;
 
-  if (src == NULL || dst == NULL){
+  if (src == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: param error\n", __func__);
 #endif
@@ -127,11 +134,13 @@ int funnel_stack(struct stack *src, struct stack *dst, int (*call)(void *so, voi
       }
     }
 
-    if (push_stack(dst, o) < 0){
+    if (dst){
+      if (push_stack(dst, o) < 0){
 #ifdef DEBUG
-      fprintf(stderr, "%s: push error\n", __func__);
+        fprintf(stderr, "%s: push error\n", __func__);
 #endif
-      return -1;
+        return -1;
+      }
     }
   
   }
@@ -140,3 +149,7 @@ int funnel_stack(struct stack *src, struct stack *dst, int (*call)(void *so, voi
   return 0;
 }
 
+uint64_t get_size_stack(struct stack *s)
+{
+  return (s) ? s->s_size : -1;
+}
