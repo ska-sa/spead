@@ -1015,21 +1015,23 @@ int convert_to_ig(void *so, void *data)
   itm->i_valid = i2->i_mode;
   
   if (i2->i_mode == SPEAD_DIRECTADDR){
-#ifdef DEBUG
+#if 0 
+    def DEBUG
     fprintf(stderr, "%s:about to copy from (%p) @ off %ld len %ld\n", __func__, cd->d_data, i2->i_off, i2->i_len);
     print_data(cd->d_data + i2->i_off, i2->i_len);
 #endif
-    #if 0
+#if 1
     if (copy_to_spead_item(itm, cd->d_data + i2->i_off, i2->i_len) < 0){
       destroy_spead_item2(i2);
       return -1;
     }
 #endif
-#ifdef DEBUG
+#if 0
+    def DEBUG
     fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
 #endif
   } else {
-#if 0
+#if 1
     if (copy_to_spead_item(itm, &(i2->i_off), sizeof(int64_t)) < 0){
       destroy_spead_item2(i2);
       return -1;
@@ -1110,8 +1112,8 @@ struct spead_item_group *process_items(struct hash_table *ht)
 #if 0 
   def DEBUG
   traverse_stack(cd.d_stack, &print_spead_item, NULL);
-#endif
   print_data(cd.d_data, cd.d_len);
+#endif
   
   ig = create_item_group(cd.d_len + cd.d_imm * sizeof(int64_t), get_size_stack(cd.d_stack));
   if (ig == NULL){
