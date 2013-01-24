@@ -221,7 +221,7 @@ def DEBUG
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: packet (%p) size [%ld] sb [%d] bytes\n", __func__, p, mw, sb);
+  fprintf(stderr, "%s: packet (%p) size [%d] sb [%d] bytes\n", __func__, p, mw, sb);
 #endif
 
   return 0;

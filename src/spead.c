@@ -855,17 +855,6 @@ void process_descriptor_item(struct spead_api_item *itm)
 
 }
 
-
-struct coalesce_spead_data {
-  struct spead_item_group *d_ig;
-  struct stack *d_stack;
-  int      d_imm;
-  uint64_t d_len;
-  uint64_t d_off;
-  void *d_data;
-};
-
-
 int coalesce_spead_items(void *data, struct spead_packet *p)
 {
   struct spead_api_item2 *itm;

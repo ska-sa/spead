@@ -478,7 +478,7 @@ int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, s
         }
         
 #ifdef DEBUG
-        fprintf(stderr, "%s: GOT PACKET [%d of %d] (%p)\n", __func__, i, ht->t_len, p);
+        fprintf(stderr, "%s: GOT PACKET [%d of %ld] (%p)\n", __func__, i, ht->t_len, p);
 #endif
 
         if ((*call)(data, p) < 0){

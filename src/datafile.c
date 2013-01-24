@@ -28,6 +28,7 @@ struct data_file *load_raw_data_file(char *fname)
     return NULL;
   }
   
+  f->f_name = fname;
   f->f_m    = 0;
   f->f_off  = 0;
   f->f_fd   = 0;
@@ -85,6 +86,11 @@ size_t get_data_file_size(struct data_file *f)
     return f->f_fs.st_size;
   }
   return 0;
+}
+
+char *get_data_file_name(struct data_file *f)
+{
+  return (f) ? f->f_name : NULL;
 }
 
 void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off)
