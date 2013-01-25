@@ -8,13 +8,12 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <libgen.h>
 
 #include <sys/stat.h>
 #include <sys/mman.h>
 
 #include "spead_api.h"
-
-
 
 struct data_file *load_raw_data_file(char *fname)
 {
@@ -90,7 +89,7 @@ size_t get_data_file_size(struct data_file *f)
 
 char *get_data_file_name(struct data_file *f)
 {
-  return (f) ? f->f_name : NULL;
+  return (f) ? basename(f->f_name) : NULL;
 }
 
 void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off)

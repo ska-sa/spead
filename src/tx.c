@@ -302,6 +302,7 @@ int send_init_info_speadtx(struct spead_tx *tx)
 
   ig = create_item_group(sizeof(size_t)+strlen(name), 2);
   if (ig == NULL)
+
     return -1;
 
 
@@ -365,7 +366,6 @@ int send_init_info_speadtx(struct spead_tx *tx)
   }
 
   unlock_mutex(&(ht->t_m));
-
 
   return 0;
 }
@@ -481,7 +481,7 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
 
 int usage(char **argv, long cpus)
 {
-  fprintf(stderr, "usage:\n\t%s (options) destination port\n\n\tOptions\n\t\t-w [workers (d:%ld)]\n\t\t-x (enable send to broadcast [priv])\n\t\t-s [spead packet size]\n\t\t-i [input file]\n\n", argv[0], cpus);
+  fprintf(stderr, "usage:\n\t%s (options) destination port\n\n\tOptions\n\t\t-w [workers (d:%ld)]\n\t\t-x (enable send to broadcast [priv])\n\t\t-s [spead packet size]\n\t\t-i [input file]\n\t\t-c [chunk size]\n\n", argv[0], cpus);
   return EX_USAGE;
 }
 
