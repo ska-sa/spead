@@ -64,19 +64,16 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
   itm = NULL;
 
   while ((itm = get_next_spead_item(ig, itm))){
-    
     //print_data(itm->i_data, itm->i_data_len);
-
     if (itm->i_id == SPEADTX_IID_FILENAME){
       fprintf(stderr, "%s: FILENAME [%s]\n", __func__, itm->i_data);
     }
-    
     if (itm->i_id == SPEADTX_IID_FILESIZE){
-        
       memcpy(&size, itm->i_data, sizeof(int64_t));
       fprintf(stderr, "%s: FILESIZE [%ld]\n", __func__, size);
-
     }
+     
+    
     
   }
 

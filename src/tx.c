@@ -133,12 +133,19 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   void *ptr;
   uint64_t hid, got;
 
+  size_t size;
+  char   *name;
+
   tx = data;
   if (tx == NULL)
     return -1;
 
   pid = getpid();
   hid = 0;
+
+  size = get_data_file_size(tx->t_f);
+  name = get_data_file_name(tx->t_f);
+
 
 #ifdef DEBUG
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
@@ -165,9 +172,36 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   if (set_item_data_ones(itm) < 0) {}
 #endif
 
-  ig = create_item_group(tx->t_chunk_size + sizeof(uint64_t), 2);
+  ig = create_item_group(tx->t_chunk_size + sizeof(uint64_t) + sizeof(size_t) + strlen(name) + 1, 4);
   if (ig == NULL)
     return -1;
+
+  itm = new_item_from_group(ig, sizeof(size_t));
+  if (itm == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot create item\n", __func__);
+#endif
+  } else {
+    itm->i_id = SPEADTX_IID_FILESIZE;
+  }
+  if (copy_to_spead_item(itm, &size, sizeof(size_t)) < 0){
+    destroy_item_group(ig);
+    return -1;
+  }
+  itm = new_item_from_group(ig, strlen(name) + 1);
+  if (itm == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot create item\n", __func__);
+#endif
+  } else {
+    itm->i_id = SPEADTX_IID_FILENAME;
+  }
+  if (copy_to_spead_item(itm, name, strlen(name)+1) < 0){
+    destroy_item_group(ig);
+    return -1;
+  }
+
+
 
   itm2 = new_item_from_group(ig, sizeof(uint64_t));
   if (itm2 == NULL){
@@ -175,7 +209,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     fprintf(stderr, "%s: cannot create item\n", __func__);
 #endif
   } else {
-    itm2->i_id = 0x101;
+    itm2->i_id = SPEADTX_CHUNK_ID;
   }
   itm  = new_item_from_group(ig, tx->t_chunk_size);
   if (itm == NULL){
@@ -183,9 +217,9 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     fprintf(stderr, "%s: cannot create item\n", __func__);
 #endif
   } else {
-    itm->i_id = 0x100;
+    itm->i_id = 0xSPEADTX_DATA_ID;
   }
-  
+
   //hid = get_count_speadtx(tx);
   
   //while (run && hid < 1) {
@@ -279,6 +313,7 @@ struct avl_tree *create_spead_database()
   return create_avltree(&compare_spead_workers);
 }
 
+#if 0 
 int send_init_info_speadtx(struct spead_tx *tx)
 {
   struct spead_item_group *ig;
@@ -300,7 +335,7 @@ int send_init_info_speadtx(struct spead_tx *tx)
   size = get_data_file_size(tx->t_f);
   name = get_data_file_name(tx->t_f);
 
-  ig = create_item_group(sizeof(size_t)+strlen(name), 2);
+  ig = create_item_group(sizeof(size_t)+strlen(name)+1, 2);
   if (ig == NULL)
 
     return -1;
@@ -320,7 +355,7 @@ int send_init_info_speadtx(struct spead_tx *tx)
   }
   
   
-  itm = new_item_from_group(ig, strlen(name));
+  itm = new_item_from_group(ig, strlen(name)+1);
   if (itm == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: cannot create item\n", __func__);
@@ -328,7 +363,7 @@ int send_init_info_speadtx(struct spead_tx *tx)
   } else {
     itm->i_id = SPEADTX_IID_FILENAME;
   }
-  if (copy_to_spead_item(itm, name, strlen(name)) < 0){
+  if (copy_to_spead_item(itm, name, strlen(name)+1) < 0){
     destroy_item_group(ig);
     return -1;
   }
@@ -369,6 +404,7 @@ int send_init_info_speadtx(struct spead_tx *tx)
 
   return 0;
 }
+#endif
 
 int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size, int chunk_size, char *ifile)
 {
@@ -416,10 +452,12 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
     return EX_SOFTWARE;
   }
 
+#if 0
   if (send_init_info_speadtx(tx) < 0){
     destroy_speadtx(tx);
     return EX_SOFTWARE;
   }
+#endif
 
   sigemptyset(&empty_mask);
 
