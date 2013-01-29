@@ -11,6 +11,7 @@
 #include "spead_api.h"
 #include "server.h"
 #include "stack.h"
+#include "tx.h"
 
 struct spead_heap *create_spead_heap()
 {
@@ -600,12 +601,12 @@ def DEBUG
 }
 
 
-int send_spead_stream_terminator(struct spead_socket *x)
+int send_spead_stream_terminator(struct spead_tx *tx)
 {
   struct spead_packet pkt, *p;
   uint64_t *pktd;
   
-  if (x == NULL){
+  if (tx == NULL || tx->t_x == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: param error\n", __func__);
 #endif
@@ -642,8 +643,12 @@ int send_spead_stream_terminator(struct spead_socket *x)
   } 
 #endif
         
-  if (send_packet_spead_socket(x, p) < 0)
+  if (send_packet_spead_socket(tx, p) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: could not send packet to spead_socket\n", __func__);
+#endif
     return -1;
+  }
 
   return 0;
 }

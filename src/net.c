@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 
 #include "spead_api.h"
+#include "tx.h"
 
 #define BIG_BUF 1024*1024*1024;
 
@@ -100,6 +101,7 @@ struct spead_socket *create_spead_socket(char *host, char *port)
 int bind_spead_socket(struct spead_socket *x)
 {
   uint64_t recvbuf;
+  int size;
 
   if (x == NULL || x->x_active == NULL)
     return -1;
@@ -111,6 +113,14 @@ int bind_spead_socket(struct spead_socket *x)
 #endif
   }
   
+  recvbuf = 0;
+  size = sizeof(uint64_t);
+
+#ifdef DEBUG
+  getsockopt(x->x_fd, SOL_SOCKET, SO_RCVBUF, &recvbuf, &size);
+  fprintf(stderr, "%s: RCVBUF is %ld\n", __func__, recvbuf);
+#endif
+
   if (bind(x->x_fd, x->x_active->ai_addr, x->x_active->ai_addrlen) < 0){
 #ifdef DEBUG
     fprintf(stderr,"%s: error bind to %s\n", __func__, x->x_port);
@@ -127,6 +137,7 @@ int bind_spead_socket(struct spead_socket *x)
 int connect_spead_socket(struct spead_socket *x)
 {
   uint64_t sendbuf;
+  int size;
 
   if (x == NULL || x->x_active == NULL)
     return -1;
@@ -137,6 +148,14 @@ int connect_spead_socket(struct spead_socket *x)
     fprintf(stderr,"%s: error cannot increase send buf setsockopt: %s\n", __func__, strerror(errno));
 #endif
   }
+  
+  sendbuf = 0;
+  size = sizeof(uint64_t);
+  
+#ifdef DEBUG
+  getsockopt(x->x_fd, SOL_SOCKET, SO_SNDBUF, &sendbuf, &size);
+  fprintf(stderr, "%s: SNDBUF is %ld\n", __func__, sendbuf);
+#endif
 
   if (connect(x->x_fd, x->x_active->ai_addr, x->x_active->ai_addrlen) < 0){
 #ifdef DEBUG
@@ -187,16 +206,19 @@ int send_packet_spead_socket(void *data, struct spead_packet *p)
 {
   int sb, sfd, mw;
   struct addrinfo *dst;
+  struct spead_tx     *tx;
   struct spead_socket *x;
 
-  x = data;
+  tx = data;
 
-  if (x == NULL || p == NULL){
+  if (tx == NULL || tx->t_x == NULL || p == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: param error\n", __func__);
 #endif
     return -1;
   }
+
+  x = tx->t_x;
 
   sfd = get_fd_spead_socket(x);
   dst = get_addr_spead_socket(x);
@@ -219,6 +241,10 @@ def DEBUG
     fprintf(stderr, "%s: sendto err (\033[31m%s\033[0m)\n", __func__, strerror(errno));
     return -1;
   }
+
+  lock_mutex(&(tx->t_m));
+  tx->t_pc++;
+  unlock_mutex(&(tx->t_m));
 
 #ifdef DEBUG
   fprintf(stderr, "%s: packet (%p) size [%d] sb [%d] bytes\n", __func__, p, mw, sb);

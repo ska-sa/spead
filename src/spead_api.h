@@ -10,6 +10,7 @@
 #include "spead_packet.h"
 #include "hash.h"
 #include "server.h"
+#include "tx.h"
 
 
 #define SPEAD_ZEROS_ID     0x112
@@ -192,7 +193,7 @@ void destroy_raw_data_file(struct data_file *f);
 size_t get_data_file_size(struct data_file *f);
 char *get_data_file_name(struct data_file *f);
 void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off);
-int request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr);
+uint64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, uint64_t *chunk_off_rtn);
 
 
 
@@ -205,7 +206,7 @@ int set_broadcast_opt_spead_socket(struct spead_socket *x);
 int get_fd_spead_socket(struct spead_socket *x);
 struct addrinfo *get_addr_spead_socket(struct spead_socket *x);
 int send_packet_spead_socket(void *data, struct spead_packet *p); // data should be a spead_socket
-int send_spead_stream_terminator(struct spead_socket *x);
+int send_spead_stream_terminator(struct spead_tx *tx);
 
 
 /*spead workers subprocess api*/

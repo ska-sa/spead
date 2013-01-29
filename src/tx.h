@@ -1,6 +1,7 @@
 #ifndef TX_H
-#define TX_h
+#define TX_H
   
+#define SPEADTX_OFF_ID    0x102
 #define SPEADTX_CHUNK_ID  0x101
 #define SPEADTX_DATA_ID   0x100
 
@@ -18,6 +19,7 @@ struct spead_tx {
   struct avl_tree           *t_t;
   struct spead_heap_store   *t_hs;
   uint64_t                  t_count;
+  uint64_t                  t_pc;
 };
 
 

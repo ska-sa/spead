@@ -85,6 +85,7 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
   tx->t_t         = NULL;
   tx->t_hs        = NULL;
   tx->t_count     = 0;
+  tx->t_pc        = 0;
 
   tx->t_x = create_spead_socket(host, port);
   if (tx->t_x == NULL){
@@ -125,13 +126,13 @@ uint64_t get_count_speadtx(struct spead_tx *tx)
 int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
 {
   struct spead_item_group *ig;
-  struct spead_api_item *itm, *itm2;
+  struct spead_api_item *itm, *itm2, *itm3;
   struct spead_tx *tx;
   struct hash_table *ht;
   pid_t pid;
 
   void *ptr;
-  uint64_t hid, got;
+  uint64_t hid, got, off;
 
   size_t size;
   char   *name;
@@ -172,10 +173,11 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   if (set_item_data_ones(itm) < 0) {}
 #endif
 
-  ig = create_item_group(tx->t_chunk_size + sizeof(uint64_t) + sizeof(size_t) + strlen(name) + 1, 4);
+  ig = create_item_group(tx->t_chunk_size + 2*sizeof(uint64_t) /*+ sizeof(size_t)*/ + strlen(name) + 1, 4);
   if (ig == NULL)
     return -1;
 
+#if 0
   itm = new_item_from_group(ig, sizeof(size_t));
   if (itm == NULL){
 #ifdef DEBUG
@@ -188,6 +190,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     destroy_item_group(ig);
     return -1;
   }
+#endif
   itm = new_item_from_group(ig, strlen(name) + 1);
   if (itm == NULL){
 #ifdef DEBUG
@@ -211,13 +214,23 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   } else {
     itm2->i_id = SPEADTX_CHUNK_ID;
   }
+  
+  itm3 = new_item_from_group(ig, sizeof(uint64_t));
+  if (itm3 == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot create item\n", __func__);
+#endif
+  } else {
+    itm3->i_id = SPEADTX_OFF_ID;
+  }
+
   itm  = new_item_from_group(ig, tx->t_chunk_size);
   if (itm == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: cannot create item\n", __func__);
 #endif
   } else {
-    itm->i_id = 0xSPEADTX_DATA_ID;
+    itm->i_id = SPEADTX_DATA_ID;
   }
 
   //hid = get_count_speadtx(tx);
@@ -225,7 +238,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   //while (run && hid < 1) {
   while (run) {
 
-    got = request_chunk_datafile(tx->t_f, tx->t_chunk_size, &ptr);
+    got = request_chunk_datafile(tx->t_f, tx->t_chunk_size, &ptr, &off);
     if (got == 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: got 0 ending\n", __func__);
@@ -238,6 +251,11 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     }
 
     if (copy_to_spead_item(itm, ptr, got) < 0){
+      destroy_item_group(ig);
+      return -1;
+    }
+
+    if (copy_to_spead_item(itm3, &off, sizeof(uint64_t)) < 0){
       destroy_item_group(ig);
       return -1;
     }
@@ -269,7 +287,7 @@ def DEBUG
       return -1;
     }
 
-    if (inorder_traverse_hash_table(ht, &send_packet_spead_socket, tx->t_x) < 0){
+    if (inorder_traverse_hash_table(ht, &send_packet_spead_socket, tx) < 0){
       unlock_mutex(&(ht->t_m));
       destroy_item_group(ig);
 #ifdef DEBUG
@@ -500,14 +518,16 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
     
   }
 
-  if (send_spead_stream_terminator(tx->t_x) < 0){
+  if (send_spead_stream_terminator(tx) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: could not terminat stream\n", __func__);
 #endif
     destroy_speadtx(tx);
     return -1;
   }
-  
+
+  fprintf(stderr, "%s: final packet count: %ld\n", __func__, tx->t_pc);
+
   destroy_speadtx(tx);
 
 #ifdef DEBUG

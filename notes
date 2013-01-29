@@ -1,3 +1,12 @@
+UDP Tuneing
+
+net.core.netdev_max_backlog = 2000
+net.core.wmem_max           = 838860800
+net.core.rmem_max           = 838860800
+net.core.rmem_default       = 819260800
+net.ipv4.udp_rmem_min       = 8192000
+
+
 tcpdump spead to pipespead
 
 tcpdump -B 102400 -v -i eth4 -nn -U -w - -s 0 port 7148 | ssh -c arcfour 192.168.4.138 -ladam /home/adam/spead/utils/pipespead localhost 8888

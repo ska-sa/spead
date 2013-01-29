@@ -32,7 +32,7 @@ RXSRC = server.c
 TXSRC = tx.c
 
 SHDR = avltree.h mutex.h hash.h spead_api.h spead_packet.h stack.h
-HDR  = $(SHDR) server.h
+HDR  = $(SHDR) server.h tx.h
 
 SSRC = avltree.c spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c datafile.c net.c subprocess.c stack.c itemgroup.c
 SLIB = libspead.so
