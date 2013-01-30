@@ -99,6 +99,7 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
     return -1;
   }
 
+#if 0
   id = hl / (t->t_len-1);
 
   if (id <= 0){
@@ -109,6 +110,12 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
   }
 
   id = po / id;
+#endif
+  if ((float) ((float)hl / (float)(t->t_len-1)) <= 0)
+    return 0;
+
+  /*TODO: FIX THIS*/
+  id = (uint64_t)((float)po / (float)((float)hl / ((float)t->t_len-1.0)));
 
 #ifdef DEBUG
   fprintf(stderr, "%s: po [%ld] hl [%ld] tlen [%ld] id [%ld]\n", __func__,  po, hl, t->t_len, id);
@@ -330,7 +337,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   struct spead_packet *p;
 
   int state;
-  uint64_t *pktd, payload_off, payload_len, heap_len, nitems, count, off, remain, didcopy;
+  uint64_t *pktd, payload_off, payload_len, heap_len, nitems, count, ioff, off, remain, didcopy;
   
   if (hs == NULL || ig == NULL || pkt_size <= 0){
 #ifdef DEBUG
@@ -358,6 +365,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   nitems      = 4;
   count       = 0;
   off         = 0;
+  ioff        = 0;
   remain      = 0;
 
   itm         = NULL;
@@ -384,7 +392,7 @@ def DEBUG
       case PZ_GETPACKET:
 
 #ifdef PROCESS
-        fprintf(stderr, "%s: GET a packet\n", __func__);
+        fprintf(stderr, "%s: GET PACKET\n", __func__);
 #endif
 
         o = pop_hash_o(hs->s_list);
@@ -423,7 +431,7 @@ def DEBUG
       case PZ_ADDIG_ITEMS:
 
 #ifdef PROCESS
-        fprintf(stderr, "%s: Add Item Group Items\n", __func__);
+        fprintf(stderr, "%s: ADD Items\n", __func__);
 #endif
 
         nitems = 5;
@@ -451,7 +459,7 @@ def DEBUG
       case PZ_INIT_PACKET:
 
         if (spead_packet_unpack_header(p) < 0){
-#ifdef PROCESS
+#ifdef DEBUG 
           fprintf(stderr, "%s: error unpacking spead header\n", __func__);
 #endif
           state = PZ_END;
@@ -459,7 +467,7 @@ def DEBUG
         }
         
         if (spead_packet_unpack_items(p) == SPEAD_ERR){
-#ifdef PROCESS
+#ifdef DEBUG
           fprintf(stderr, "%s: unable to unpack spead items for packet (%p)\n", __func__, p);
 #endif
           state = PZ_END;
@@ -473,9 +481,7 @@ def DEBUG
           state = PZ_END;
           break;
         }
-#ifdef PROCESS
-        fprintf(stderr, "%s: done INIT a packet\n", __func__);
-#endif
+
         state = PZ_COPYDATA;
         break;
 
@@ -486,19 +492,20 @@ def DEBUG
         //copied = 0;
         
 #ifdef PROCESS
-        fprintf(stderr, "%s:------start copy data\n", __func__);
+        fprintf(stderr, "%s: COPY DATA\n---------\n", __func__);
 #endif
 
         if (!remain){
-          itm = get_next_spead_item(ig, itm);
 #ifdef PROCESS
-          fprintf(stderr, "%s: get next itm (%p)\n", __func__, p);
+          fprintf(stderr, "%s: GET NEXT ITEM (%p)\n", __func__, p);
 #endif
+          itm = get_next_spead_item(ig, itm);
           if (itm == NULL){
             state = PZ_END;
             break;
           }
           remain = itm->i_data_len;
+          ioff   = 0;
         } else {
           off = 0;
         }
@@ -509,9 +516,10 @@ def DEBUG
 
         if (off + remain < pkt_size) {
 
-          memcpy(p->payload + off, itm->i_data, remain);
+          memcpy(p->payload + off, itm->i_data+ioff, remain);
 
           didcopy += remain;
+          ioff    += didcopy;
           count   -= remain;
           off     += remain;
           remain   = 0;
@@ -519,22 +527,23 @@ def DEBUG
           SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, off));
 
 #ifdef PROCESS
-          fprintf(stderr, "%s: COPYMORE  count %ld off %ld remain %ld\n", __func__, count, off, remain);
+          fprintf(stderr, "%s: COPYMORE\n\t\tcount %ld off %ld remain %ld didcopy %ld\n", __func__, count, off, remain, didcopy);
 #endif
 
           state = (count > 0) ? PZ_COPYDATA : PZ_HASHPACKET;
 
         } else if (off + remain >= pkt_size){
 
-          memcpy(p->payload + off, itm->i_data, (remain < pkt_size - off) ? remain : pkt_size - off);
+          memcpy(p->payload + off, itm->i_data + ioff, (remain < pkt_size - off) ? remain : pkt_size - off);
           
           didcopy += (remain < pkt_size - off) ? remain : pkt_size - off;
+          ioff    += didcopy;
           count   -= (remain < pkt_size - off) ? remain : pkt_size - off;
           remain   = (remain < pkt_size - off) ? 0 : remain - (pkt_size - off);
           off      = 0;
 
 #ifdef PROCESS
-          fprintf(stderr, "%s: NEW PCKT  count %ld off %ld remain %ld\n", __func__, count, off, remain);
+          fprintf(stderr, "%s: NEW PCKT\n\t\tcount %ld off %ld remain %ld didcopy %ld\n", __func__, count, off, remain, didcopy);
 #endif
 
           state = PZ_HASHPACKET;
@@ -551,14 +560,14 @@ def DEBUG
         state = PZ_GETPACKET;
         /*****************extra*********************/
         if (spead_packet_unpack_header(p) < 0){
-#ifdef PROCESS
+#ifdef DEBUG 
           fprintf(stderr, "%s: error unpacking spead header\n", __func__);
 #endif
           state = PZ_END;
           break;
         }
         if (spead_packet_unpack_items(p) == SPEAD_ERR){
-#ifdef PROCESS
+#ifdef DEBUG
           fprintf(stderr, "%s: unable to unpack spead items for packet (%p)\n", __func__, p);
 #endif
           state = PZ_END;
@@ -567,7 +576,7 @@ def DEBUG
         /*******************************************/
 
         if (add_o_ht(ht, o) < 0){
-#ifdef PROCESS
+#ifdef DEBUG 
           fprintf(stderr, "%s: add o ht error\n", __func__);
 #endif
           state = PZ_END;
@@ -575,7 +584,7 @@ def DEBUG
         }
 
         if (count == 0 && remain == 0){
-#ifdef PROCESS
+#ifdef DEBUG
           fprintf(stderr, "%s: count and remain 0 END\n", __func__);
 #endif
           state = PZ_END;
@@ -596,7 +605,11 @@ def DEBUG
 
     }
   }
-  
+
+  /***********************/
+  /* NOTE ht is returned */
+  /* with mutex set      */
+  /***********************/
   return ht;
 }
 
@@ -975,13 +988,13 @@ int calculate_lengths(void *so, void *data)
   if (itm->i_mode == SPEAD_DIRECTADDR){
     itm->i_len = cd->d_off - itm->i_off;
     cd->d_off -= itm->i_len;
-#ifdef DEBUG
+#ifdef PROCESS 
     fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
 #endif
   } else {
     itm->i_len = sizeof(int64_t);
     cd->d_imm++;
-#ifdef DEBUG
+#ifdef PROCESS
     fprintf(stderr, "%s: IMMEDIATE item [%d]\n", __func__, itm->i_id);
 #endif
   }

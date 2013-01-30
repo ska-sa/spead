@@ -103,7 +103,8 @@ void destroy_hash_table(struct hash_table *t)
       //free(t->t_os);
     }
 
-#if DEBUG>1
+#if 0
+DEBUG>1
     print_list_stats(t->t_l, __func__);
 #endif
 
@@ -332,19 +333,16 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   fprintf(stderr, "%s: api hashfn return id [%ld]\n", __func__, id);
 #endif
 
-  if (id < 0){
+  if (id < 0 || id >= t->t_len){
 #ifdef DEBUG
     fprintf(stderr, "%s: hfn error!\n", __func__);
 #endif
     return -1;
   }
-  //lock_mutex(&(t->t_m));
 
   if (t->t_os[id] == NULL){
     /*simple case*/
     t->t_os[id] = o;
-
-    //unlock_mutex(&(t->t_m));
 
 #ifdef DEBUG
     fprintf(stderr, "[%d] HASH into [%ld] @ [%ld]\t(%p)\n", getpid(), t->t_id, id, o);
@@ -357,18 +355,19 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
 
   to = t->t_os[id];
 
+  if (to == NULL){
+    return -1;
+  }
+
   for (i=0; to->o_next != NULL; i++){
     to = to->o_next;
   }
   
   if (to == NULL){
-    //unlock_mutex(&(t->t_m));
     return -1;
   }
 
   to->o_next = o;
-
-  //unlock_mutex(&(t->t_m));
 
 #ifdef DEBUG
   fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld] LIST pos [%d]\t(%p)\n", getpid(), t->t_id, id, i, o);

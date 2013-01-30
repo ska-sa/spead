@@ -191,6 +191,8 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     return -1;
   }
 #endif
+
+  /*filename*/
   itm = new_item_from_group(ig, strlen(name) + 1);
   if (itm == NULL){
 #ifdef DEBUG
@@ -204,8 +206,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     return -1;
   }
 
-
-
+  /*chunk id*/
   itm2 = new_item_from_group(ig, sizeof(uint64_t));
   if (itm2 == NULL){
 #ifdef DEBUG
@@ -215,6 +216,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     itm2->i_id = SPEADTX_CHUNK_ID;
   }
   
+  /*data offset from file*/
   itm3 = new_item_from_group(ig, sizeof(uint64_t));
   if (itm3 == NULL){
 #ifdef DEBUG
@@ -224,6 +226,7 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
     itm3->i_id = SPEADTX_OFF_ID;
   }
 
+  /*data from file*/
   itm  = new_item_from_group(ig, tx->t_chunk_size);
   if (itm == NULL){
 #ifdef DEBUG
