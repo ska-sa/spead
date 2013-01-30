@@ -492,7 +492,7 @@ def DEBUG
         //copied = 0;
         
 #ifdef PROCESS
-        fprintf(stderr, "%s: COPY DATA\n---------\n", __func__);
+        fprintf(stderr, "%s: COPY DATA\n", __func__);
 #endif
 
         if (!remain){
@@ -511,15 +511,16 @@ def DEBUG
         }
 
 #ifdef PROCESS
-        fprintf(stderr, "%s:\t\tcount %ld off %ld remain %ld\n", __func__, count, off, remain);
+        fprintf(stderr, "%s:\t\tcount %ld off %ld remain %ld didcopy %ld ioff %ld\n", __func__, count, off, remain, didcopy, ioff);
 #endif
 
         if (off + remain < pkt_size) {
 
-          memcpy(p->payload + off, itm->i_data+ioff, remain);
+          memcpy(p->payload + off, itm->i_data + ioff, remain);
+
+          ioff    += remain;
 
           didcopy += remain;
-          ioff    += didcopy;
           count   -= remain;
           off     += remain;
           remain   = 0;
@@ -527,23 +528,28 @@ def DEBUG
           SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, off));
 
 #ifdef PROCESS
-          fprintf(stderr, "%s: COPYMORE\n\t\tcount %ld off %ld remain %ld didcopy %ld\n", __func__, count, off, remain, didcopy);
+          fprintf(stderr, "%s: COPYMORE set packet payload len to: %ld\n", __func__, off);
+          fprintf(stderr, "%s:\t\tcount %ld off %ld remain %ld didcopy %ld ioff %ld\n", __func__, count, off, remain, didcopy, ioff);
 #endif
 
           state = (count > 0) ? PZ_COPYDATA : PZ_HASHPACKET;
 
         } else if (off + remain >= pkt_size){
-
-          memcpy(p->payload + off, itm->i_data + ioff, (remain < pkt_size - off) ? remain : pkt_size - off);
           
-          didcopy += (remain < pkt_size - off) ? remain : pkt_size - off;
-          ioff    += didcopy;
-          count   -= (remain < pkt_size - off) ? remain : pkt_size - off;
+          uint64_t cancopy = (remain < pkt_size - off) ? remain : pkt_size - off;
+
+          memcpy(p->payload + off, itm->i_data + ioff, cancopy);
+
+          ioff    += cancopy;
+          
+          didcopy += cancopy;
+          count   -= cancopy;
           remain   = (remain < pkt_size - off) ? 0 : remain - (pkt_size - off);
           off      = 0;
 
 #ifdef PROCESS
-          fprintf(stderr, "%s: NEW PCKT\n\t\tcount %ld off %ld remain %ld didcopy %ld\n", __func__, count, off, remain, didcopy);
+          fprintf(stderr, "%s: NEW PCKT\n", __func__);
+          fprintf(stderr, "%s:\t\tcount %ld off %ld remain %ld didcopy %ld ioff %ld\n", __func__, count, off, remain, didcopy, ioff);
 #endif
 
           state = PZ_HASHPACKET;
@@ -551,7 +557,7 @@ def DEBUG
         
         SPEAD_SET_ITEM(p->data, 4, SPEAD_ITEM_BUILD(SPEAD_IMMEDIATEADDR, SPEAD_PAYLOAD_LEN_ID, didcopy));
 #ifdef PROCESS
-        fprintf(stderr, "%s: set payload_len to %ld bytes\n", __func__, didcopy);
+        fprintf(stderr, "%s: update payload_len to %ld bytes\n", __func__, didcopy);
         fprintf(stderr, "%s: end copy data------\n", __func__);
 #endif
         break;
@@ -593,6 +599,10 @@ def DEBUG
         
         payload_off += pkt_size;
         didcopy = 0; 
+
+#ifdef PROCESS
+        print_data(p->payload, p->payload_len);
+#endif  
 
         break;
 
