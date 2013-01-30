@@ -164,9 +164,9 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
     return -1;
   }
  
-  if (NX*BATCH != itm->i_len){
+  if (NX*BATCH != itm->i_data_len){
 #ifdef DEBUG
-    fprintf(stderr, "e: data len [%ld] doesn't match fft setup NX*BATCH [%ld]\n", itm->i_len, (long int) NX*BATCH);
+    fprintf(stderr, "e: data len [%ld] doesn't match fft setup NX*BATCH [%ld]\n", itm->i_data_len, (long int) NX*BATCH);
 #endif
     return -1;
   }

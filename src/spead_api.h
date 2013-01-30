@@ -10,6 +10,7 @@
 #include "spead_packet.h"
 #include "hash.h"
 #include "server.h"
+#include "tx.h"
 
 
 #define SPEAD_ZEROS_ID     0x112
@@ -58,7 +59,15 @@ struct spead_api_item{
   void          *io_data;
   size_t        io_size;
   uint64_t      i_len;
+  uint64_t      i_data_len;
   unsigned char i_data[];
+};
+
+struct spead_api_item2{
+  int           i_id;
+  int           i_mode;
+  int64_t       i_off;
+  uint64_t      i_len;
 };
 
 struct spead_item_group {
@@ -68,6 +77,14 @@ struct spead_item_group {
   void      *g_map;
 };
 
+struct coalesce_spead_data {
+  struct spead_item_group *d_ig;
+  struct stack *d_stack;
+  int      d_imm;
+  uint64_t d_len;
+  uint64_t d_off;
+  void *d_data;
+};
 
 /*spead shared_mem api*/
 struct shared_mem {
@@ -80,6 +97,7 @@ struct shared_mem {
 /*spead data_file api*/
 struct data_file{
   mutex       f_m;
+  char        *f_name;
   struct stat f_fs;
   int         f_fd;
   void        *f_fmap;
@@ -173,8 +191,10 @@ void *shared_malloc(size_t size);
 struct data_file *load_raw_data_file(char *fname);
 void destroy_raw_data_file(struct data_file *f);
 size_t get_data_file_size(struct data_file *f);
+char *get_data_file_name(struct data_file *f);
 void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off);
-int request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr);
+uint64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, uint64_t *chunk_off_rtn);
+
 
 
 /*spead socket api*/
@@ -186,7 +206,7 @@ int set_broadcast_opt_spead_socket(struct spead_socket *x);
 int get_fd_spead_socket(struct spead_socket *x);
 struct addrinfo *get_addr_spead_socket(struct spead_socket *x);
 int send_packet_spead_socket(void *data, struct spead_packet *p); // data should be a spead_socket
-int send_spead_stream_terminator(struct spead_socket *x);
+int send_spead_stream_terminator(struct spead_tx *tx);
 
 
 /*spead workers subprocess api*/

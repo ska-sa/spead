@@ -8,3 +8,6 @@ clean: $(patsubst %,%-clean,$(APPS))
 
 %-clean:
 	$(MAKE) -C $(shell echo $@ | cut -f1 -d- ) clean 
+
+fresh:
+	make clean && make

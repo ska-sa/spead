@@ -26,6 +26,7 @@ struct u_server {
   int s_hpcount;
   int s_hdcount;
   uint64_t s_bc;
+  uint64_t s_pc;
   struct spead_heap_store *s_hs;
   struct spead_api_module *s_mod;
 #ifndef IKATCP

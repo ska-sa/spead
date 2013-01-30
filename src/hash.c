@@ -103,7 +103,8 @@ void destroy_hash_table(struct hash_table *t)
       //free(t->t_os);
     }
 
-#if DEBUG>1
+#if 0
+DEBUG>1
     print_list_stats(t->t_l, __func__);
 #endif
 
@@ -332,19 +333,16 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
   fprintf(stderr, "%s: api hashfn return id [%ld]\n", __func__, id);
 #endif
 
-  if (id < 0){
+  if (id < 0 || id >= t->t_len){
 #ifdef DEBUG
     fprintf(stderr, "%s: hfn error!\n", __func__);
 #endif
     return -1;
   }
-  //lock_mutex(&(t->t_m));
 
   if (t->t_os[id] == NULL){
     /*simple case*/
     t->t_os[id] = o;
-
-    //unlock_mutex(&(t->t_m));
 
 #ifdef DEBUG
     fprintf(stderr, "[%d] HASH into [%ld] @ [%ld]\t(%p)\n", getpid(), t->t_id, id, o);
@@ -357,21 +355,21 @@ int add_o_ht(struct hash_table *t, struct hash_o *o)
 
   to = t->t_os[id];
 
+  if (to == NULL){
+    return -1;
+  }
+
   for (i=0; to->o_next != NULL; i++){
     to = to->o_next;
   }
   
   if (to == NULL){
-    //unlock_mutex(&(t->t_m));
     return -1;
   }
 
   to->o_next = o;
 
-  //unlock_mutex(&(t->t_m));
-
-#if 0 
-def DEBUG
+#ifdef DEBUG
   fprintf(stderr, "[%d] HASHED into [%ld] @ [%ld] LIST pos [%d]\t(%p)\n", getpid(), t->t_id, id, i, o);
 #endif
 
@@ -434,6 +432,91 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
 
   return 0;
 }
+
+int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data)
+{
+  struct hash_o *o;
+  struct spead_packet *p;
+
+  int state, i;
+  
+  if (ht == NULL || call == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+
+  i = 0; 
+  o = NULL;
+  p = NULL;
+  state = S_GET_OBJECT;    
+
+  while (state){
+    
+    switch(state){
+      
+      case S_GET_OBJECT:
+        if (i < ht->t_len){
+          o = ht->t_os[i];
+          if (o == NULL){
+            i++;
+            state = S_GET_OBJECT;
+            break;
+          }
+          state = S_GET_PACKET;
+        } else 
+          state = S_END;
+        break;
+
+      case S_GET_PACKET:
+        p = get_data_hash_o(o);
+        if (p == NULL){
+          state = S_NEXT_PACKET;
+          break;
+        }
+        
+#ifdef DEBUG
+        fprintf(stderr, "%s: GOT PACKET [%d of %ld] (%p)\n", __func__, i, ht->t_len, p);
+#endif
+
+        if ((*call)(data, p) < 0){
+#ifdef DEBUG
+          fprintf(stderr, "%s: callback err for packet (%p)\n", __func__, p);
+#endif
+          return -1;
+        }
+
+        state = S_NEXT_PACKET;
+        break;
+
+      case S_NEXT_PACKET:
+        if (o->o_next != NULL){
+          o = o->o_next;
+          state = S_GET_PACKET;
+        } else {
+          i++;
+          state = S_GET_OBJECT;
+        }
+        break;
+    }
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: end traverse hash table on [%d]\n", __func__, i);
+#endif
+
+  return 0;
+}
+
+
+
+
+
+
+
+
+
 
 
 #ifdef TEST_HASH

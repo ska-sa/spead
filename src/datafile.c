@@ -8,13 +8,12 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <libgen.h>
 
 #include <sys/stat.h>
 #include <sys/mman.h>
 
 #include "spead_api.h"
-
-
 
 struct data_file *load_raw_data_file(char *fname)
 {
@@ -28,6 +27,7 @@ struct data_file *load_raw_data_file(char *fname)
     return NULL;
   }
   
+  f->f_name = fname;
   f->f_m    = 0;
   f->f_off  = 0;
   f->f_fd   = 0;
@@ -87,6 +87,11 @@ size_t get_data_file_size(struct data_file *f)
   return 0;
 }
 
+char *get_data_file_name(struct data_file *f)
+{
+  return (f) ? basename(f->f_name) : NULL;
+}
+
 void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off)
 {
   if (f == NULL)
@@ -99,9 +104,9 @@ void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off)
   return f->f_fmap + off;
 }
 
-int request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr)
+uint64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, uint64_t *chunk_off_rtn)
 {
-  int rtn;
+  uint64_t rtn;
 
   if (f == NULL || len < 0 || ptr == NULL){
 #ifdef DEBUG
@@ -119,6 +124,9 @@ int request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr)
 #endif
     return 0;
   }
+
+  if (chunk_off_rtn)
+    *chunk_off_rtn = f->f_off;
  
   rtn       = (f->f_fs.st_size > f->f_off+len) ? len : f->f_fs.st_size - f->f_off;
   f->f_off += rtn;

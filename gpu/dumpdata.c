@@ -24,7 +24,7 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
 
   while ((itm = get_next_spead_item(ig, itm))){
     
-    print_data(itm->i_data, itm->i_len);
+    print_data(itm->i_data, itm->i_data_len);
 
   }
 
