@@ -146,6 +146,7 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus)
   s->s_x       = NULL;
   s->s_fd      = 0;
   s->s_bc      = 0;
+  s->s_pc      = 0;
   s->s_hpcount = 0;
   s->s_hdcount = 0;
   s->s_cpus    = cpus;
@@ -297,9 +298,11 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 
   ssize_t nread;
   uint64_t rcount, bcount;
+  int rtn;
 
   pid_t pid;
 
+  rtn    = 0;
   rcount = 0;
   bcount = 0;
   p      = NULL;
@@ -353,7 +356,6 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
     }
 #endif
 
-    rcount++;
     peer_addr_len = sizeof(struct sockaddr_storage); 
 
     bzero(p, sizeof(struct spead_packet));
@@ -375,34 +377,28 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
       break;
     }
 
-    lock_mutex(&(s->s_m));
-    s->s_bc += nread;
-    unlock_mutex(&(s->s_m));
-
 #ifndef RATE
-    if (process_packet_hs(s, m, o) < 0){
-#if DEBUG>1
-      fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
-#endif
-      if (push_hash_o(hs->s_list, o) < 0){
+    if ((rtn = process_packet_hs(s, m, o)) < 0){
+      if (rtn == -1){
 #ifdef DEBUG
-        fprintf(stderr, "%s: cannot push object!\n", __func__);
+        fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
 #endif
+        if (push_hash_o(hs->s_list, o) < 0){
+#ifdef DEBUG
+          fprintf(stderr, "%s: cannot push object!\n", __func__);
+#endif
+        }
       }
-      //continue; 
     }
 #endif
 
-#if 0
-    if(write(cfd, &nread, sizeof(nread)) < 0)
-      continue;
-#endif
+    lock_mutex(&(s->s_m));
+    s->s_bc += nread;
+    s->s_pc++;
+    unlock_mutex(&(s->s_m));
     
     bcount += nread;
-
-#ifdef DEBUG
-    fflush(stderr);
-#endif
+    rcount++;
 
   }
 
@@ -415,7 +411,7 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
   close(cfd);
   
 #ifdef DEBUG
-  //fprintf(stderr, "\tCHILD[%d]: exiting with bytes: %lu\n", getpid(), bcount);
+  fprintf(stderr, "\tCHILD[%d]: exiting with bytes: %ld rcount: %ld\n", getpid(), bcount, rcount);
 #endif
   print_format_bitrate('T', bcount);
   unlock_mutex(&(s->s_m));
@@ -652,6 +648,8 @@ def DEBUG
   //fprintf(stderr, "%s: final recv count:\t%ld bytes\n", __func__, s->s_bc);
 #endif
   print_format_bitrate('T', s->s_bc);
+
+  fprintf(stderr, "%s: final packet count: %ld\n", __func__, s->s_pc);
 
   return 0;
 }
