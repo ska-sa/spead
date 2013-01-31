@@ -189,12 +189,14 @@ void *shared_malloc(size_t size);
 
 /*spead data file*/
 struct data_file *load_raw_data_file(char *fname);
+struct data_file *write_raw_data_file(char *fname);
 void destroy_raw_data_file(struct data_file *f);
 size_t get_data_file_size(struct data_file *f);
 char *get_data_file_name(struct data_file *f);
 void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off);
 uint64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, uint64_t *chunk_off_rtn);
-
+int write_chunk_raw_data_file(struct data_file *f, uint64_t off, void *src, uint64_t len);
+int write_next_chunk_raw_data_file(struct data_file *f, void *src, uint64_t len);
 
 
 /*spead socket api*/

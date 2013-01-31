@@ -15,7 +15,8 @@
 
 #include "spead_api.h"
 
-struct data_file *load_raw_data_file(char *fname)
+
+struct data_file *create_raw_data_file(char *fname)
 {
   struct data_file *f;
 
@@ -32,6 +33,36 @@ struct data_file *load_raw_data_file(char *fname)
   f->f_off  = 0;
   f->f_fd   = 0;
   f->f_fmap = NULL;
+
+  return f;
+}
+
+struct data_file *write_raw_data_file(char *fname)
+{
+  struct data_file *f;
+
+  f = create_raw_data_file(fname);
+  if (f == NULL)
+    return NULL;
+
+  f->f_fd = open(fname, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+  if (f->f_fd < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: open error (%s)\n", __func__, strerror(errno));
+#endif
+    return NULL;
+  }
+
+  return f;
+}
+
+struct data_file *load_raw_data_file(char *fname)
+{
+  struct data_file *f;
+
+  f = create_raw_data_file(fname);
+  if (f == NULL)
+    return NULL;
 
   if (stat(fname, &(f->f_fs)) < 0){
 #ifdef DEBUG
@@ -77,6 +108,76 @@ void destroy_raw_data_file(struct data_file *f)
 
     free(f);
   }
+}
+
+int write_chunk_raw_data_file(struct data_file *f, uint64_t off, void *src, uint64_t len)
+{
+  uint64_t sw, pos, wb;
+
+  if (f == NULL || src == NULL || len <= 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+
+  sw = len;
+  pos = 0;
+  wb = 0;
+
+  do { 
+    wb = pwrite(f->f_fd, src + pos, sw, off + pos);
+    if (wb <= 0){
+      if (wb < 0){
+        switch(errno){
+          case EINTR:
+          case EAGAIN:
+            continue;
+          default:
+#ifdef DEBUG
+            fprintf(stderr, "%s: pwrite error (%s)\n", __func__, strerror(errno));
+#endif
+            return -1;
+        }
+      } else {
+        /*should never reach here*/
+        if (pos == len)
+          break;
+      }
+    } else {
+      pos += wb;
+      sw  -= wb;
+    }
+  } while(wb == len || sw <= 0);
+  
+#ifdef DEBUG
+  fprintf(stderr, "%s: worte [%ld] bytes to <%s>\n", __func__, wb, f->f_name);
+#endif
+
+  return 0;
+}
+
+int write_next_chunk_raw_data_file(struct data_file *f, void *src, uint64_t len)
+{
+  if (f == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+  
+  lock_mutex(&(f->f_m));
+  
+  if (write_chunk_raw_data_file(f, f->f_off, src, len) < 0){
+    unlock_mutex(&(f->f_m));
+    return -1;
+  }
+
+  f->f_off += len;
+  
+  unlock_mutex(&(f->f_m));
+  
+  return 0;
 }
 
 size_t get_data_file_size(struct data_file *f)

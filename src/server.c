@@ -123,7 +123,7 @@ int register_signals_us()
   return 0;
 }
 
-struct u_server *create_server_us(struct spead_api_module *m, long cpus)
+struct u_server *create_server_us(struct spead_api_module *m, long cpus, char *raw_pkt_file)
 {
   struct u_server *s;
 
@@ -144,6 +144,8 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus)
     return NULL;
   
   s->s_x       = NULL;
+  s->s_w       = NULL;
+  s->s_f       = NULL;
   s->s_fd      = 0;
   s->s_bc      = 0;
   s->s_pc      = 0;
@@ -157,6 +159,10 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus)
 #ifndef IKATCP
   s->s_kl      = NULL;
 #endif
+
+  if (raw_pkt_file){
+    s->s_f = write_raw_data_file(raw_pkt_file);
+  }
 
   return s;
 }
@@ -177,7 +183,10 @@ void destroy_server_us(struct u_server *s)
     }
     
     destroy_spead_socket(s->s_x);
+    destroy_spead_workers(s->s_w);
     
+    destroy_raw_data_file(s->s_f);
+
 #ifndef IKATCP
     if (s->s_kl){
       destroy_katcl(s->s_kl, 0);
@@ -329,6 +338,8 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 
   gettimeofday(&prev, NULL);
 
+  peer_addr_len = sizeof(struct sockaddr_storage); 
+
   while (run) {
 
 #ifndef RATE
@@ -356,8 +367,6 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
     }
 #endif
 
-    peer_addr_len = sizeof(struct sockaddr_storage); 
-
     bzero(p, sizeof(struct spead_packet));
 
     nread = recvfrom(s->s_fd, p->data, SPEAD_MAX_PACKET_LEN, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
@@ -373,8 +382,8 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 #endif
       }
 #endif
-
-      break;
+      continue;
+      //break;
     }
 
 #ifndef RATE
@@ -687,7 +696,141 @@ ndef DEBUG
 }
 #endif
 
-int register_client_handler_server(struct spead_api_module *m, char *port, long cpus, uint64_t hashes, uint64_t hashsize, int broadcast)
+int server_run_loop(struct u_server *s)
+{
+  int rtn;
+  sigset_t empty_mask;
+
+  if (s == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif  
+    return -1;
+  }
+
+  sigemptyset(&empty_mask);
+
+  while (run){
+
+    if (populate_fdset_spead_workers(s->s_w) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error populating fdset\n", __func__);
+#endif
+      run = 0;
+      break;
+    }
+
+    rtn = pselect(get_high_fd_spead_workers(s->s_w) + 1, get_in_fd_set_spead_workers(s->s_w), (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask);
+    if (rtn < 0){
+      switch(errno){
+        case EAGAIN:
+        case EINTR:
+          //continue;
+          break;
+        default:
+#ifdef DEBUG
+          fprintf(stderr, "%s: pselect error\n", __func__);
+#endif    
+          run = 0;
+          continue;
+      }
+    }
+    
+
+    fprintf(stderr, ".");
+    //sleep(1);
+
+    /*do stuff*/
+    
+    /*saw a SIGCHLD*/
+    if (child){
+      wait_spead_workers(s->s_w);
+    }
+    
+  }
+
+  fprintf(stderr, "%s: final packet count: %ld\n", __func__, s->s_pc);
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: rx exiting cleanly\n", __func__);
+#endif
+
+  return 0;
+}
+
+int raw_spead_cap_worker(void *data, struct spead_api_module *m, int cfd)
+{
+  struct u_server *s;
+  struct spead_packet *p;
+
+  struct sockaddr_storage peer_addr;
+  socklen_t peer_addr_len;
+
+  ssize_t nread;
+  
+  struct data_file *f;
+
+  s = data;
+  if (s == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+  
+  f = s->s_f;
+  if (f == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: data file not ready\n", __func__);
+#endif
+    return -1;
+  }
+
+  p = malloc(sizeof(struct spead_packet));
+  if (p == NULL) {
+#ifdef DEBUG
+    fprintf(stderr, "%s: logic error cannot malloc\n", __func__);
+#endif
+    return -1;
+  }
+  
+  peer_addr_len = sizeof(struct sockaddr_storage);
+
+  while(run){
+    
+    nread = recvfrom(s->s_fd, p->data, SPEAD_MAX_PACKET_LEN, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
+    if (nread < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: unable to recvfrom: %s\n", __func__, strerror(errno));
+#endif
+      continue;
+    } else if (nread == 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: peer shutdown detected\n", __func__);
+#endif
+      continue;
+    }
+      
+    
+    if (write_next_chunk_raw_data_file(f, p->data, nread) < 0) {
+#ifdef DEBUG
+      fprintf(stderr, "%s: write next chunk fail\n", __func__);
+#endif
+    }
+    
+    lock_mutex(&(s->s_m));
+    s->s_bc += nread;
+    s->s_pc++;
+    unlock_mutex(&(s->s_m));
+  }
+  
+  if (p)
+    free(p);
+
+  return 0;
+}
+
+int register_client_handler_server(struct spead_api_module *m, char *port, long cpus, uint64_t hashes, uint64_t hashsize, int broadcast, char *raw_pkt_file)
 {
   struct u_server *s;
   
@@ -696,7 +839,7 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
     return -1;
   }
 
-  s = create_server_us(m, cpus);
+  s = create_server_us(m, cpus, raw_pkt_file);
   if (s == NULL){
     fprintf(stderr, "%s: error could not create server\n", __func__);
     unload_api_user_module(m);
@@ -717,10 +860,29 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
   }
 #endif
 
-  if (spawn_workers_us(s, hashes, hashsize) < 0){ 
-    fprintf(stderr,"%s: error during run\n", __func__);
-    shutdown_server_us(s);
-    return -1;
+  if (raw_pkt_file){
+
+    s->s_w = create_spead_workers(s, cpus, &raw_spead_cap_worker);
+    if (s->s_w == NULL){
+      shutdown_server_us(s);
+      fprintf(stderr, "%s: create spead workers failed\n", __func__);
+      return -1;
+    }
+
+    if (server_run_loop(s) < 0){
+      shutdown_server_us(s);
+      fprintf(stderr, "%s: server run loop failed\n", __func__);
+      return -1;
+    }
+
+  } else {
+
+    if (spawn_workers_us(s, hashes, hashsize) < 0){ 
+      fprintf(stderr,"%s: error during run\n", __func__);
+      shutdown_server_us(s);
+      return -1;
+    }
+
   }
   
   shutdown_server_us(s);
@@ -737,7 +899,7 @@ int main(int argc, char *argv[])
 {
   long cpus;
   int i, j, c, broadcast;
-  char *port, *dylib;
+  char *port, *dylib, *raw_pkt_file;
   uint64_t hashes, hashsize;
 
   struct spead_api_module *m;
@@ -751,6 +913,7 @@ int main(int argc, char *argv[])
   
   dylib = NULL;
   m     = NULL;
+  raw_pkt_file = NULL;
 
   port = PORT;
   cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -779,10 +942,11 @@ int main(int argc, char *argv[])
           break;
 
         case 'h':
-          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\t\t-x (enable receive from broadcast [priv])\n\n", argv[0], cpus, port, hashes, hashsize);
+          fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\t\t-x (enable receive from broadcast [priv])\n\t\t-r (dump raw spead packets)\n\n", argv[0], cpus, port, hashes, hashsize);
           return EX_OK;
 
         /*settings*/
+        case 'r':
         case 'd':
         case 'p':
         case 'w':
@@ -798,6 +962,9 @@ int main(int argc, char *argv[])
             return EX_USAGE;
           }
           switch (c){
+            case 'r':
+              raw_pkt_file = argv[i] +j;
+              break;
             case 'd':
               dylib = argv[i] + j;  
               break;
@@ -840,5 +1007,5 @@ int main(int argc, char *argv[])
 
   }
 
-  return register_client_handler_server(m, port, cpus, hashes, hashsize, broadcast);
+  return register_client_handler_server(m, port, cpus, hashes, hashsize, broadcast, raw_pkt_file);
 }
