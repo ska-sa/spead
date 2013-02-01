@@ -95,7 +95,10 @@ struct shared_mem {
 
 
 /*spead data_file api*/
+#define DF_STREAM 0
+#define DF_FILE   1
 struct data_file{
+  int         f_state;
   mutex       f_m;
   char        *f_name;
   struct stat f_fs;
@@ -103,7 +106,6 @@ struct data_file{
   void        *f_fmap;
   uint64_t    f_off;
 };
-
 
 /*spead_socket api*/
 #define XSOCK_NONE       0

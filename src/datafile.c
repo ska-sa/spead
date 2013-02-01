@@ -33,6 +33,7 @@ struct data_file *create_raw_data_file(char *fname)
   f->f_off  = 0;
   f->f_fd   = 0;
   f->f_fmap = NULL;
+  f->f_state= DF_FILE;
 
   return f;
 }
@@ -40,17 +41,40 @@ struct data_file *create_raw_data_file(char *fname)
 struct data_file *write_raw_data_file(char *fname)
 {
   struct data_file *f;
+  long flags;
+  
+  flags = 0;
 
   f = create_raw_data_file(fname);
   if (f == NULL)
     return NULL;
 
-  f->f_fd = open(fname, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-  if (f->f_fd < 0){
+  if (strncmp(fname, "-", 1) == 0){
+    f->f_fd = STDOUT_FILENO;
+
+    flags = fcntl(f->f_fd, F_GETFD, 0);
+    
+    flags &= ~O_NONBLOCK;
+
+    if (fcntl(f->f_fd, F_SETFD, flags) < 0){
 #ifdef DEBUG
-    fprintf(stderr, "%s: open error (%s)\n", __func__, strerror(errno));
+      fprintf(stderr, "%s: error unsetting fcntl o_nonblock\n", __func__);
 #endif
-    return NULL;
+      destroy_raw_data_file(f);
+      return NULL;
+    }
+
+    f->f_state = DF_STREAM;
+
+  } else {
+    f->f_fd = open(fname, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    if (f->f_fd < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: open error (%s)\n", __func__, strerror(errno));
+#endif
+      destroy_raw_data_file(f);
+      return NULL;
+    }
   }
 
   return f;
@@ -103,7 +127,7 @@ void destroy_raw_data_file(struct data_file *f)
     if (f->f_fmap)
       munmap(f->f_fmap, f->f_fs.st_size);
 
-    if (f->f_fd)
+    if (f->f_fd && f->f_state != DF_STREAM)
       close(f->f_fd);
 
     free(f);
@@ -112,7 +136,7 @@ void destroy_raw_data_file(struct data_file *f)
 
 int write_chunk_raw_data_file(struct data_file *f, uint64_t off, void *src, uint64_t len)
 {
-  uint64_t sw, pos, wb;
+  int64_t sw, pos, wb;
 
   if (f == NULL || src == NULL || len <= 0){
 #ifdef DEBUG
@@ -125,31 +149,51 @@ int write_chunk_raw_data_file(struct data_file *f, uint64_t off, void *src, uint
   pos = 0;
   wb = 0;
 
-  do { 
-    wb = pwrite(f->f_fd, src + pos, sw, off + pos);
-    if (wb <= 0){
-      if (wb < 0){
-        switch(errno){
-          case EINTR:
-          case EAGAIN:
-            continue;
-          default:
+  switch(f->f_state){
+    case DF_FILE:
+      
+      do { 
+        wb = pwrite(f->f_fd, src + pos, sw, off + pos);
+        if (wb <= 0){
+          if (wb < 0){
+            switch(errno){
+              case EINTR:
+              case EAGAIN:
+                continue;
+              case ESPIPE:
+              default:
 #ifdef DEBUG
-            fprintf(stderr, "%s: pwrite error (%s)\n", __func__, strerror(errno));
+                fprintf(stderr, "%s: pwrite error (%s)\n", __func__, strerror(errno));
 #endif
-            return -1;
+                return -1;
+            }
+          } else {
+            /*should never reach here*/
+            if (pos == len)
+              break;
+          }
+        } else {
+          pos += wb;
+          sw  -= wb;
         }
-      } else {
-        /*should never reach here*/
-        if (pos == len)
-          break;
+      } while(wb == len || sw <= 0);
+      
+      break;
+
+    case DF_STREAM:
+      
+      wb = write(f->f_fd, src, len);
+      if (wb < 0) {
+#ifdef DEBUG
+        fprintf(stderr, "%s: stream write error (%s)\n", __func__, strerror(errno));
+#endif
+        return -1;
       }
-    } else {
-      pos += wb;
-      sw  -= wb;
-    }
-  } while(wb == len || sw <= 0);
+
+      break;
   
+  }
+
 #ifdef DEBUG
   fprintf(stderr, "%s: worte [%ld] bytes to <%s> @ [%ld]\n", __func__, len, f->f_name, off);
 #endif
