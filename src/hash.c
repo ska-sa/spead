@@ -476,7 +476,7 @@ int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, s
           break;
         }
         
-#ifdef DEBUG
+#if DEBUG>1
         fprintf(stderr, "%s: GOT PACKET [%d of %ld] (%p)\n", __func__, i, ht->t_len, p);
 #endif
 
@@ -502,7 +502,7 @@ int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, s
     }
   }
 
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: end traverse hash table on [%d]\n", __func__, i);
 #endif
 

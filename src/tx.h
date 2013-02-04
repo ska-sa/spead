@@ -16,7 +16,6 @@ struct spead_tx {
   struct data_file          *t_f;
   int                       t_pkt_size; 
   int                       t_chunk_size; 
-  struct avl_tree           *t_t;
   struct spead_heap_store   *t_hs;
   uint64_t                  t_count;
   uint64_t                  t_pc;
