@@ -20,8 +20,8 @@ struct data_file *create_raw_data_file(char *fname)
 {
   struct data_file *f;
 
-  f = malloc(sizeof(struct data_file));
-  if (f == NULL){
+  f = mmap(NULL, sizeof(struct data_file), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
+  if (f == MAP_FAILED){
 #ifdef DEBUG
     fprintf(stderr, "%s: logic cannot malloc\n", __func__);
 #endif
@@ -130,7 +130,7 @@ void destroy_raw_data_file(struct data_file *f)
     if (f->f_fd && f->f_state != DF_STREAM)
       close(f->f_fd);
 
-    free(f);
+    munmap(f, sizeof(struct data_file));
   }
 }
 
