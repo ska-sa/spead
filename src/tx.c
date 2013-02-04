@@ -82,7 +82,6 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
   tx->t_f         = NULL;
   tx->t_pkt_size  = pkt_size;
   tx->t_chunk_size= chunk_size;
-  tx->t_t         = NULL;
   tx->t_hs        = NULL;
   tx->t_count     = 0;
   tx->t_pc        = 0;
@@ -329,104 +328,6 @@ def DATA
   return 0;
 }
 
-struct avl_tree *create_spead_database()
-{
-  return create_avltree(&compare_spead_workers);
-}
-
-#if 0 
-int send_init_info_speadtx(struct spead_tx *tx)
-{
-  struct spead_item_group *ig;
-  struct spead_api_item    *itm;
-
-  struct hash_table *ht;
-  uint64_t hid;
-  
-  size_t size;
-  char   *name;
-
-  if (tx == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: param error\n", __func__);
-#endif
-    return -1;
-  }
-
-  size = get_data_file_size(tx->t_f);
-  name = get_data_file_name(tx->t_f);
-
-  ig = create_item_group(sizeof(size_t)+strlen(name)+1, 2);
-  if (ig == NULL)
-
-    return -1;
-
-
-  itm = new_item_from_group(ig, sizeof(size_t));
-  if (itm == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: cannot create item\n", __func__);
-#endif
-  } else {
-    itm->i_id = SPEADTX_IID_FILESIZE;
-  }
-  if (copy_to_spead_item(itm, &size, sizeof(size_t)) < 0){
-    destroy_item_group(ig);
-    return -1;
-  }
-  
-  
-  itm = new_item_from_group(ig, strlen(name)+1);
-  if (itm == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: cannot create item\n", __func__);
-#endif
-  } else {
-    itm->i_id = SPEADTX_IID_FILENAME;
-  }
-  if (copy_to_spead_item(itm, name, strlen(name)+1) < 0){
-    destroy_item_group(ig);
-    return -1;
-  }
-
-
-  hid = get_count_speadtx(tx);
-
-  ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, hid);
-  if (ht == NULL){
-    destroy_item_group(ig);
-#ifdef DEBUG
-    fprintf(stderr, "Packetize error\n");
-#endif
-    return -1;
-  }
-
-  destroy_item_group(ig);
-
-  if (inorder_traverse_hash_table(ht, &send_packet_spead_socket, tx->t_x) < 0){
-    unlock_mutex(&(ht->t_m));
-    destroy_item_group(ig);
-#ifdef DEBUG
-    fprintf(stderr, "%s: send inorder trav fail\n", __func__);
-#endif
-    return -1;
-  }
-
-  if (empty_hash_table(ht, 0) < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error empting hash table", __func__);
-#endif
-    unlock_mutex(&(ht->t_m));
-    destroy_item_group(ig);
-    return -1;
-  }
-
-  unlock_mutex(&(ht->t_m));
-
-  return 0;
-}
-#endif
-
 int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size, int chunk_size, char *ifile)
 {
   struct spead_tx *tx;
@@ -441,17 +342,15 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   if (tx == NULL)
     return EX_SOFTWARE;
 
-#if 1
   tx->t_f = load_raw_data_file(ifile);
   if (tx->t_f == NULL){
     fprintf(stderr, "%s: FATAL could not load file\n", __func__);
     destroy_speadtx(tx);
     return EX_SOFTWARE;
   }
-#endif
 
-  heaps = workers*2;
-  packets = chunk_size/pkt_size+2;
+  heaps = workers * 2;
+  packets = chunk_size/pkt_size + 2;
 
   tx->t_hs = create_store_hs(heaps*packets, heaps, packets);
   if (tx->t_hs == NULL){
@@ -459,26 +358,11 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
     return EX_SOFTWARE;
   }
   
-#if 0
-  tx->t_t = create_spead_database();
-  if (tx->t_t == NULL){
-    destroy_speadtx(tx);
-    return EX_SOFTWARE;
-  }
-#endif
-  
   tx->t_w = create_spead_workers(tx, workers, &worker_task_speadtx);
   if (tx->t_w == NULL){
     destroy_speadtx(tx);
     return EX_SOFTWARE;
   }
-
-#if 0
-  if (send_init_info_speadtx(tx) < 0){
-    destroy_speadtx(tx);
-    return EX_SOFTWARE;
-  }
-#endif
 
   sigemptyset(&empty_mask);
 

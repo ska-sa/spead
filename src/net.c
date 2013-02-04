@@ -246,7 +246,7 @@ def DEBUG
   tx->t_pc++;
   unlock_mutex(&(tx->t_m));
 
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: packet (%p) size [%d] sb [%d] bytes\n", __func__, p, mw, sb);
 #endif
 
