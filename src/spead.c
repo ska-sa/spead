@@ -117,7 +117,7 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
   /*TODO: FIX THIS*/
   id = (uint64_t)((float)po / (float)((float)hl / ((float)t->t_len-1.0)));
 
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: po [%ld] hl [%ld] tlen [%ld] id [%ld]\n", __func__,  po, hl, t->t_len, id);
 #endif 
   
