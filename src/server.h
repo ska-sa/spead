@@ -18,9 +18,11 @@
 struct u_server {
   mutex s_m;
   long s_cpus;
+  struct data_file *s_f;
   struct u_child **s_cs;
   
   struct spead_socket *s_x;
+  struct spead_workers *s_w;
 
   int s_fd;
   int s_hpcount;
