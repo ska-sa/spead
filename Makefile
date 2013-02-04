@@ -2,6 +2,7 @@ APPS = src utils gpu
 
 all: $(patsubst %,%-all,$(APPS))
 clean: $(patsubst %,%-clean,$(APPS))
+install: $(patsubst %,%-install,$(APPS))
 
 %-all:
 	$(MAKE) -C $(shell echo $@ | cut -f1 -d- )
@@ -11,3 +12,7 @@ clean: $(patsubst %,%-clean,$(APPS))
 
 fresh:
 	make clean && make
+
+%-install:
+	$(MAKE) -C $(shell echo $@ | cut -f1 -d- ) install
+
