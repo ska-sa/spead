@@ -315,7 +315,7 @@ def DATA
     fprintf(stderr, "[%d] %s: hid %ld\n", pid, __func__, hid);
 #endif
 
-    //usleep(10);
+    usleep(10);
   }
 
   //unlock_mutex(&(ht->t_m));
