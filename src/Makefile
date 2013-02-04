@@ -65,8 +65,11 @@ $(TXEXE): $(TXOBJ) $(SLIB)
 
 
 install: all
-	ln -s $(PWD)/$(SLIB) $(PREFIX)/lib/$(SLIB)
-#	$(INSTALL) $(EXE) $(PREFIX)/sbin
+#	ln -s $(PWD)/$(SLIB) $(PREFIX)/lib/$(SLIB)
+	$(INSTALL) $(EXE) $(PREFIX)/sbin
+	$(INSTALL) $(SLIB) $(PREFIX)/slib
+  
+
 
 clean: 
 	$(RM) $(TXEXE) $(RXEXE) $(SLIB) *.o *.lo core vgcore* test-*
