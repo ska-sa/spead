@@ -89,7 +89,7 @@ int walk_callback_spead_workers(void *data, void *node_data)
   if (w == NULL || c == NULL)
     return -1;
 
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: populating FDSET for pid[%d] fd[%d]\n", __func__, c->c_pid, c->c_fd);
 #endif
 
