@@ -698,6 +698,8 @@ ndef DEBUG
 
 int server_run_loop(struct u_server *s)
 {
+  struct sigaction sa;
+  uint64_t total;
   int rtn;
   sigset_t empty_mask;
 
@@ -708,7 +710,17 @@ int server_run_loop(struct u_server *s)
     return -1;
   }
 
+  sigfillset(&sa.sa_mask);
+  sa.sa_handler   = timer_us;
+  sa.sa_flags     = 0;
+
+  sigaction(SIGALRM, &sa, NULL);
+  
+  alarm(1);
+
   sigemptyset(&empty_mask);
+
+  total = 0;
 
   while (run){
 
@@ -737,7 +749,7 @@ int server_run_loop(struct u_server *s)
     }
     
 
-    fprintf(stderr, ".");
+    //fprintf(stderr, ".");
     //sleep(1);
 
     /*do stuff*/
@@ -747,6 +759,18 @@ int server_run_loop(struct u_server *s)
       wait_spead_workers(s->s_w);
     }
     
+    if (timer){
+      lock_mutex(&(s->s_m));
+      total = s->s_bc - total;
+      unlock_mutex(&(s->s_m));
+      print_format_bitrate('R', total);
+      alarm(1);
+      timer = 0;
+      lock_mutex(&(s->s_m));
+      total = s->s_bc;
+      unlock_mutex(&(s->s_m));
+    }
+
   }
 
   fprintf(stderr, "%s: final packet count: %ld\n", __func__, s->s_pc);
@@ -822,6 +846,7 @@ int raw_spead_cap_worker(void *data, struct spead_api_module *m, int cfd)
     s->s_bc += nread;
     s->s_pc++;
     unlock_mutex(&(s->s_m));
+
   }
   
   if (p)
