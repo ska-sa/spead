@@ -933,8 +933,8 @@ int main(int argc, char *argv[])
   j = 1;
   broadcast = 0;
 
-  hashes   = 100;
-  hashsize = 10;
+  hashes   = 1000;
+  hashsize = 100;
   
   dylib = NULL;
   m     = NULL;

@@ -4,8 +4,27 @@ net.core.netdev_max_backlog = 2000
 net.core.wmem_max           = 838860800
 net.core.rmem_max           = 838860800
 net.core.rmem_default       = 819260800
-net.ipv4.udp_rmem_min       = 8192000
+net.core.wmem_default       = 819260800
 
+net.ipv4.udp_rmem_min       = 8192000
+net.ipv4.udp_wmem_min       = 8192000
+net.ipv4.tcp_rmem           = 10240 87380 31457280
+net.ipv4.tcp_wmem           = 10240 87380 31457280
+net.ipv4.tcp_window_scaling = 10
+net.ipv4.tcp_timestamps     = 1
+net.ipv4.tcp_sack           = 1
+net.ipv4.tcp_no_metrics_save= 1
+net.ipv4.tcp_retries1       = 1
+
+
+sudo bf_init.py /etc/corr/bc8n400M1k_bottom 
+    programs FPGAs, checks everything, disables all beam outputs
+sudo bf_tx_start_stop.py --start /etc/corr/bc8n400M1k_bottom 
+    starts transmission of beamformer data (for all beams)
+sudo bf_beam_enable_disable.py --enable i /etc/corr/bc8n400M1k_bottom 
+    enables 'i' beam (options are 'i' and 'q' for different polarisations).
+sudo bf_beam_enable_disable.py --disable i /etc/corr/bc8n400M1k_bottom 
+    disables 'i' beam (options are 'i' and 'q' for different polarisations).
 
 tcpdump spead to pipespead
 

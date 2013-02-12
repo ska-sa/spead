@@ -1076,6 +1076,8 @@ struct spead_item_group *process_items(struct hash_table *ht)
   fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
 #endif
 
+#if 1
+
   cd.d_imm = 0;
 
   cd.d_stack = create_stack();
@@ -1158,7 +1160,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
   if (cd.d_data)
     free(cd.d_data);
 
-
+#endif
 
 #if 0
   struct spead_api_item   *itm;
