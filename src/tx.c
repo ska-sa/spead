@@ -128,22 +128,27 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   struct spead_api_item *itm, *itm2, *itm3;
   struct spead_tx *tx;
   struct hash_table *ht;
+#ifdef DEBUG
   pid_t pid;
+#endif
 
   void *ptr;
   uint64_t hid, got, off;
 
-  size_t size;
+  //size_t size;
   char   *name;
 
   tx = data;
   if (tx == NULL)
     return -1;
 
+#ifdef DEBUG
   pid = getpid();
+#endif
+
   hid = 0;
 
-  size = get_data_file_size(tx->t_f);
+  //size = get_data_file_size(tx->t_f);
   name = get_data_file_name(tx->t_f);
 
 
@@ -299,37 +304,38 @@ def DATA
 
 int worker_task_pattern_speadtx(void *data, struct spead_api_module *m, int cfd)
 {
+#define ITMS 4
   struct spead_item_group *ig;
   struct spead_api_item *itm;
   struct spead_tx *tx;
   struct hash_table *ht;
-  pid_t pid;
+#ifdef DEBUG
+  pid_t pid = getpid();
+#endif
 
-  void *ptr;
   uint64_t hid;
 
   tx = data;
   if (tx == NULL)
     return -1;
 
-  pid = getpid();
   hid = 0;
 
-  ig = create_item_group(8192, 4);
+  ig = create_item_group(tx->t_chunk_size, ITMS);
   if (ig == NULL)
     return -1;
 
-  itm = new_item_from_group(ig, 2048);
-  if (set_item_data_ones(itm) < 0) {}
+  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+  set_item_data_ones(itm);
 
-  itm = new_item_from_group(ig, 2048);
-  if (set_item_data_zeros(itm) < 0) {}
+  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+  set_item_data_zeros(itm);
 
-  itm = new_item_from_group(ig, 2048);
-  if (set_item_data_ramp(itm) < 0) {}
+  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+  set_item_data_ramp(itm);
 
-  itm = new_item_from_group(ig, 2048);
-  if (set_item_data_ones(itm) < 0) {}
+  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+  set_item_data_ones(itm);
 
   while(run){
     
@@ -372,6 +378,7 @@ int worker_task_pattern_speadtx(void *data, struct spead_api_module *m, int cfd)
   fprintf(stderr, "%s: SPEADTX worker [%d] ending\n", __func__, pid);
 #endif
 
+#undef ITMS
   return 0;
 }
 
@@ -396,10 +403,10 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
     //return EX_SOFTWARE;
   }
 
-  //heaps = workers * 2;
-  //packets = chunk_size/pkt_size + 2;
-  heaps   = 1000;
-  packets = 100;
+  heaps = workers * 2;
+  packets = chunk_size/pkt_size + 2;
+  //heaps   = 1000;
+  //packets = 100;
 
   tx->t_hs = create_store_hs(heaps*packets, heaps, packets);
   if (tx->t_hs == NULL){

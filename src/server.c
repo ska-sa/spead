@@ -255,13 +255,16 @@ void shutdown_server_us(struct u_server *s)
 } 
 
 
-void print_format_bitrate(char x, uint64_t bps)
+void print_format_bitrate(struct u_server *s, char x, uint64_t bps)
 {
   char *rates[] = {"bits", "kbits", "mbits", "gbits", "tbits"};
   int i;
   double style;
   uint64_t bitsps;
   
+  if (s == NULL)
+    return;
+
   bitsps = bps * 8;
   bps = bitsps;
   style = 0;
@@ -276,15 +279,27 @@ void print_format_bitrate(char x, uint64_t bps)
     switch(x){
 
       case 'T':
+#ifdef IKATCP
         fprintf(stderr, "TOTAL\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
+#else
+        log_message_katcl(s->s_kl, KATCP_LEVEL_INFO, NULL, "TOTAL\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
+#endif
         break;
 
       case 'R':
+#ifdef IKATCP
         fprintf(stderr, "RATE\t[%d]:\t%10.6f %sps %ld bps\n", getpid(), style, rates[i], bps);
+#else
+        log_message_katcl(s->s_kl, KATCP_LEVEL_INFO, NULL, "RATE\t[%d]:\t%10.6f %sps %ld bps\n", getpid(), style, rates[i], bps);
+#endif
         break;
 
       case 'D':
+#ifdef IKATCP
         fprintf(stderr, "DATA\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
+#else
+        log_message_katcl(s->s_kl, KATCP_LEVEL_INFO, NULL, "DATA\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
+#endif
         break;
 
     }
@@ -422,7 +437,7 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 #ifdef DEBUG
   fprintf(stderr, "\tCHILD[%d]: exiting with bytes: %ld rcount: %ld\n", getpid(), bcount, rcount);
 #endif
-  print_format_bitrate('T', bcount);
+  print_format_bitrate(s, 'T', bcount);
   unlock_mutex(&(s->s_m));
 
 #ifdef RATE
@@ -589,7 +604,7 @@ def DEBUG
       lock_mutex(&(s->s_m));
       total = s->s_bc - total;
       unlock_mutex(&(s->s_m));
-      print_format_bitrate('R', total);
+      print_format_bitrate(s, 'R', total);
 
       if (s->s_hpcount > 0){
         fprintf(stderr, "\theaps \033[32mprocessed: %d\033[0m\n", s->s_hpcount);
@@ -656,7 +671,7 @@ def DEBUG
 #ifdef DEBUG
   //fprintf(stderr, "%s: final recv count:\t%ld bytes\n", __func__, s->s_bc);
 #endif
-  print_format_bitrate('T', s->s_bc);
+  print_format_bitrate(s, 'T', s->s_bc);
 
   fprintf(stderr, "%s: final packet count: %ld\n", __func__, s->s_pc);
 
@@ -763,7 +778,7 @@ int server_run_loop(struct u_server *s)
       lock_mutex(&(s->s_m));
       total = s->s_bc - total;
       unlock_mutex(&(s->s_m));
-      print_format_bitrate('R', total);
+      print_format_bitrate(s, 'R', total);
       alarm(1);
       timer = 0;
       lock_mutex(&(s->s_m));
