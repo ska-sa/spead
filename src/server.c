@@ -279,26 +279,26 @@ void print_format_bitrate(struct u_server *s, char x, uint64_t bps)
     switch(x){
 
       case 'T':
-#ifdef IKATCP
-        fprintf(stderr, "TOTAL\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
-#else
+#ifndef IKATCP
         log_message_katcl(s->s_kl, KATCP_LEVEL_INFO, NULL, "TOTAL\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
+#else
+        fprintf(stderr, "TOTAL\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
 #endif
         break;
 
       case 'R':
-#ifdef IKATCP
-        fprintf(stderr, "RATE\t[%d]:\t%10.6f %sps %ld bps\n", getpid(), style, rates[i], bps);
-#else
+#ifndef IKATCP
         log_message_katcl(s->s_kl, KATCP_LEVEL_INFO, NULL, "RATE\t[%d]:\t%10.6f %sps %ld bps\n", getpid(), style, rates[i], bps);
+#else
+        fprintf(stderr, "RATE\t[%d]:\t%10.6f %sps %ld bps\n", getpid(), style, rates[i], bps);
 #endif
         break;
 
       case 'D':
-#ifdef IKATCP
-        fprintf(stderr, "DATA\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
-#else
+#ifndef IKATCP
         log_message_katcl(s->s_kl, KATCP_LEVEL_INFO, NULL, "DATA\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
+#else
+        fprintf(stderr, "DATA\t[%d]:\t%10.6f %s\n", getpid(), style, rates[i]);
 #endif
         break;
 
@@ -448,6 +448,7 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
   return 0;
 }
 
+#if 0
 int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
 {
   struct spead_heap_store *hs;
@@ -612,13 +613,7 @@ def DEBUG
       if (s->s_hdcount > 0){
         fprintf(stderr, "\theaps \033[31mdiscarded: %d\033[0m\n", s->s_hdcount);
       }
-#if 0 
-      def DATA
-      if (total > 0) {
-        fprintf(stderr, "SERVER recv:\t%ld Bps\n", total);
-      }
-#endif
-      alarm(1);
+
       timer = 0;
       lock_mutex(&(s->s_m));
       total = s->s_bc;
@@ -677,6 +672,7 @@ def DEBUG
 
   return 0;
 }
+#endif
 
 #ifndef IKATCP
 int setup_katcp_us(struct u_server *s)
@@ -763,29 +759,34 @@ int server_run_loop(struct u_server *s)
       }
     }
     
-
-    //fprintf(stderr, ".");
-    //sleep(1);
-
-    /*do stuff*/
-    
-    /*saw a SIGCHLD*/
-    if (child){
-      wait_spead_workers(s->s_w);
-    }
-    
+#ifdef DATA
     if (timer){
       lock_mutex(&(s->s_m));
       total = s->s_bc - total;
       unlock_mutex(&(s->s_m));
       print_format_bitrate(s, 'R', total);
+
+      if (s->s_hpcount > 0){
+        fprintf(stderr, "\theaps \033[32mprocessed: %d\033[0m\n", s->s_hpcount);
+      }
+      if (s->s_hdcount > 0){
+        fprintf(stderr, "\theaps \033[31mdiscarded: %d\033[0m\n", s->s_hdcount);
+      }
+
       alarm(1);
       timer = 0;
       lock_mutex(&(s->s_m));
       total = s->s_bc;
+      s->s_hpcount = 0;
+      s->s_hdcount = 0;
       unlock_mutex(&(s->s_m));
     }
+#endif
 
+    /*saw a SIGCHLD*/
+    if (child){
+      wait_spead_workers(s->s_w);
+    }
   }
 
   fprintf(stderr, "%s: final packet count: %ld\n", __func__, s->s_pc);
@@ -832,6 +833,10 @@ int raw_spead_cap_worker(void *data, struct spead_api_module *m, int cfd)
 #endif
     return -1;
   }
+
+#ifdef DEBUG
+  fprintf(stderr, "\t  CHILD\t\t[%d]\n", getpid());
+#endif
   
   peer_addr_len = sizeof(struct sockaddr_storage);
 
@@ -909,20 +914,36 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
       return -1;
     }
 
-    if (server_run_loop(s) < 0){
+  } else {
+
+    s->s_hs = create_store_hs((hashes * hashsize), hashes, hashsize);
+    if (s->s_hs == NULL){
       shutdown_server_us(s);
-      fprintf(stderr, "%s: server run loop failed\n", __func__);
+      fprintf(stderr, "%s: cannot create spead_heap_store\n", __func__);
       return -1;
     }
 
-  } else {
+    s->s_w = create_spead_workers(s, cpus, &worker_task_us);
+    if (s->s_w == NULL){
+      shutdown_server_us(s);
+      fprintf(stderr, "%s: create spead workers failed\n", __func__);
+      return -1;
+    }
 
+#if 0
     if (spawn_workers_us(s, hashes, hashsize) < 0){ 
       fprintf(stderr,"%s: error during run\n", __func__);
       shutdown_server_us(s);
       return -1;
     }
+#endif
 
+  }
+
+  if (server_run_loop(s) < 0){
+    shutdown_server_us(s);
+    fprintf(stderr, "%s: server run loop failed\n", __func__);
+    return -1;
   }
   
   shutdown_server_us(s);
@@ -1049,3 +1070,4 @@ int main(int argc, char *argv[])
 
   return register_client_handler_server(m, port, cpus, hashes, hashsize, broadcast, raw_pkt_file);
 }
+
