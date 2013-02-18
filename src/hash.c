@@ -433,6 +433,90 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
   return 0;
 }
 
+int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data)
+{
+  static struct hash_o *o = NULL;
+  static int state = S_GET_OBJECT, i=0;
+
+  struct spead_packet *p;
+
+  int rtn;
+
+  rtn = 0;
+
+  if (ht == NULL || call == NULL) 
+    return -1;
+
+  while (state != S_GET_PACKET && state != S_END) {
+    switch(state) {
+
+      case S_GET_OBJECT:
+        if (i < ht->t_len){
+          o = ht->t_os[i];
+          if (o == NULL){
+            i++;
+            state = S_GET_OBJECT;
+            break;
+          }
+          state = S_GET_PACKET;
+        } else 
+          state = S_END;
+        break;
+
+      case S_NEXT_PACKET:
+        if (o->o_next != NULL){
+          o = o->o_next;
+          state = S_GET_PACKET;
+        } else {
+          i++;
+          state = S_GET_OBJECT;
+        }
+        break;
+
+    }
+  }
+  
+
+  switch(state){
+
+    case S_GET_PACKET:
+      p = get_data_hash_o(o);
+      if (p == NULL){
+        state = S_NEXT_PACKET;
+        break;
+      }
+
+#ifdef DEBUG
+      fprintf(stderr, "%s: GOT PACKET [%d of %ld] (%p)\n", __func__, i, ht->t_len, p);
+#endif
+
+      if ((rtn = (*call)(data, p)) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "%s: callback err for packet (%p)\n", __func__, p);
+#endif
+        return -1;
+      }
+      
+      if (rtn == 1)
+        state = S_NEXT_PACKET;
+      
+
+      break;
+    
+    case S_END:
+#ifdef DEBUG
+      fprintf(stderr, "%s: state end\n", __func__);
+#endif
+
+      i = 0;
+      state = S_GET_OBJECT;
+      o = NULL;
+      break;
+  }
+
+  return rtn;
+}
+
 int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data)
 {
   struct hash_o *o;

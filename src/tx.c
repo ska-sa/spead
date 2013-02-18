@@ -288,7 +288,7 @@ def DATA
     fprintf(stderr, "[%d] %s: hid %ld\n", pid, __func__, hid);
 #endif
 
-    usleep(10);
+    //usleep(10);
   }
 
   //unlock_mutex(&(ht->t_m));
@@ -415,13 +415,13 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   }
   
   if (tx->t_f){
-    tx->t_w = create_spead_workers(tx, workers, &worker_task_speadtx);
+    tx->t_w = create_spead_workers(NULL, tx, workers, &worker_task_speadtx);
     if (tx->t_w == NULL){
       destroy_speadtx(tx);
       return EX_SOFTWARE;
     }
   } else {
-    tx->t_w = create_spead_workers(tx, workers, &worker_task_pattern_speadtx);
+    tx->t_w = create_spead_workers(NULL, tx, workers, &worker_task_pattern_speadtx);
     if (tx->t_w == NULL){
       destroy_speadtx(tx);
       return EX_SOFTWARE;

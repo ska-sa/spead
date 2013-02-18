@@ -8,6 +8,7 @@
 
 void spead_api_destroy(void *data)
 {
+
 }
 
 void *spead_api_setup()

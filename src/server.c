@@ -907,7 +907,7 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
 
   if (raw_pkt_file){
 
-    s->s_w = create_spead_workers(s, cpus, &raw_spead_cap_worker);
+    s->s_w = create_spead_workers(s->s_mod, s, cpus, &raw_spead_cap_worker);
     if (s->s_w == NULL){
       shutdown_server_us(s);
       fprintf(stderr, "%s: create spead workers failed\n", __func__);
@@ -923,7 +923,7 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
       return -1;
     }
 
-    s->s_w = create_spead_workers(s, cpus, &worker_task_us);
+    s->s_w = create_spead_workers(s->s_mod, s, cpus, &worker_task_us);
     if (s->s_w == NULL){
       shutdown_server_us(s);
       fprintf(stderr, "%s: create spead workers failed\n", __func__);

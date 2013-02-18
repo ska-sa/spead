@@ -74,6 +74,7 @@ int pop_stack(struct stack *s, void **o)
 
   obj = s->s_data[s->s_size - 1];
 
+  /*TODO: ADDRESS*/
   s->s_data = realloc(s->s_data, sizeof(void*) * (s->s_size-1));
   s->s_size--;
 

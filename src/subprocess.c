@@ -35,7 +35,7 @@ int compare_spead_workers(const void *v1, const void *v2)
   return 0;
 }
 
-struct spead_workers *create_spead_workers(void *data, long count, int (*call)(void *data, struct spead_api_module *m, int cfd))
+struct spead_workers *create_spead_workers(struct spead_api_module *m, void *data, long count, int (*call)(void *data, struct spead_api_module *m, int cfd))
 {
   struct spead_workers  *w;
   struct u_child        *c;
@@ -62,7 +62,7 @@ struct spead_workers *create_spead_workers(void *data, long count, int (*call)(v
 
   for (i=0; i<count; i++){
   
-    c = fork_child_sp(NULL, data, call);
+    c = fork_child_sp(m, data, call);
     if (c == NULL)
       continue;         /* continue starting other children*/
     
@@ -135,36 +135,27 @@ int wait_spead_workers(struct spead_workers *w)
   while((pid = waitpid(WAIT_ANY, &status, WNOHANG)) > 0){
 
     if (WIFEXITED(status)) {
-#ifdef DEBUG
       fprintf(stderr, "exited, status=%d\n", WEXITSTATUS(status));
-#endif
-      
       if (del_name_node_avltree(w->w_tree, &pid, &destroy_child_sp) == 0){
         w->w_count--;
       }
 
     } else if (WIFSIGNALED(status)) {
-#ifdef DEBUG
       fprintf(stderr, "killed by signal %d\n", WTERMSIG(status));
-#endif
 
       if (del_name_node_avltree(w->w_tree, &pid, &destroy_child_sp) == 0){
         w->w_count--;
       }
 
     } else if (WIFSTOPPED(status)) {
-#ifdef DEBUG
       fprintf(stderr, "stopped by signal %d\n", WSTOPSIG(status));
-#endif
 
       if (del_name_node_avltree(w->w_tree, &pid, &destroy_child_sp) == 0){
         w->w_count--;
       }
 
     } else if (WIFCONTINUED(status)) {
-#ifdef DEBUG
       fprintf(stderr, "continued\n");
-#endif
     }
 
   }

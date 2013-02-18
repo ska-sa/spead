@@ -1,8 +1,8 @@
 #CFLAGS += -DDEBUG=2
 #CFLAGS += -DPROCESS
-CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG
 CFLAGS += -DIKATCP
-CFLAGS += -DDISCARD
+#CFLAGS += -DDISCARD
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
 #CFLAGS += -ggdb

@@ -254,13 +254,34 @@ int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len)
     return -1;
   }
   
-  memcpy(itm->i_data, src, len);
+  if (len <= itm->i_len){
+    memcpy(itm->i_data, src, len);
+    //itm->i_len = len;
+    itm->i_data_len = len;
+    return len;
+  }
 
-  //itm->i_len = len;
-  itm->i_data_len = len;
-
-  return len;
+  return -1;
 }
+
+int append_copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len)
+{
+  if (itm == NULL || src == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot operate with null params\n", __func__);
+#endif
+    return -1;
+  }
+
+  if (len + itm->i_data_len <= itm->i_len){
+    memcpy(itm->i_data + itm->i_data_len, src, len);
+    itm->i_data_len += len;
+    return len;
+  }
+  
+  return -1;
+}
+
 
 int set_item_data_ones(struct spead_api_item *itm)
 {
