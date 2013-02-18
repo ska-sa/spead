@@ -1,8 +1,10 @@
 CFLAGS += -DIKATCP
 #CFLAGS += -DDEBUG
 CFLAGS += -Wall
-CFLAGS += -ggdb
+#CFLAGS += -ggdb
 CFLAGS += -O3
+
+CC = gcc -ggdb
 
 LIB = -lspead
 

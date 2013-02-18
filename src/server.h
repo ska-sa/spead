@@ -36,6 +36,6 @@ struct u_server {
 #endif
 };
 
-void print_format_bitrate(char x, uint64_t bps);
+void print_format_bitrate(struct u_server *s, char x, uint64_t bps);
 
 #endif

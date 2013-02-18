@@ -83,7 +83,12 @@ struct coalesce_spead_data {
   int      d_imm;
   uint64_t d_len;
   uint64_t d_off;
-  void *d_data;
+};
+
+struct coalesce_parcel {
+  struct coalesce_spead_data *p_c;
+  struct hash_table *p_ht;
+  struct spead_api_item *p_i;
 };
 
 /*spead shared_mem api*/
@@ -171,6 +176,7 @@ struct spead_api_item *get_next_spead_item(struct spead_item_group *ig, struct s
 struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64_t off);
 int set_spead_item_io_data(struct spead_api_item *itm, void *ptr, size_t size);
 int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len);
+int append_copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len);
 
 int set_item_data_ones(struct spead_api_item *itm);
 int set_item_data_zeros(struct spead_api_item *itm);
@@ -218,7 +224,7 @@ void destroy_child_sp(void *data);
 struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd));
 int add_child_us(struct u_child ***cs, struct u_child *c, int size);
 
-struct spead_workers *create_spead_workers(void *data, long count, int (*call)(void *data, struct spead_api_module *m, int cfd));
+struct spead_workers *create_spead_workers(struct spead_api_module *m, void *data, long count, int (*call)(void *data, struct spead_api_module *m, int cfd));
 void destroy_spead_workers(struct spead_workers *w);
 int wait_spead_workers(struct spead_workers *w);
 int get_count_spead_workers(struct spead_workers *w);

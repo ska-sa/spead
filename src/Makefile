@@ -2,13 +2,14 @@
 #CFLAGS += -DPROCESS
 #CFLAGS += -DDEBUG
 CFLAGS += -DIKATCP
-CFLAGS += -DDISCARD
+#CFLAGS += -DDISCARD
 #CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
-CFLAGS += -ggdb
-CFLAGS += -O3
+#CFLAGS += -ggdb
+#CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
+CC = gcc -ggdb
 
 LIB = -lspead -L.
 
@@ -52,7 +53,6 @@ $(SLIB): $(SOBJ)
 %.lo: %.c $(SHDR)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC) -fPIC
 
-
 $(RXEXE): $(RXOBJ) $(SLIB)
 	$(CC) -o $@ $< $(LIB)
 
@@ -69,7 +69,6 @@ install: all
 	$(INSTALL) $(EXE) $(PREFIX)/sbin
 	$(INSTALL) $(SLIB) $(PREFIX)/slib
   
-
 
 clean: 
 	$(RM) $(TXEXE) $(RXEXE) $(SLIB) *.o *.lo core vgcore* test-*
