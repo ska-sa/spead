@@ -47,6 +47,7 @@ int push_stack(struct stack *s, void *o)
     return -1;
   }
 
+  /*TODO: ADDRESS*/
   s->s_data = realloc(s->s_data, sizeof(void*) * (s->s_size+1));
   if (s->s_data == NULL)
     return -1;

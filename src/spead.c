@@ -1153,7 +1153,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
 
   ig = NULL;
 
-  return NULL;
+  //return NULL;
   
 #ifdef PROCESS 
   fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
