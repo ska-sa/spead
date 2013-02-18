@@ -128,48 +128,32 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
   struct spead_api_item *itm, *itm2, *itm3;
   struct spead_tx *tx;
   struct hash_table *ht;
+#ifdef DEBUG
   pid_t pid;
+#endif
 
   void *ptr;
   uint64_t hid, got, off;
 
-  size_t size;
+  //size_t size;
   char   *name;
 
   tx = data;
   if (tx == NULL)
     return -1;
 
+#ifdef DEBUG
   pid = getpid();
+#endif
+
   hid = 0;
 
-  size = get_data_file_size(tx->t_f);
+  //size = get_data_file_size(tx->t_f);
   name = get_data_file_name(tx->t_f);
 
 
 #ifdef DEBUG
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);
-#endif
-
-#if 0
-  ig = create_item_group(8192, 4);
-  if (ig == NULL)
-    return -1;
-
-  itm = new_item_from_group(ig, 2048);
-  if (set_item_data_ones(itm) < 0) {}
-  //print_data(itm->i_data, itm->i_len);
-
-  itm = new_item_from_group(ig, 2048);
-  if (set_item_data_zeros(itm) < 0) {}
-  //print_data(itm->i_data, itm->i_len);
-
-  itm = new_item_from_group(ig, 2048);
-  if (set_item_data_ramp(itm) < 0) {}
-  //print_data(itm->i_data, itm->i_len);
-
-  itm = new_item_from_group(ig, 2048);
-  if (set_item_data_ones(itm) < 0) {}
 #endif
 
   ig = create_item_group(tx->t_chunk_size + 2*sizeof(uint64_t) /*+ sizeof(size_t)*/ + strlen(name) + 1, 4);
@@ -262,22 +246,12 @@ int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
       return -1;
     }
 
-#if 0
-def DEBUG
-    print_data(itm->i_data, itm->i_data_len);
-#endif
-
     hid = get_count_speadtx(tx);
 
     if (copy_to_spead_item(itm2, &hid, sizeof(uint64_t)) < 0){
       destroy_item_group(ig);
       return -1;
     }
-
-#if 0
-def DEBUG
-    print_data(itm2->i_data, itm2->i_data_len);
-#endif
 
     ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, hid);
     //ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, pid);
@@ -314,7 +288,7 @@ def DATA
     fprintf(stderr, "[%d] %s: hid %ld\n", pid, __func__, hid);
 #endif
 
-    usleep(10);
+    //usleep(10);
   }
 
   //unlock_mutex(&(ht->t_m));
@@ -325,6 +299,86 @@ def DATA
   fprintf(stderr, "%s: SPEADTX worker [%d] ending\n", __func__, pid);
 #endif
 
+  return 0;
+}
+
+int worker_task_pattern_speadtx(void *data, struct spead_api_module *m, int cfd)
+{
+#define ITMS 4
+  struct spead_item_group *ig;
+  struct spead_api_item *itm;
+  struct spead_tx *tx;
+  struct hash_table *ht;
+#ifdef DEBUG
+  pid_t pid = getpid();
+#endif
+
+  uint64_t hid;
+
+  tx = data;
+  if (tx == NULL)
+    return -1;
+
+  hid = 0;
+
+  ig = create_item_group(tx->t_chunk_size, ITMS);
+  if (ig == NULL)
+    return -1;
+
+  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+  set_item_data_ones(itm);
+
+  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+  set_item_data_zeros(itm);
+
+  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+  set_item_data_ramp(itm);
+
+  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+  set_item_data_ones(itm);
+
+  while(run){
+    
+    hid = get_count_speadtx(tx);
+
+    ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, hid);
+    if (ht == NULL){
+      destroy_item_group(ig);
+#ifdef DEBUG
+      fprintf(stderr, "Packetize error\n");
+#endif
+      return -1;
+    }
+
+    if (inorder_traverse_hash_table(ht, &send_packet_spead_socket, tx) < 0){
+      unlock_mutex(&(ht->t_m));
+      destroy_item_group(ig);
+#ifdef DEBUG
+      fprintf(stderr, "%s: send inorder trav fail\n", __func__);
+#endif
+      return -1;
+    }
+
+    if (empty_hash_table(ht, 0) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error empting hash table", __func__);
+#endif
+      unlock_mutex(&(ht->t_m));
+      destroy_item_group(ig);
+      return -1;
+    }
+
+    unlock_mutex(&(ht->t_m));
+    
+  }
+  
+  destroy_item_group(ig);
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: SPEADTX worker [%d] ending\n", __func__, pid);
+#endif
+
+#undef ITMS
   return 0;
 }
 
@@ -345,12 +399,14 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   tx->t_f = load_raw_data_file(ifile);
   if (tx->t_f == NULL){
     fprintf(stderr, "%s: FATAL could not load file\n", __func__);
-    destroy_speadtx(tx);
-    return EX_SOFTWARE;
+    //destroy_speadtx(tx);
+    //return EX_SOFTWARE;
   }
 
   heaps = workers * 2;
   packets = chunk_size/pkt_size + 2;
+  //heaps   = 1000;
+  //packets = 100;
 
   tx->t_hs = create_store_hs(heaps*packets, heaps, packets);
   if (tx->t_hs == NULL){
@@ -358,10 +414,18 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
     return EX_SOFTWARE;
   }
   
-  tx->t_w = create_spead_workers(tx, workers, &worker_task_speadtx);
-  if (tx->t_w == NULL){
-    destroy_speadtx(tx);
-    return EX_SOFTWARE;
+  if (tx->t_f){
+    tx->t_w = create_spead_workers(NULL, tx, workers, &worker_task_speadtx);
+    if (tx->t_w == NULL){
+      destroy_speadtx(tx);
+      return EX_SOFTWARE;
+    }
+  } else {
+    tx->t_w = create_spead_workers(NULL, tx, workers, &worker_task_pattern_speadtx);
+    if (tx->t_w == NULL){
+      destroy_speadtx(tx);
+      return EX_SOFTWARE;
+    }
   }
 
   sigemptyset(&empty_mask);
@@ -450,7 +514,7 @@ int main(int argc, char **argv)
   port      = PORT;
   cpus      = sysconf(_SC_NPROCESSORS_ONLN);
 
-  if (argc < 4)
+  if (argc < 3)
     return usage(argv, cpus);
 
   while (i < argc){

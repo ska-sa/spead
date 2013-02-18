@@ -191,6 +191,7 @@ struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, ui
     unlock_mutex(&(ht->t_m));
     return NULL;
 #endif
+    
 
   }
 
@@ -600,7 +601,8 @@ def DEBUG
         payload_off += pkt_size;
         didcopy = 0; 
 
-#ifdef PROCESS
+#if 0 
+def PROCESS
         print_data(p->payload, p->payload_len);
 #endif  
 
@@ -945,8 +947,8 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
 
   }
 
+#if 0
   /*TODO: look into*/
-#if 1
   if (memcpy(cd->d_data + cd->d_off, p->payload, p->payload_len) == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: memcpy fail\n", __func__);
@@ -1012,8 +1014,77 @@ int calculate_lengths(void *so, void *data)
   return 0;
 }
 
+int copy_direct_spead_item(void *data, struct spead_packet *p)
+{
+  struct coalesce_parcel *cp;
+  struct coalesce_spead_data *cd;
+  struct hash_table *ht;
+  struct spead_api_item *itm;
+  
+  uint64_t cc;
+
+  cp = data;
+
+  if (cp == NULL || p == NULL)
+    return -1;
+  
+  cd = cp->p_c;
+  ht = cp->p_ht;
+  itm = cp->p_i;
+  
+  if (cd == NULL || ht == NULL || itm == NULL)
+    return -1;
+
+  cc = p->payload_len - cd->d_off;
+
+#ifdef PROCESS
+  fprintf(stderr, "%s: CAN COPY [%ld]\n", __func__, cc);
+#endif
+
+  if (itm->i_len < cc) {
+
+    if (append_copy_to_spead_item(itm, p->payload + cd->d_off, itm->i_len) < 0)
+      return -1;
+    
+    cd->d_off += itm->i_len;
+
+#ifdef PROCESS
+    fprintf(stderr, "%s: copied [%ld] say in same packet start with off %ld\n", __func__, cc, cd->d_off);
+#endif
+
+    return 0;
+  } else if (itm->i_len >= cc){
+    
+    if (append_copy_to_spead_item(itm, p->payload + cd->d_off, cc) < 0)
+      return -1;
+
+    cd->d_off = 0;
+
+#ifdef PROCESS
+    fprintf(stderr, "%s: copied [%ld] advance to next packet start with off %ld\n", __func__, cc, cd->d_off);
+#endif
+
+    return 1;
+  }
+
+
+#if 0
+  /*TODO: look into*/
+  if (memcpy(cd->d_data + cd->d_off, p->payload, p->payload_len) == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: memcpy fail\n", __func__);
+#endif
+    return -1;
+  }
+#endif
+
+  return 0;
+} 
+
 int convert_to_ig(void *so, void *data)
 {
+  struct hash_table *ht;
+  struct coalesce_parcel *cp;
   struct coalesce_spead_data *cd;
   struct spead_api_item2 *i2;
   struct spead_api_item  *itm;
@@ -1022,7 +1093,13 @@ int convert_to_ig(void *so, void *data)
     return -1;
 
   i2 = so;
-  cd = data;
+  cp = data;
+
+  cd = cp->p_c;
+  ht = cp->p_ht;
+  
+  if (cd == NULL || ht == NULL)
+    return -1;
 
   itm = new_item_from_group(cd->d_ig, i2->i_len);
   if (itm == NULL)
@@ -1030,24 +1107,27 @@ int convert_to_ig(void *so, void *data)
 
   itm->i_id = i2->i_id;
   itm->i_valid = i2->i_mode;
+
+  cp->p_i = itm;
   
   if (i2->i_mode == SPEAD_DIRECTADDR){
-#if 0 
-    def DEBUG
-    fprintf(stderr, "%s:about to copy from (%p) @ off %ld len %ld\n", __func__, cd->d_data, i2->i_off, i2->i_len);
-    print_data(cd->d_data + i2->i_off, i2->i_len);
+#ifdef PROCESS
+    fprintf(stderr, "%s: about to copy off %ld len %ld\n", __func__, i2->i_off, i2->i_len);
+    //print_data(cd->d_data + i2->i_off, i2->i_len);
 #endif
-#if 1
+    
+    while (single_traverse_hash_table(ht, &copy_direct_spead_item, cp) > 0){}
+
+#if 0
     if (copy_to_spead_item(itm, cd->d_data + i2->i_off, i2->i_len) < 0){
       destroy_spead_item2(i2);
       return -1;
     }
 #endif
-#if 0
-    def DEBUG
+  } else {
+#ifdef PROCESS
     fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
 #endif
-  } else {
 #if 1
     if (copy_to_spead_item(itm, &(i2->i_off), sizeof(int64_t)) < 0){
       destroy_spead_item2(i2);
@@ -1066,18 +1146,24 @@ struct spead_item_group *process_items(struct hash_table *ht)
   struct spead_item_group *ig;
   struct stack *temp;
   struct coalesce_spead_data cd;
+  struct coalesce_parcel cp;
 
   if (ht == NULL || ht->t_os == NULL)
     return NULL;
 
   ig = NULL;
+
+  //return NULL;
   
 #ifdef PROCESS 
   fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
 #endif
 
+#if 1
+
   cd.d_imm = 0;
 
+#if 1
   cd.d_stack = create_stack();
   if (cd.d_stack == NULL){
     return NULL;
@@ -1088,14 +1174,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
     destroy_stack(cd.d_stack, &destroy_spead_item2);
     return NULL;
   }
-
-  /*TODO:shared malloc*/
-  cd.d_data = malloc(ht->t_data_count);
-  if(cd.d_data == NULL){
-    destroy_stack(cd.d_stack, &destroy_spead_item2);
-    destroy_stack(temp, &destroy_spead_item2);
-    return NULL;
-  }
+#endif
 
   cd.d_len = ht->t_data_count;
   cd.d_off = 0;
@@ -1106,8 +1185,10 @@ struct spead_item_group *process_items(struct hash_table *ht)
 #endif
     destroy_stack(cd.d_stack, &destroy_spead_item2);
     destroy_stack(temp, &destroy_spead_item2);
+#if 0
     if (cd.d_data)
       free(cd.d_data);
+#endif
     return NULL;
   }
   
@@ -1117,8 +1198,10 @@ struct spead_item_group *process_items(struct hash_table *ht)
 #endif
     destroy_stack(cd.d_stack, &destroy_spead_item2);
     destroy_stack(temp, &destroy_spead_item2);
+#if 0
     if (cd.d_data)
       free(cd.d_data);
+#endif
     return NULL;
   }
  
@@ -1131,34 +1214,46 @@ struct spead_item_group *process_items(struct hash_table *ht)
   traverse_stack(cd.d_stack, &print_spead_item, NULL);
   print_data(cd.d_data, cd.d_len);
 #endif
-  
+
+  /*TODO: shared mem managed*/
   ig = create_item_group(cd.d_len + cd.d_imm * sizeof(int64_t), get_size_stack(cd.d_stack));
   if (ig == NULL){
     destroy_stack(cd.d_stack, &destroy_spead_item2);
+#if 0
     if (cd.d_data)
       free(cd.d_data);
+#endif
     return NULL;
   }
 
   cd.d_ig = ig;
+  cd.d_off = 0;
 
-  if (funnel_stack(cd.d_stack, NULL, &convert_to_ig, &cd) < 0){
+  cp.p_c = &cd;
+  cp.p_ht = ht;
+  cp.p_i = NULL;
+
+  if (funnel_stack(cd.d_stack, NULL, &convert_to_ig, &cp) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: convert to item group FAILED\n", __func__);
 #endif
     destroy_item_group(ig);
     destroy_stack(cd.d_stack, &destroy_spead_item2);
+#if 0
     if (cd.d_data)
       free(cd.d_data);
+#endif
     return NULL;
   }
 
 
   destroy_stack(cd.d_stack, &destroy_spead_item2);
+#if 0
   if (cd.d_data)
     free(cd.d_data);
+#endif
 
-
+#endif
 
 #if 0
   struct spead_api_item   *itm;
@@ -1623,13 +1718,12 @@ int store_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_
     /*or discard set at current position*/
     /*will never get here since if there is a hash clash*/
     /*we empty hash table and then return fresh*/
-
-#ifdef DATA
+#if 0 
+def DATA
     fprintf(stderr, "new heap has size [%ld]\n", p->heap_len);
     fprintf(stderr, "%s: backlog collision\n", __func__);
     //print_store_stats(hs);
 #endif
-
     return -1;
   }
 
@@ -1802,8 +1896,6 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
 #ifdef DEBUG
     fprintf(stderr, "%s: GOT STREAM TERMINATOR\n", __func__);
 #endif
-    
-    //for (i=0; !ship_heap_hs(hs, i); i++);
 
     return store_packet_hs(s, m, o);
   } else {
