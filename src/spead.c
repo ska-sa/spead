@@ -947,16 +947,6 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
 
   }
 
-#if 0
-  /*TODO: look into*/
-  if (memcpy(cd->d_data + cd->d_off, p->payload, p->payload_len) == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: memcpy fail\n", __func__);
-#endif
-    return -1;
-  }
-#endif
-
   cd->d_off += p->payload_len;
   
   return 0;
@@ -1067,17 +1057,6 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
     return 1;
   }
 
-
-#if 0
-  /*TODO: look into*/
-  if (memcpy(cd->d_data + cd->d_off, p->payload, p->payload_len) == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: memcpy fail\n", __func__);
-#endif
-    return -1;
-  }
-#endif
-
   return 0;
 } 
 
@@ -1118,12 +1097,6 @@ int convert_to_ig(void *so, void *data)
     
     while (single_traverse_hash_table(ht, &copy_direct_spead_item, cp) > 0){}
 
-#if 0
-    if (copy_to_spead_item(itm, cd->d_data + i2->i_off, i2->i_len) < 0){
-      destroy_spead_item2(i2);
-      return -1;
-    }
-#endif
   } else {
 #ifdef PROCESS
     fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
