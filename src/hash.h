@@ -54,6 +54,10 @@ struct hash_table {
   struct hash_o_list  *t_l;
   struct hash_o       **t_os;
   uint64_t (*t_hfn)(struct hash_table *t, struct hash_o *o);
+#if 0
+  struct stack        *t_s1;
+  struct stack        *t_s2;
+#endif
 };
 
 void destroy_hash_table(struct hash_table *t);
