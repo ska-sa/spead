@@ -1011,7 +1011,7 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
   struct hash_table *ht;
   struct spead_api_item *itm;
   
-  uint64_t cc;
+  uint64_t cc = 0;
 
   cp = data;
 
@@ -1026,6 +1026,9 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
     return -1;
 
   cc = p->payload_len - cd->d_off;
+
+  if (cc > p->payload_len)
+    return -1;
 
 #ifdef PROCESS
   fprintf(stderr, "%s: CAN COPY [%ld]\n", __func__, cc);
@@ -1862,7 +1865,7 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
     mode = SPEAD_ITEM_MODE(iptr);
     fprintf(stderr, "%s: ITEM[%d] mode[%d] id[%d or 0x%x] 0x%lx\n", __func__, i, mode, id, id, iptr);
   }
-  print_data(p->payload, p->payload_len);
+  //print_data(p->payload, p->payload_len);
 #endif
 
   if (p->is_stream_ctrl_term){
