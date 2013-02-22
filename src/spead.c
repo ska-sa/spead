@@ -13,27 +13,6 @@
 #include "stack.h"
 #include "tx.h"
 
-struct spead_heap *create_spead_heap()
-{
-  struct spead_heap *h;
-
-  h = malloc(sizeof(struct spead_heap));
-  if (h == NULL)
-    return h;
-
-  spead_heap_init(h);
-
-  return h;
-}
-
-void destroy_spead_heap(struct spead_heap *h)
-{
-  if (h != NULL){
-    spead_heap_wipe(h);
-    free(h);
-  }
-}
-
 
 void *create_spead_packet()
 {
@@ -111,11 +90,15 @@ uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
 
   id = po / id;
 #endif
+
+
   if ((float) ((float)hl / (float)(t->t_len-1)) <= 0)
     return 0;
 
+
   /*TODO: FIX THIS*/
   id = (uint64_t)((float)po / (float)((float)hl / ((float)t->t_len-1.0)));
+
 
 #if DEBUG>1
   fprintf(stderr, "%s: po [%ld] hl [%ld] tlen [%ld] id [%ld]\n", __func__,  po, hl, t->t_len, id);
@@ -161,7 +144,10 @@ struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, ui
     return NULL;
   }
 
+  /*lock the ht critical section here*/ 
   lock_mutex(&(ht->t_m));
+
+
   if (ht->t_data_id < 0){
     ht->t_data_id = hid;
   } 
@@ -180,22 +166,13 @@ struct hash_table *get_ht_hs(struct u_server *s, struct spead_heap_store *hs, ui
       return NULL;
     }
 
-
     if (s){
       lock_mutex(&(s->s_m));
       s->s_hdcount++;
       unlock_mutex(&(s->s_m));
     }
 
-#if 0
-    unlock_mutex(&(ht->t_m));
-    return NULL;
-#endif
-    
-
   }
-
-  //unlock_mutex(&(ht->t_m));
 
   return ht;
 }
@@ -354,7 +331,7 @@ struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spea
   if (ht == NULL){
     return NULL;
   }
-  /***********************************/
+  /************************************/
 
   /*do some cals*/
   p           = NULL;
@@ -1022,10 +999,15 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
   ht = cp->p_ht;
   itm = cp->p_i;
   
+  cc = 0;
+
   if (cd == NULL || ht == NULL || itm == NULL)
     return -1;
 
   cc = p->payload_len - cd->d_off;
+
+  if (cc > p->payload_len)
+    return -1;
 
 #ifdef PROCESS
   fprintf(stderr, "%s: CAN COPY [%ld]\n", __func__, cc);
@@ -1101,12 +1083,10 @@ int convert_to_ig(void *so, void *data)
 #ifdef PROCESS
     fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
 #endif
-#if 1
     if (copy_to_spead_item(itm, &(i2->i_off), sizeof(int64_t)) < 0){
       destroy_spead_item2(i2);
       return -1;
     }
-#endif
   }
 
   destroy_spead_item2(i2);
@@ -1650,20 +1630,10 @@ int store_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_
 #endif
   struct spead_item_group *ig;
   
-#if 0
-  cdfn = NULL;
-  data = NULL;
-#endif
   ig   = NULL;
 
   if (s == NULL)
     return -1;
-#if 0
-  if (m){
-    cdfn = m->m_cdfn;
-    data = m->m_data;
-  }
-#endif
 
   hs = s->s_hs;
 
@@ -1772,16 +1742,6 @@ def DEBUG
 
 
     /*SPEAD_API_MODULE CALLBACK*/
-#if 0
-    if (cdfn != NULL){
-      if((*cdfn)(ig, data) < 0){
-#ifdef DEBUG 
-        fprintf(stderr, "%s: user callback failed\n", __func__);
-#endif
-      }
-    }
-#endif
-
     if(run_api_user_callback_module(m, ig) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: user callback failed\n", __func__);

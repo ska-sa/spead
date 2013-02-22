@@ -19,6 +19,7 @@ struct hash_o_list {
   mutex         l_m;
 };
 
+
 void print_list_stats(struct hash_o_list *l, const char *func);
 
 /*create a list of objects each with element size*/
@@ -29,10 +30,13 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o);
 struct hash_o *pop_hash_o(struct hash_o_list *l);
 
 
+
 struct hash_o {
   void          *o;
   struct hash_o *o_next;
 };
+
+
 
 void destroy_hash_o(struct hash_o_list *l, struct hash_o *o);
 struct hash_o *create_hash_o(void *(*create)(), void (*destroy)(void *data), uint64_t len);
