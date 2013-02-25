@@ -20,6 +20,7 @@
 
 struct avl_tree {
   struct avl_node *t_root;
+  uint64_t t_ncount;
   int (*t_cmp)(const void *v1, const void *v2);
 };
 

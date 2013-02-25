@@ -3,7 +3,6 @@
 #CFLAGS += -DDEBUG
 CFLAGS += -DIKATCP
 #CFLAGS += -DDISCARD
-#CFLAGS += -DRATE         #RATE will only receive raw packets and discard them
 CFLAGS += -DDATA
 #CFLAGS += -ggdb
 CFLAGS += -O3
@@ -79,7 +78,7 @@ fresh:
 test-hash: sharedmem.c hash.c
 	$(CC) $(CFLAGS) -DTEST_HASH -o $@ $^
 
-test-shm: sharedmem.c
+test-sm: sharedmem.c avltree.c stack.c mutex.c
 	$(CC) $(CFLAGS) -DTEST_SHARED_MEM -o $@ $^
 
 test-mutex: mutex.c

@@ -86,18 +86,40 @@ struct coalesce_spead_data {
 };
 
 struct coalesce_parcel {
-  struct coalesce_spead_data *p_c;
-  struct hash_table *p_ht;
-  struct spead_api_item *p_i;
+  struct coalesce_spead_data  *p_c;
+  struct hash_table           *p_ht;
+  struct spead_api_item       *p_i;
 };
 
 /*spead shared_mem api*/
+
+#define SHARED_MEM_REGION_SIZE  1000*1024*1024
+
 struct shared_mem {
-  uint64_t  m_size;
-  uint64_t  m_off;
-  void      *m_ptr;
+  mutex                     m_m;
+  struct avl_tree           *m_free;
+  uint64_t                  m_next_id;
+  struct shared_mem_region  *m_current;
 };
 
+struct shared_mem_region {
+  mutex                    r_m;
+  struct shared_mem_region *r_next;
+  uint64_t                 r_id;
+  uint64_t                 r_size;
+  uint64_t                 r_off;
+  void                     *r_ptr;
+};
+
+struct shared_mem_free {
+  struct shared_mem_free *f_next;
+};
+
+struct shared_mem_size {
+  mutex  s_m;
+  size_t s_size;
+  struct shared_mem_free *s_top;
+};
 
 /*spead data_file api*/
 #define DF_STREAM 0
@@ -190,9 +212,10 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
 
 
 /*shared_mem api*/
-int create_shared_mem(uint64_t size);
+int create_shared_mem();
 void destroy_shared_mem();
 void *shared_malloc(size_t size);
+void shared_free(void *ptr, size_t size);
 
 
 /*spead data file*/

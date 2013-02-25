@@ -127,11 +127,6 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus, char *r
 {
   struct u_server *s;
 
-#if 0
-  if (cdfn == NULL)
-    return NULL;
-#endif
-
   if (cpus < 1){
 #ifdef DEBUG
     fprintf(stderr, "%s: must have at least 1 cpu\n", __func__);
@@ -344,12 +339,6 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 #ifdef DEBUG
   fprintf(stderr, "\t  CHILD\t\t[%d]\n", pid);
 #endif
-  
-#ifdef RATE
-  p = malloc(sizeof(struct spead_packet));
-  if (p == NULL)
-    return -1;
-#endif
 
   gettimeofday(&prev, NULL);
 
@@ -357,7 +346,6 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 
   while (run) {
 
-#ifndef RATE
     o = pop_hash_o(hs->s_list);
     if (o == NULL){
 #ifdef DEBUG
@@ -365,12 +353,8 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
 #endif
       run = 0;
       break;
-      //sleep(1);
-      //continue;
     }
-#endif
 
-#ifndef RATE
     p = get_data_hash_o(o);
     if (p == NULL){
       if (push_hash_o(hs->s_list, o) < 0){
@@ -380,7 +364,6 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
       }
       continue;
     }
-#endif
 
     bzero(p, sizeof(struct spead_packet));
 
@@ -390,18 +373,14 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
       fprintf(stderr, "%s: rcount [%lu] unable to recvfrom: %s\n", __func__, rcount, strerror(errno));
 #endif
 
-#ifndef RATE
       if (push_hash_o(hs->s_list, o) < 0){
 #ifdef DEBUG
         fprintf(stderr, "%s: cannot push object!\n", __func__);
 #endif
       }
-#endif
       continue;
-      //break;
     }
 
-#ifndef RATE
     if ((rtn = process_packet_hs(s, m, o)) < 0){
       if (rtn == -1){
 #ifdef DEBUG
@@ -414,7 +393,6 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
         }
       }
     }
-#endif
 
     lock_mutex(&(s->s_m));
     s->s_bc += nread;
@@ -440,239 +418,8 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
   print_format_bitrate(s, 'T', bcount);
   unlock_mutex(&(s->s_m));
 
-#ifdef RATE
-  if (p)
-    free(p);
-#endif
-
   return 0;
 }
-
-#if 0
-int spawn_workers_us(struct u_server *s, uint64_t hashes, uint64_t hashsize)
-{
-  struct spead_heap_store *hs;
-  struct u_child *c;
-  int status, i, hi_fd, rtn;
-#if 0
-  int rb;
-  unsigned char buf[BUF];
-#endif
-  fd_set ins;
-  pid_t sp;
-  sigset_t empty_mask;
-  uint64_t total;
-#if 0
-  struct timespec ts;
-#endif
-  struct sigaction sa;
-
-  hs = NULL;
-  total = 0;
-#if 0
-  ts.tv_sec = 1;
-  ts.tv_nsec = 0;
-#endif
-  
-  if (s == NULL || hashes < 1 || hashsize < 1)
-    return -1;
- 
-  hs = create_store_hs((hashes * hashsize), hashes, hashsize);
-  if (hs == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: cannot create spead_heap_store\n", __func__);
-#endif
-    return -1;
-  }
-
-  s->s_hs = hs;
-
-  i = 0;
-
-#ifdef DEBUG
-  fprintf(stderr, "\tworkers:\t%ld\n", s->s_cpus);
-#endif
-
-  do {
-
-    c = fork_child_sp(s->s_mod, s, &worker_task_us);
-    if (c == NULL){
-#ifdef DEBUG
-      fprintf(stderr, "%s: fork_child_sp fail\n", __func__);
-#endif
-      continue;
-    }
-
-    if (add_child_us(&s->s_cs, c, i) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: could not store worker pid [%d]\n", __func__, c->c_pid);
-#endif
-      destroy_child_sp(c);
-    } else
-      i++;
-
-  } while (i < s->s_cpus);
-
-#if 0
-def DEBUG
-  fprintf(stderr, "%s: PARENT about to loop\n", __func__);
-#endif
-
-  sigfillset(&sa.sa_mask);
-  sa.sa_handler   = timer_us;
-  sa.sa_flags     = 0;
-
-  sigaction(SIGALRM, &sa, NULL);
-  
-  sigemptyset(&empty_mask);
-
-  alarm(1);
-
-  hi_fd = 0;
-
-  while(run) {
-
-    FD_ZERO(&ins);
-    
-#if 0
-    for (i=0; i<s->s_cpus; i++){
-      c = s->s_cs[i];
-      if (c != NULL){
-        if (c->c_fd > 0){
-          FD_SET(c->c_fd, &ins);
-          if (c->c_fd > hi_fd){
-            hi_fd = c->c_fd;
-          }
-        }
-      }
-    }
-#endif
-
-    rtn = pselect(hi_fd + 1, &ins, (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask);
-    if (rtn < 0){
-      switch(errno){
-        case EAGAIN:
-        case EINTR:
-          //continue;
-          break;
-        default:
-#ifdef DEBUG
-          fprintf(stderr, "%s: pselect error\n", __func__);
-#endif    
-          run = 0;
-          continue;
-      }
-    }
-
-#if 0
-    for (i=0; i<s->s_cpus; i++){
-      c = s->s_cs[i];
-      if (c == NULL){
-        continue;
-      }
-      if (FD_ISSET(c->c_fd, &ins)){
-#ifdef DATA
-        fprintf(stderr, "\tCHILD [%d] has data for parent\n", c->c_pid);
-#endif
-        rb = read(c->c_fd, buf, BUF);
-        if (rb < 0){
-          switch(errno){
-            case EAGAIN:
-            case EINTR:
-              break;
-            default:
-#ifdef DEBUG
-              fprintf(stderr, "%s: pselect error\n", __func__);
-#endif    
-              run = 0;
-              continue;
-          }
-        } else if (rb == 0){
-#ifdef DATA
-          fprintf(stderr, "\tread EOF\n");
-#endif
-        } else{
-#ifdef DATA
-          fprintf(stderr, "\tread %d bytes [%s]\n", rb, (unsigned char*)buf);
-#endif
-        }
-      }
-    }
-#endif
-
-#ifdef DATA
-    if (timer){
-      lock_mutex(&(s->s_m));
-      total = s->s_bc - total;
-      unlock_mutex(&(s->s_m));
-      print_format_bitrate(s, 'R', total);
-
-      if (s->s_hpcount > 0){
-        fprintf(stderr, "\theaps \033[32mprocessed: %d\033[0m\n", s->s_hpcount);
-      }
-      if (s->s_hdcount > 0){
-        fprintf(stderr, "\theaps \033[31mdiscarded: %d\033[0m\n", s->s_hdcount);
-      }
-
-      timer = 0;
-      lock_mutex(&(s->s_m));
-      total = s->s_bc;
-      s->s_hpcount = 0;
-      s->s_hdcount = 0;
-      unlock_mutex(&(s->s_m));
-      continue;
-    }
-#endif
-
-    if (child){      
-      sp = waitpid(-1, &status, 0);
-#ifdef DEBUG
-      fprintf(stderr,"SIGCHLD waitpid [%d]\n", sp);
-#endif
-      child = 0;
-    }
-
-  }
-
-  i = 0;
-  do {
-    
-    sp = waitpid(-1, &status, 0);
-
-#if DEBUG>1
-    fprintf(stderr,"%s: PARENT waitpid [%d]\n", __func__, sp);
-#endif
-
-    if (WIFEXITED(status)) {
-#if DEBUG>1
-      fprintf(stderr, "exited, status=%d\n", WEXITSTATUS(status));
-#endif
-    } else if (WIFSIGNALED(status)) {
-#ifdef DEBUG
-      fprintf(stderr, "killed by signal %d\n", WTERMSIG(status));
-#endif
-    } else if (WIFSTOPPED(status)) {
-#ifdef DEBUG
-      fprintf(stderr, "stopped by signal %d\n", WSTOPSIG(status));
-#endif
-    } else if (WIFCONTINUED(status)) {
-#ifdef DEBUG
-      fprintf(stderr, "continued\n");
-#endif
-    }
-
-  } while (i++ < s->s_cpus);
-
-#ifdef DEBUG
-  //fprintf(stderr, "%s: final recv count:\t%ld bytes\n", __func__, s->s_bc);
-#endif
-  print_format_bitrate(s, 'T', s->s_bc);
-
-  fprintf(stderr, "%s: final packet count: %ld\n", __func__, s->s_pc);
-
-  return 0;
-}
-#endif
 
 #ifndef IKATCP
 int setup_katcp_us(struct u_server *s)
@@ -929,14 +676,6 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
       fprintf(stderr, "%s: create spead workers failed\n", __func__);
       return -1;
     }
-
-#if 0
-    if (spawn_workers_us(s, hashes, hashsize) < 0){ 
-      fprintf(stderr,"%s: error during run\n", __func__);
-      shutdown_server_us(s);
-      return -1;
-    }
-#endif
 
   }
 

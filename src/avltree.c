@@ -19,6 +19,7 @@
 #include <fcntl.h>
 
 #include "avltree.h"
+#include "spead_api.h"
 #include "stack.h"
 
 struct avl_tree *create_avltree(int (*cmp)(const void *v1, const void *v2))
@@ -28,11 +29,14 @@ struct avl_tree *create_avltree(int (*cmp)(const void *v1, const void *v2))
   if (cmp == NULL)
     return NULL;
 
-  t =malloc(sizeof(struct avl_tree));
+  create_shared_mem();
+
+  t = shared_malloc(sizeof(struct avl_tree));
   if (t == NULL)
     return NULL;
 
   t->t_root = NULL;
+  t->t_ncount = 0;
   t->t_cmp  = cmp;
 
   return t;
@@ -45,18 +49,11 @@ struct avl_node *create_node_avltree(void *key, void *data)
   if (key == NULL)
     return NULL;
 
-  n = malloc(sizeof(struct avl_node));
-  
+  n = shared_malloc(sizeof(struct avl_node));
   if (n == NULL)
     return NULL;
 
-  n->n_key = key;
-#if 0
-  if (n->n_key == NULL) {
-    free(n);
-    return NULL;
-  }
-#endif
+  n->n_key     = key;
   n->n_parent  = NULL;
   n->n_data    = data;
   n->n_left    = NULL;
@@ -78,6 +75,7 @@ void *get_node_data_avltree(struct avl_node *n)
   
 int update_node_data_avltree(struct avl_node *n, void *data)
 {
+#if 0
   if (n == NULL)
     return -1;
 
@@ -85,6 +83,7 @@ int update_node_data_avltree(struct avl_node *n, void *data)
     free(n->n_data);
 
   n->n_data = data;
+#endif
 
   return 0;
 }
@@ -669,6 +668,7 @@ int add_node_avltree(struct avl_tree *t, struct avl_node *n)
     fprintf(stderr,"avl_tree: root node is %s\n", n->n_key);
 #endif
     t->t_root = n;
+    t->t_ncount++;
     return 0;
   }
 
@@ -777,6 +777,7 @@ int add_node_avltree(struct avl_tree *t, struct avl_node *n)
 #endif
 
   t->t_root = c;
+  t->t_ncount++;
 #if DEBUG > 3
   fprintf(stderr,"avl_tree: new root node is %s\n", c->n_key);
 #endif
@@ -788,21 +789,28 @@ int add_node_avltree(struct avl_tree *t, struct avl_node *n)
 
 void free_node_avltree(struct avl_node *n, void (*d_free)(void *))
 {
-  if (n->n_parent != NULL) { n->n_parent = NULL; }
-  if (n->n_left != NULL) { n->n_left = NULL; }
-  if (n->n_right != NULL) { n->n_right = NULL; }
-  n->n_balance = 0;
-#if 0
-  if (n->n_key != NULL) { free(n->n_key); n->n_key = NULL; }
-#endif
+  if (n){
+    if (n->n_parent != NULL) { 
+      n->n_parent = NULL; 
+    }
+    if (n->n_left != NULL) { 
+      n->n_left = NULL; 
+    }
+    if (n->n_right != NULL) { 
+      n->n_right = NULL; 
+    }
+    n->n_balance = 0;
 #if 1 
-  if (n->n_data != NULL && d_free != NULL) { 
-    //free(n->n_data); 
-    (*d_free)(n->n_data);
-    n->n_data = NULL; 
-  }
+    if (n->n_data != NULL && d_free != NULL) { 
+      (*d_free)(n->n_data);
+      n->n_data = NULL; 
+    }
 #endif
-  if (n != NULL) { free(n); n = NULL; }
+    /*TODO: we have the nodes in shared mem so we can 
+        assume they are nuked the the end of the run*/
+    //shared_free(n, sizeof(struct avl_node)); 
+    n = NULL;
+  }
 }
   
 int del_node_avltree(struct avl_tree *t, struct avl_node *n, void (*d_free)(void*))
@@ -1014,6 +1022,7 @@ int del_node_avltree(struct avl_tree *t, struct avl_node *n, void (*d_free)(void
   } /*while*/
 
   t->t_root = c;
+  t->t_ncount--;
 
   return 0;
 }
@@ -1142,7 +1151,7 @@ void destroy_avltree(struct avl_tree *t, void (*d_free)(void *))
 #endif
         dn->n_parent = NULL;
 
-        free(dn);
+        //shared_free(dn, sizeof(struct avl_node));
 
 #if DEBUG >1
         fprintf(stderr,"avl_tree: done\n");
@@ -1152,8 +1161,8 @@ void destroy_avltree(struct avl_tree *t, void (*d_free)(void *))
     }
   }
 
-  if (t != NULL)
-    free(t);
+ // if (t != NULL)
+    //shared_free(t, sizeof(struct avl_tree));
 }
 
 char *gen_id_avltree(char *prefix)
