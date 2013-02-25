@@ -907,7 +907,7 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
 #endif
     
     /*TODO: remove this malloc use shared malloc*/
-    itm = malloc(sizeof(struct spead_api_item2));
+    itm = shared_malloc(sizeof(struct spead_api_item2));
     if (itm == NULL)
       return -1;
   
@@ -934,7 +934,7 @@ void destroy_spead_item2(void *data)
   struct spead_api_item2 *itm;
   itm = data;
   if (itm){
-    free(itm);
+    shared_free(itm, sizeof(struct spead_api_item2));
   }
 }
 
