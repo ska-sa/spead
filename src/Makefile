@@ -78,7 +78,7 @@ fresh:
 test-hash: sharedmem.c hash.c
 	$(CC) $(CFLAGS) -DTEST_HASH -o $@ $^
 
-test-sm: sharedmem.c avltree.c stack.c
+test-sm: sharedmem.c avltree.c stack.c mutex.c
 	$(CC) $(CFLAGS) -DTEST_SHARED_MEM -o $@ $^
 
 test-mutex: mutex.c

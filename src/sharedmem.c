@@ -18,9 +18,11 @@
 #include "spead_api.h"
 #include "server.h"
 #include "avltree.h"
+#include "mutex.h"
 
 static struct shared_mem *m_area = NULL;
 
+#if 0
 int compare_shared_mem_regions(const void *v1, const void *v2)
 {
   if (*(uint64_t *)v1 < *(uint64_t *)v2)
@@ -29,12 +31,13 @@ int compare_shared_mem_regions(const void *v1, const void *v2)
     return 1;
   return 0;
 }
+#endif
 
 int compare_shared_mem_size(const void *v1, const void *v2)
 {
-  if (*(size_t *) v1 < *(uint64_t *)v2)
+  if (*(size_t *) v1 < *(size_t *)v2)
     return -1;
-  else if (*(size_t *) v1 > *(uint64_t *)v2)
+  else if (*(size_t *) v1 > *(size_t *)v2)
     return 1;
   return 0;
 }
@@ -64,10 +67,16 @@ struct shared_mem_region *create_shared_mem_region(uint64_t mid, uint64_t size)
     return NULL;
   }
   
-  r->m_id   = mid;
-  r->m_size = size;
-  r->m_off  = 0;
-  r->m_ptr  = ptr;
+  r->r_m    = 0;
+  r->r_id   = mid;
+  r->r_size = size;
+  r->r_off  = 0;
+  r->r_ptr  = ptr;
+  r->r_next = NULL;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: created %ld byte shared mem region from (%p - %p)\n", __func__, size, r->r_ptr, r->r_ptr + size); 
+#endif
   
   return r;
 }
@@ -76,8 +85,8 @@ void destroy_shared_mem_region(void *data)
 { 
   struct shared_mem_region *r = data;
   if (r){
-    if (r->m_ptr)
-      munmap(r->m_ptr, r->m_size);
+    if (r->r_ptr)
+      munmap(r->r_ptr, r->r_size);
     munmap(r, sizeof(struct shared_mem_region));
   }
 }
@@ -89,17 +98,30 @@ int add_shared_mem_region(struct shared_mem *m, uint64_t size)
   if (m == NULL || size <= 0)
     return -1;
 
-  r = create_shared_mem_region(m->m_next_id, size);
-  if (r == NULL)
-    return -1;
+  lock_mutex(&(m->m_m));
 
-  if (store_named_node_avltree(m->m_tree, &(r->m_id), r) < 0){
-    destroy_shared_mem_region(r);
+  r = create_shared_mem_region(m->m_next_id, size);
+  if (r == NULL){
+    unlock_mutex(&(m->m_m));
     return -1;
   }
 
+#if 0
+  if (store_named_node_avltree(m->m_tree, &(r->r_id), r) < 0){
+    destroy_shared_mem_region(r);
+    unlock_mutex(&(m->m_m));
+    return -1;
+  }
+#endif
+ 
+  lock_mutex(&(r->r_m));
+  r->r_next = m->m_current;
+  unlock_mutex(&(r->r_m));
+
   m->m_current = r;
   m->m_next_id++;
+
+  unlock_mutex(&(m->m_m));
 
   return 0;
 }
@@ -107,7 +129,7 @@ int add_shared_mem_region(struct shared_mem *m, uint64_t size)
 int create_shared_mem()
 {
   struct shared_mem *m;
-  struct avl_tree *t, *f;
+  struct avl_tree *f;
 
   if (m_area != NULL)
     return -1;
@@ -129,12 +151,14 @@ int create_shared_mem()
     return -1;
   }
 
+#if 0
   t = create_avltree(&compare_shared_mem_regions);
   if (t == NULL){
     destroy_shared_mem_region(m->m_current);
     munmap(m, sizeof(struct shared_mem));
     return -1;
   }
+#endif
 
   f = create_avltree(&compare_shared_mem_size);
   if (f == NULL){
@@ -143,14 +167,16 @@ int create_shared_mem()
     return -1;
   }
 
-  if (store_named_node_avltree(t, &(m->m_current->m_id), m->m_current) < 0){
+#if 0
+  if (store_named_node_avltree(t, &(m->m_current->r_id), m->m_current) < 0){
     destroy_shared_mem_region(m->m_current);
     destroy_avltree(t, NULL);
     munmap(m, sizeof(struct shared_mem));
     return -1;
   }
+#endif
 
-  m->m_tree    = t;
+  m->m_m       = 0;
   m->m_free    = f;
   m->m_next_id = 1;
 
@@ -159,16 +185,24 @@ int create_shared_mem()
 
 void destroy_shared_mem()
 {
+  struct shared_mem_region *r;
+  int i;
   if (m_area) {
-#if 0
-    //destroy_avltree(m_area->m_free, NULL);
-    //destroy_avltree(m_area->m_tree, &destroy_shared_mem_region);
+#ifdef DEBUG
+    fprintf(stderr, "%s: mem regions %ld free nodes %ld\n", __func__, m_area->m_next_id, m_area->m_free->t_ncount);
 #endif
 
+    for (i=0; (r = m_area->m_current) != NULL; i++){
+      if (r){
+
+        m_area->m_current = r->r_next;
 #ifdef DEBUG
-    fprintf(stderr, "%s: mem regions %ld free nodes %ld\n", __func__, m_area->m_tree->t_ncount, m_area->m_free->t_ncount);
+        fprintf(stderr, "%s: freeing (%p) with [%ld] bytes for mem region [%ld]\n", __func__, r, r->r_size, r->r_id);
 #endif
-    
+        destroy_shared_mem_region(r);
+
+      }    
+    }
 
     munmap(m_area, sizeof(struct shared_mem));
     m_area = NULL;
@@ -187,6 +221,45 @@ void *shared_malloc(size_t size)
   struct shared_mem_free   *f;
   void *ptr;
 
+  if (size < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: a shared memory segment must have a positive size\n", __func__); 
+#endif
+    return NULL;
+  }
+
+  s = find_data_avltree(m_area->m_free, &size);
+  if (s != NULL) {
+#ifdef DEBUG
+    fprintf(stderr, "%s: found a free group list (%p) for size %ld s_top (%p)\n", __func__, s, size, s->s_top);
+#endif
+    
+    lock_mutex(&(s->s_m));
+    
+    if (s->s_top){
+      
+      f = s->s_top;
+      ptr = s->s_top;
+
+      s->s_top = f->f_next;
+
+      unlock_mutex(&(s->s_m));
+
+#ifdef DEBUG
+      fprintf(stderr, "%s: ptr (%p)\n", __func__, ptr);
+#endif
+      
+      return ptr;
+    }
+
+    unlock_mutex(&(s->s_m));
+
+#ifdef DEBUG
+    fprintf(stderr, "%s: no nodes in list\n", __func__);
+#endif
+
+  }
+ 
   r = get_current_shared_mem_region(m_area);
   if (r == NULL){
 #ifdef DEBUG
@@ -195,56 +268,40 @@ void *shared_malloc(size_t size)
     return NULL;
   }
 
-  if (size < 0){
+  lock_mutex(&(r->r_m));
+
+  if ((size + r->r_off) > r->r_size){
 #ifdef DEBUG
-    fprintf(stderr, "%s: a shared memory segment must have a positive size\n", __func__); 
-#endif
-    return NULL;
-  }
-
-  s = find_name_node_avltree(m_area->m_free, &size);
-  if (s != NULL) {
-#ifdef DEBUG
-    fprintf(stderr, "%s: found a free list for size %ld\n", __func__, size);
-#endif
-
-    if (s->s_top){
-      
-      f = s->s_top;
-      ptr = s->s_top;
-
-      s->s_top = f->f_next;
-
-#ifdef DEBUG
-      fprintf(stderr, "%s: ptr (%p)\n", __func__, ptr);
-#endif
-
-      return ptr;
-    }
-
-#ifdef DEBUG
-    fprintf(stderr, "%s: no nodes in list\n", __func__);
-#endif
-
-  }
- 
-  if ((size + r->m_off) > r->m_size){
-#ifdef DEBUG
-    fprintf(stderr, "%s: WARN shared_malloc size req [%ld] mem stats msize [%ld] m_off [%ld] @ (%p)\n", __func__, size, r->m_size, r->m_off, r->m_ptr); 
+    fprintf(stderr, "%s: WARN shared_malloc size req [%ld] mem stats msize [%ld] m_off [%ld] @ (%p)\n", __func__, size, r->r_size, r->r_off, r->r_ptr); 
 #endif
 
     if (add_shared_mem_region(m_area, SHARED_MEM_REGION_SIZE) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: failed to add a new shared mem region\n", __func__);
 #endif
+      unlock_mutex(&(r->r_m));
       return NULL;
     }
 
+    unlock_mutex(&(r->r_m));
+
+    r = get_current_shared_mem_region(m_area);
+    if (r == NULL){
+#ifdef DEBUG
+      fprintf(stderr, "%s: shared memory region is NULL\n",__func__);
+#endif
+      return NULL;
+    }
+
+    lock_mutex(&(r->r_m));
+
   }
 
-  ptr       = r->m_ptr + r->m_off;
-  r->m_off  = r->m_off + size;
+  ptr       = r->r_ptr + r->r_off;
+  r->r_off  = r->r_off + size;
   
+  unlock_mutex(&(r->r_m));
+
 #ifdef DEBUG
   fprintf(stderr, "%s: allocated [%ld] from sharedmem (%p)\n", __func__, size, ptr);
 #endif
@@ -280,32 +337,47 @@ void shared_free(void *ptr, size_t size)
       return;
     }
     
-    f = ptr;
+    lock_mutex(&(s->s_m));
+
+#ifdef DEBUG
+    fprintf(stderr, "%s: created free size group s (%p)\n", __func__, s); 
+#endif
+
+    f = (struct shared_mem_free *) (ptr);
     f->f_next = NULL;
 
     s->s_size = size;
     s->s_top  = f; 
-    
+
     if (store_named_node_avltree(m->m_free, &(s->s_size), s) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: FAILURE\n", __func__);
-#endif
+#endif  
+      shared_free(s, sizeof(struct shared_mem_size));
+      unlock_mutex(&(s->s_m));
       return;
     }
 
+    unlock_mutex(&(s->s_m));
 #ifdef DEBUG
-    fprintf(stderr, "%s: ptr (%p)\n", __func__, ptr);
+    fprintf(stderr, "%s: 1 ptr (%p)\n", __func__, ptr);
 #endif
 
     return;
   }
   
-  f = ptr;
+#ifdef DEBUG
+  fprintf(stderr, "%s: found free size group s (%p)\n", __func__, s); 
+#endif
+
+  lock_mutex(&(s->s_m));
+  f = (struct shared_mem_free *) (ptr);
   f->f_next = s->s_top;
   s->s_top  = f;
-
+  unlock_mutex(&(s->s_m));
+  
 #ifdef DEBUG
-  fprintf(stderr, "%s: ptr (%p)\n", __func__, ptr);
+  fprintf(stderr, "%s: 2 ptr (%p) s_top (%p) fnext (%p)\n", __func__, ptr, s->s_top, f->f_next);
 #endif
 
   return;
@@ -330,6 +402,10 @@ int main(int argc, char *argv[])
   int i, j;
   pid_t cpid;
 
+#ifdef DEBUG
+  fprintf(stderr, "%s: info sizeof(shared_mem_free) %ld\n", __func__, sizeof(struct shared_mem_free));
+#endif
+
   if (create_shared_mem() < 0){
     fprintf(stderr, "could not create shared mem\n");
     return 1;
@@ -347,8 +423,15 @@ int main(int argc, char *argv[])
 
   for (i=0; i<SIZE/2; i++){
     shared_free(m[i], sizeof(struct test_mem));
+    m[i] = NULL;
   }
   
+  if (add_shared_mem_region(m_area,SHARED_MEM_REGION_SIZE) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: err adding new shared mem region \n", __func__);
+#endif
+  }
+
   for (i=0; i<SIZE; i++){
     m2[i] = shared_malloc(sizeof(struct test_mem));
     if (m2[i] == NULL){
@@ -359,6 +442,12 @@ int main(int argc, char *argv[])
     bzero(m2[i], sizeof(struct test_mem));
   }
 
+  for (i=0; i<SIZE; i++){
+    shared_free(m[i], sizeof(struct test_mem));
+    shared_free(m2[i], sizeof(struct test_mem));
+    m[i] = NULL;
+    m2[i] = NULL;
+  }
   
 #if 0
   for (j=0; j<CHILD; j++){

@@ -96,17 +96,19 @@ struct coalesce_parcel {
 #define SHARED_MEM_REGION_SIZE  100*1024*1024
 
 struct shared_mem {
-  struct avl_tree           *m_tree;
+  mutex                     m_m;
   struct avl_tree           *m_free;
-  struct shared_mem_region  *m_current;
   uint64_t                  m_next_id;
+  struct shared_mem_region  *m_current;
 };
 
 struct shared_mem_region {
-  uint64_t  m_id;
-  uint64_t  m_size;
-  uint64_t  m_off;
-  void      *m_ptr;
+  mutex                    r_m;
+  struct shared_mem_region *r_next;
+  uint64_t                 r_id;
+  uint64_t                 r_size;
+  uint64_t                 r_off;
+  void                     *r_ptr;
 };
 
 struct shared_mem_free {
@@ -114,6 +116,7 @@ struct shared_mem_free {
 };
 
 struct shared_mem_size {
+  mutex  s_m;
   size_t s_size;
   struct shared_mem_free *s_top;
 };
