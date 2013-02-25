@@ -230,7 +230,7 @@ void *shared_malloc(size_t size)
 
   s = find_data_avltree(m_area->m_free, &size);
   if (s != NULL) {
-#ifdef DEBUG
+#if DEBUG>1
     fprintf(stderr, "%s: found a free group list (%p) for size %ld s_top (%p)\n", __func__, s, size, s->s_top);
 #endif
     
@@ -245,7 +245,7 @@ void *shared_malloc(size_t size)
 
       unlock_mutex(&(s->s_m));
 
-#ifdef DEBUG
+#if DEBUG>1
       fprintf(stderr, "%s: ptr (%p)\n", __func__, ptr);
 #endif
       
@@ -254,7 +254,7 @@ void *shared_malloc(size_t size)
 
     unlock_mutex(&(s->s_m));
 
-#ifdef DEBUG
+#if DEBUG>1
     fprintf(stderr, "%s: no nodes in list\n", __func__);
 #endif
 
@@ -302,7 +302,7 @@ void *shared_malloc(size_t size)
   
   unlock_mutex(&(r->r_m));
 
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: allocated [%ld] from sharedmem (%p)\n", __func__, size, ptr);
 #endif
 
@@ -323,7 +323,7 @@ void shared_free(void *ptr, size_t size)
   if (ptr == NULL || size <= 0)
     return;
 
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: shared free %ld bytes\n", __func__, size);
 #endif
   s = find_data_avltree(m->m_free, &size);
@@ -339,7 +339,7 @@ void shared_free(void *ptr, size_t size)
     
     lock_mutex(&(s->s_m));
 
-#ifdef DEBUG
+#if DEBUG>1
     fprintf(stderr, "%s: created free size group s (%p)\n", __func__, s); 
 #endif
 
@@ -359,14 +359,14 @@ void shared_free(void *ptr, size_t size)
     }
 
     unlock_mutex(&(s->s_m));
-#ifdef DEBUG
+#if DEBUG>1
     fprintf(stderr, "%s: 1 ptr (%p)\n", __func__, ptr);
 #endif
 
     return;
   }
   
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: found free size group s (%p)\n", __func__, s); 
 #endif
 
@@ -376,7 +376,7 @@ void shared_free(void *ptr, size_t size)
   s->s_top  = f;
   unlock_mutex(&(s->s_m));
   
-#ifdef DEBUG
+#if DEBUG>1
   fprintf(stderr, "%s: 2 ptr (%p) s_top (%p) fnext (%p)\n", __func__, ptr, s->s_top, f->f_next);
 #endif
 

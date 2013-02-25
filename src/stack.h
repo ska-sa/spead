@@ -1,8 +1,13 @@
 #ifndef STACK_H
 #define STACK_H
 
+struct stack_o {
+  struct stack_o *o_next;
+  void *data;
+};
+
 struct stack {
-  void      **s_data;
+  struct stack_o *s_data;
   uint64_t  s_size;
 };
 
