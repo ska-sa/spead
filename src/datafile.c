@@ -249,7 +249,7 @@ void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off)
   return f->f_fmap + off;
 }
 
-uint64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, uint64_t *chunk_off_rtn)
+int64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, uint64_t *chunk_off_rtn)
 {
   uint64_t rtn;
 
@@ -279,9 +279,91 @@ uint64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, u
   unlock_mutex(&(f->f_m));
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: pid [%ld] got [%ld] bytes @ (%p) which is off [%ld]\n", __func__, getpid(), rtn, *ptr, *chunk_off_rtn);
+  fprintf(stderr, "%s: pid [%d] got [%ld] bytes @ (%p) which is off [%ld]\n", __func__, getpid(), rtn, *ptr, *chunk_off_rtn);
 #endif
 
   return rtn;
+}
+
+int64_t request_packet_raw_packet_datafile(struct data_file *f, void **ptr)
+{
+  uint64_t item, hdr, *data, n_items, payload_len;
+  int64_t rtn;
+  int i;
+  unsigned char *cdata;
+
+  payload_len = 0;
+  n_items     = 0;
+
+  if (f == NULL || ptr == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error params\n", __func__);
+#endif
+    return -1;
+  }
+
+  lock_mutex(&(f->f_m));
+
+  if ((*ptr = get_data_file_ptr_at_off(f, f->f_off)) == NULL){
+    unlock_mutex(&(f->f_m));
+#ifdef DEBUG
+    fprintf(stderr, "%s: EOF\n", __func__);
+#endif
+    return 0;
+  }
+
+  data = (uint64_t *) *ptr;
+  cdata = (unsigned char *) *ptr;
+
+  hdr = (uint64_t) SPEAD_HEADER(data);
+  
+  if ((SPEAD_GET_MAGIC(hdr) != SPEAD_MAGIC) ||
+      (SPEAD_GET_VERSION(hdr) != SPEAD_VERSION) ||
+      (SPEAD_GET_ITEMSIZE(hdr) != SPEAD_ITEM_PTR_WIDTH) || 
+      (SPEAD_GET_ADDRSIZE(hdr) != SPEAD_HEAP_ADDR_WIDTH)){
+    unlock_mutex(&(f->f_m));
+#ifdef DEBUG
+    fprintf(stderr, "%s: unable to unpack header items\n", __func__);
+#endif
+    return -1;
+  }
+
+  n_items = SPEAD_GET_NITEMS(hdr);
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: n_items %ld\n", __func__, n_items);
+#endif
+
+  for (i=1; i <= n_items; i++){
+    item = SPEAD_ITEM(cdata, i);
+    switch (SPEAD_ITEM_ID(item)){
+      case SPEAD_PAYLOAD_LEN_ID:
+        payload_len = (int64_t) SPEAD_ITEM_ADDR(item);
+        break;
+    }
+#ifdef DEBUG
+    fprintf(stderr, "%s: item 0x%lx or %ld\n", __func__, SPEAD_ITEM_ID(item), SPEAD_ITEM_ID(item));
+#endif
+  }
+
+  if (payload_len <= 0){
+    unlock_mutex(&(f->f_m));
+#ifdef DEBUG
+    fprintf(stderr, "%s: 0 payload_len\n", __func__);
+#endif
+    return -1;
+  }
+
+  rtn = payload_len + SPEAD_HEADERLEN + n_items * SPEAD_ITEMLEN;
+
+  f->f_off += rtn;
+
+  unlock_mutex(&(f->f_m));
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: pid [%d] got PACKET [%ld] bytes @ (%p) which is off [%ld]\n", __func__, getpid(), rtn, *ptr, f->f_off);
+#endif
+
+  return rtn; 
 }
 

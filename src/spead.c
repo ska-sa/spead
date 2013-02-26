@@ -436,7 +436,7 @@ def DEBUG
 
       case PZ_INIT_PACKET:
 
-        if (spead_packet_unpack_header(p) < 0){
+        if (spead_packet_unpack_header(p) == SPEAD_ERR){
 #ifdef DEBUG 
           fprintf(stderr, "%s: error unpacking spead header\n", __func__);
 #endif
@@ -918,7 +918,7 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
 
     if (push_stack(cd->d_stack, itm) < 0){
       if (itm)
-        free(itm);
+        shared_free(itm, sizeof(struct spead_api_item2));
       return -1;
     }
 
