@@ -210,6 +210,7 @@ struct spead_api_item *init_spead_api_item(struct spead_api_item *itm, int vaild
 
 int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o);  
 
+char *hr_spead_id(uint64_t sid);
 
 /*shared_mem api*/
 int create_shared_mem();

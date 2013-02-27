@@ -1815,13 +1815,12 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
   fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
 #endif
 
-#if 0
-def DEBUG
+#ifdef DEBUG
   for (i=0; i<p->n_items; i++){
     iptr = SPEAD_ITEM(p->data, (i+1));
     id   = SPEAD_ITEM_ID(iptr);
     mode = SPEAD_ITEM_MODE(iptr);
-    fprintf(stderr, "%s: ITEM[%d] mode[%d] id[%d or 0x%x] 0x%lx\n", __func__, i, mode, id, id, iptr);
+    fprintf(stderr, "%s: ITEM[%d] mode[%d] id[\033[32m%s\033[0m\t%d or 0x%x] 0x%lx\n", __func__, i, mode, hr_spead_id(id), id, id, iptr);
   }
   //print_data(p->payload, p->payload_len);
 #endif
@@ -1840,4 +1839,25 @@ def DEBUG
 }
 
 
+char *hr_spead_id(uint64_t sid)
+{
+  switch (sid){
+    case SPEAD_HEAP_CNT_ID:    
+      return "HEAP COUNT";
+        
+    case SPEAD_HEAP_LEN_ID:
+      return "HEAP LENGTH";
+
+    case SPEAD_PAYLOAD_OFF_ID:
+      return "PAYLOAD OFFSET";
+
+    case SPEAD_PAYLOAD_LEN_ID:
+      return "PAYLOAD LENGTH";
+
+    case SPEAD_STREAM_CTRL_ID:
+      return "STREAM TERM";
+  }
+  
+  return "CUSTOM\t";
+}
 
