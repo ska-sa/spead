@@ -1,10 +1,8 @@
 CFLAGS += -DIKATCP
 #CFLAGS += -DDEBUG
-CFLAGS += -Wall
-#CFLAGS += -ggdb
 CFLAGS += -O3
 
-CC = gcc -ggdb
+CC = gcc -ggdb -Wall
 
 LIB = -lspead
 
@@ -40,7 +38,7 @@ OBJ= $(patsubst %.c,%.o,$(SRC))
 all: $(MODS) $(EXE)
 
 %.so: %.cu
-	$(NCC) -DDEBUG $(NFLAGS) $(NLIB) $(LIB) $(LDIR) $(IDIR) $< -o $@
+	$(NCC) $(CFLAGS) $(NFLAGS) $(NLIB) $(LIB) $(LDIR) $(IDIR) $< -o $@
 
 %.o: %.c $(HDR)
 	$(CC) $(CFLAGS) $(KDIR) $(IDIR) -fPIC -c $< -o $@

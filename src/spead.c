@@ -1119,8 +1119,11 @@ struct spead_item_group *process_items(struct hash_table *ht)
 #if 1
 
   cd.d_imm = 0;
+  
+  cd.d_stack = ht->t_s1;
+  temp       = ht->t_s2;
 
-#if 1
+#if 0
   cd.d_stack = create_stack();
   if (cd.d_stack == NULL){
     return NULL;

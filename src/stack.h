@@ -19,5 +19,7 @@ void traverse_stack(struct stack *s, void (*call)(void *so, void *data), void *d
 int funnel_stack(struct stack *src, struct stack *dst, int (*call)(void *so, void *data), void *data);
 uint64_t get_size_stack(struct stack *s);
 
+void empty_stack(struct stack *s, void (*call)(void *data));
+
 #endif
 

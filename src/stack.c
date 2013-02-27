@@ -23,20 +23,24 @@ struct stack *create_stack()
   return s;
 }
 
-void destroy_stack(struct stack *s, void (*call)(void *data))
+void empty_stack(struct stack *s, void (*call)(void *data))
 {
   void *d;
-
   if (s){
     if (s->s_data){
-
       while (pop_stack(s, &d) < 0) {
         if (call){
           (*call)(d);
         }
       }
-
     }
+  }
+}
+
+void destroy_stack(struct stack *s, void (*call)(void *data))
+{
+  if (s){
+    empty_stack(s, call);
     shared_free(s, sizeof(struct stack));
   }
 }

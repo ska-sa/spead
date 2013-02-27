@@ -56,6 +56,18 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   t->t_m          = 0; 
   t->t_processing = 0; 
 
+  t->t_s1         = create_stack();
+  if (t->t_s1 == NULL){
+    destroy_hash_table(t);
+    return NULL;
+  }
+
+  t->t_s2         = create_stack();
+  if (t->t_s2 == NULL){
+    destroy_hash_table(t);
+    return NULL;
+  }
+
   lock_mutex(&(t->t_m));
 
   t->t_os  = shared_malloc(sizeof(struct hash_o*) * len);
