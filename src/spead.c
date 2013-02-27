@@ -436,7 +436,7 @@ def DEBUG
 
       case PZ_INIT_PACKET:
 
-        if (spead_packet_unpack_header(p) < 0){
+        if (spead_packet_unpack_header(p) == SPEAD_ERR){
 #ifdef DEBUG 
           fprintf(stderr, "%s: error unpacking spead header\n", __func__);
 #endif
@@ -918,7 +918,7 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
 
     if (push_stack(cd->d_stack, itm) < 0){
       if (itm)
-        free(itm);
+        shared_free(itm, sizeof(struct spead_api_item2));
       return -1;
     }
 
@@ -1820,7 +1820,7 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
     iptr = SPEAD_ITEM(p->data, (i+1));
     id   = SPEAD_ITEM_ID(iptr);
     mode = SPEAD_ITEM_MODE(iptr);
-    fprintf(stderr, "%s: ITEM[%d] mode[%d] id[%d or 0x%x] 0x%lx\n", __func__, i, mode, id, id, iptr);
+    fprintf(stderr, "%s: ITEM[%d] mode[%d] id[\033[32m%s\033[0m\t%d or 0x%x] 0x%lx\n", __func__, i, mode, hr_spead_id(id), id, id, iptr);
   }
   //print_data(p->payload, p->payload_len);
 #endif
@@ -1839,4 +1839,25 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
 }
 
 
+char *hr_spead_id(uint64_t sid)
+{
+  switch (sid){
+    case SPEAD_HEAP_CNT_ID:    
+      return "HEAP COUNT";
+        
+    case SPEAD_HEAP_LEN_ID:
+      return "HEAP LENGTH";
+
+    case SPEAD_PAYLOAD_OFF_ID:
+      return "PAYLOAD OFFSET";
+
+    case SPEAD_PAYLOAD_LEN_ID:
+      return "PAYLOAD LENGTH";
+
+    case SPEAD_STREAM_CTRL_ID:
+      return "STREAM TERM";
+  }
+  
+  return "CUSTOM\t";
+}
 

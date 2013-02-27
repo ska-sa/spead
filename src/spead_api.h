@@ -93,22 +93,22 @@ struct coalesce_parcel {
 
 /*spead shared_mem api*/
 
-#define SHARED_MEM_REGION_SIZE  1000*1024*1024
+#define SHARED_MEM_REGION_SIZE  100*1024*1024
 
 struct shared_mem {
   mutex                     m_m;
   struct avl_tree           *m_free;
-  uint64_t                  m_next_id;
   struct shared_mem_region  *m_current;
+  uint64_t                  m_next_id;
 };
 
 struct shared_mem_region {
-  mutex                    r_m;
-  struct shared_mem_region *r_next;
-  uint64_t                 r_id;
-  uint64_t                 r_size;
-  uint64_t                 r_off;
-  void                     *r_ptr;
+  mutex                       r_m;
+  uint64_t                    r_id;
+  uint64_t                    r_size;
+  uint64_t                    r_off;
+  struct shared_meme_region   *r_next;
+  void                        *r_ptr;
 };
 
 struct shared_mem_free {
@@ -116,9 +116,9 @@ struct shared_mem_free {
 };
 
 struct shared_mem_size {
-  mutex  s_m;
-  size_t s_size;
-  struct shared_mem_free *s_top;
+  mutex                   s_m;
+  size_t                  s_size;
+  struct shared_mem_free  *s_top;
 };
 
 /*spead data_file api*/
@@ -210,6 +210,7 @@ struct spead_api_item *init_spead_api_item(struct spead_api_item *itm, int vaild
 
 int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o);  
 
+char *hr_spead_id(uint64_t sid);
 
 /*shared_mem api*/
 int create_shared_mem();
@@ -225,7 +226,8 @@ void destroy_raw_data_file(struct data_file *f);
 size_t get_data_file_size(struct data_file *f);
 char *get_data_file_name(struct data_file *f);
 void *get_data_file_ptr_at_off(struct data_file *f, uint64_t off);
-uint64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, uint64_t *chunk_off_rtn);
+int64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, uint64_t *chunk_off_rtn);
+int64_t request_packet_raw_packet_datafile(struct data_file *f, void **ptr);
 int write_chunk_raw_data_file(struct data_file *f, uint64_t off, void *src, uint64_t len);
 int write_next_chunk_raw_data_file(struct data_file *f, void *src, uint64_t len);
 
@@ -238,7 +240,8 @@ int connect_spead_socket(struct spead_socket *x);
 int set_broadcast_opt_spead_socket(struct spead_socket *x);
 int get_fd_spead_socket(struct spead_socket *x);
 struct addrinfo *get_addr_spead_socket(struct spead_socket *x);
-int send_packet_spead_socket(void *data, struct spead_packet *p); // data should be a spead_socket
+int send_packet_spead_socket(void *data, struct spead_packet *p); // data should be a spead_tx data structure
+int send_raw_data_spead_socket(void *obj, void *data, uint64_t len); //obj should be a spead_tx
 int send_spead_stream_terminator(struct spead_tx *tx);
 
 

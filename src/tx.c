@@ -122,7 +122,7 @@ uint64_t get_count_speadtx(struct spead_tx *tx)
   return tx->t_count;
 }
 
-int worker_task_speadtx(void *data, struct spead_api_module *m, int cfd)
+int worker_task_data_file_speadtx(void *data, struct spead_api_module *m, int cfd)
 {
   struct spead_item_group *ig;
   struct spead_api_item *itm, *itm2, *itm3;
@@ -382,7 +382,49 @@ int worker_task_pattern_speadtx(void *data, struct spead_api_module *m, int cfd)
   return 0;
 }
 
-int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size, int chunk_size, char *ifile)
+int worker_task_raw_packet_file_speadtx(void *data, struct spead_api_module *m, int cfd)
+{
+  struct spead_tx *tx;
+  int64_t rb;
+  void *ptr;
+
+  tx = data;
+  if (tx == NULL)
+    return -1;
+
+
+  fprintf(stderr, "%s: raw packet file\n", __func__); 
+
+  
+
+  while(run){
+
+    rb = request_packet_raw_packet_datafile(tx->t_f, &ptr);
+    if (rb == 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: got 0 ending\n", __func__);
+#endif
+      run = 0;
+      break;
+    } else if (rb < 0){
+      run = 0;
+      return -1;
+    }
+
+    if (send_raw_data_spead_socket(tx, ptr, rb) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: send_packet error\n", __func__);
+#endif
+    }
+  
+  }
+
+  fprintf(stderr, "%s: DONE\n", __func__); 
+
+  return 0;
+}
+
+int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size, int chunk_size, char *ifile, char *rfile)
 {
   struct spead_tx *tx;
   uint64_t heaps, packets;
@@ -396,11 +438,14 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   if (tx == NULL)
     return EX_SOFTWARE;
 
-  tx->t_f = load_raw_data_file(ifile);
-  if (tx->t_f == NULL){
-    fprintf(stderr, "%s: FATAL could not load file\n", __func__);
-    //destroy_speadtx(tx);
-    //return EX_SOFTWARE;
+  if (!(ifile == NULL || rfile == NULL)){
+    fprintf(stderr, "%s: cannot specify a data file and a raw packet file these are mutually exclusive!\n", __func__);
+    return EX_SOFTWARE;
+  }
+
+  tx->t_f = load_raw_data_file(ifile == NULL ? rfile : ifile);
+  if (tx->t_f == NULL && (ifile != NULL || rfile != NULL)){
+    return EX_SOFTWARE;
   }
 
   heaps = workers * 2;
@@ -408,14 +453,16 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   //heaps   = 1000;
   //packets = 100;
 
-  tx->t_hs = create_store_hs(heaps*packets, heaps, packets);
+  tx->t_hs = (rfile != NULL) ? NULL : create_store_hs(heaps*packets, heaps, packets);
+#if 0
   if (tx->t_hs == NULL){
     destroy_speadtx(tx);
     return EX_SOFTWARE;
   }
+#endif
   
   if (tx->t_f){
-    tx->t_w = create_spead_workers(NULL, tx, workers, &worker_task_speadtx);
+    tx->t_w = create_spead_workers(NULL, tx, workers, (ifile == NULL) ? &worker_task_raw_packet_file_speadtx : &worker_task_data_file_speadtx);
     if (tx->t_w == NULL){
       destroy_speadtx(tx);
       return EX_SOFTWARE;
@@ -490,14 +537,20 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
 
 int usage(char **argv, long cpus)
 {
-  fprintf(stderr, "usage:\n\t%s (options) destination port\n\n\tOptions\n\t\t-w [workers (d:%ld)]\n\t\t-x (enable send to broadcast [priv])\n\t\t-s [spead packet size]\n\t\t-i [input file]\n\t\t-c [chunk size]\n\n", argv[0], cpus);
+  fprintf(stderr, "usage:\n\t%s (options) destination port"
+                  "\n\n\tOptions\n\t\t-w [workers (d:%ld)]"
+                  "\n\t\t-x (enable send to broadcast [priv])"
+                  "\n\t\t-s [spead packet size]" 
+                  "\n\t\t-i [input file]" 
+                  "\n\t\t-c [chunk size]"
+                  "\n\t\t-r [raw packet stream]\n\n", argv[0], cpus);
   return EX_USAGE;
 }
 
 int main(int argc, char **argv)
 {
   long cpus;
-  char c, *port, *host, broadcast, *ifile;
+  char c, *port, *host, broadcast, *ifile, *rfile;
   int i,j,k, pkt_size, chunk_size;
 
   i = 1;
@@ -506,6 +559,7 @@ int main(int argc, char **argv)
 
   host = NULL;
   ifile = NULL;
+  rfile = NULL;
 
   broadcast = 0;
   
@@ -544,6 +598,7 @@ int main(int argc, char **argv)
         case 'i':
         case 's':
         case 'w':
+        case 'r':
           j++;
           if (argv[i][j] == '\0'){
             j = 0;
@@ -569,6 +624,9 @@ int main(int argc, char **argv)
               break;
             case 'i':
               ifile = argv[i] + j;
+              break;
+            case 'r':
+              rfile = argv[i] + j;
               break;
           }
           i++;
@@ -600,6 +658,11 @@ int main(int argc, char **argv)
     }
   }
 
-  return register_speadtx(host, port, cpus, broadcast, pkt_size, chunk_size, ifile);
+  if (k < 2){
+    fprintf(stderr, "%s: insufficient arguments\n", __func__);
+    return EX_USAGE;
+  }
+
+  return register_speadtx(host, port, cpus, broadcast, pkt_size, chunk_size, ifile, rfile);
 }
   
