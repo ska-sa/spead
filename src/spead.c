@@ -1062,6 +1062,9 @@ int convert_to_ig(void *so, void *data)
   if (cd == NULL || ht == NULL)
     return -1;
 
+  if (i2->i_len == 0)
+    goto skip_item;
+
   itm = new_item_from_group(cd->d_ig, i2->i_len);
   if (itm == NULL)
     return -1;
@@ -1089,6 +1092,7 @@ int convert_to_ig(void *so, void *data)
     }
   }
 
+skip_item:
   destroy_spead_item2(i2);
 
   return 0;
