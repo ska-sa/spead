@@ -251,12 +251,14 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
   fprintf(stderr, "%s: calculated size required for all sharedmem [%ld]\n", __func__, req_size);
 #endif
 
-  if (create_shared_mem(req_size) < 0) {  /*hashtables objects*/
+#if 0
+  if (create_shared_mem() < 0) {  /*hashtables objects*/
 #ifdef DEBUG
     fprintf(stderr, "%s: could not create shared memory\n", __func__);
 #endif
     return NULL;
   }
+#endif
 
   l = shared_malloc(sizeof(struct hash_o_list));
   if (l == NULL){
@@ -296,7 +298,7 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
 void destroy_o_list(struct hash_o_list *l)
 {
   /*TODO: is this the final place mem is needed?*/
-  destroy_shared_mem();
+  //destroy_shared_mem();
 
 #if 0
   struct hash_o *o;
