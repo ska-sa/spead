@@ -204,6 +204,8 @@ int set_item_data_ones(struct spead_api_item *itm);
 int set_item_data_zeros(struct spead_api_item *itm);
 int set_item_data_ramp(struct spead_api_item *itm);
 
+
+void destroy_spead_item2(void *data);
 #if 0
 struct spead_api_item *init_spead_api_item(struct spead_api_item *itm, int vaild, int id, int len, unsigned char *data);
 #endif

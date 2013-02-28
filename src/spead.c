@@ -965,8 +965,14 @@ int calculate_lengths(void *so, void *data)
   itm = so;
   
   if (itm->i_mode == SPEAD_DIRECTADDR){
-    itm->i_len = cd->d_off - itm->i_off;
-    cd->d_off -= itm->i_len;
+    
+    if (cd->d_off > 0){
+      itm->i_len = cd->d_off - itm->i_off;
+      cd->d_off -= itm->i_len;
+    } else {
+      itm->i_len = 0;
+    }
+
 #ifdef PROCESS 
     fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
 #endif
@@ -1165,7 +1171,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
     return NULL;
   }
  
-  destroy_stack(cd.d_stack, &destroy_spead_item2);
+  empty_stack(cd.d_stack, &destroy_spead_item2);
 
   cd.d_stack = temp;
   
@@ -1178,8 +1184,10 @@ struct spead_item_group *process_items(struct hash_table *ht)
   /*TODO: shared mem managed*/
   ig = create_item_group(cd.d_len + cd.d_imm * sizeof(int64_t), get_size_stack(cd.d_stack));
   if (ig == NULL){
-    destroy_stack(cd.d_stack, &destroy_spead_item2);
+    empty_stack(cd.d_stack, &destroy_spead_item2);
+    empty_stack(temp, &destroy_spead_item2);
 #if 0
+    destroy_stack(cd.d_stack, &destroy_spead_item2);
     if (cd.d_data)
       free(cd.d_data);
 #endif
@@ -1198,17 +1206,20 @@ struct spead_item_group *process_items(struct hash_table *ht)
     fprintf(stderr, "%s: convert to item group FAILED\n", __func__);
 #endif
     destroy_item_group(ig);
-    destroy_stack(cd.d_stack, &destroy_spead_item2);
+    empty_stack(cd.d_stack, &destroy_spead_item2);
+    empty_stack(temp, &destroy_spead_item2);
 #if 0
+    destroy_stack(cd.d_stack, &destroy_spead_item2);
     if (cd.d_data)
       free(cd.d_data);
 #endif
     return NULL;
   }
 
-
-  destroy_stack(cd.d_stack, &destroy_spead_item2);
+  empty_stack(cd.d_stack, &destroy_spead_item2);
+  empty_stack(temp, &destroy_spead_item2);
 #if 0
+  destroy_stack(cd.d_stack, &destroy_spead_item2);
   if (cd.d_data)
     free(cd.d_data);
 #endif

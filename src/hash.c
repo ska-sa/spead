@@ -9,6 +9,7 @@
 
 #include "spead_api.h"
 #include "hash.h"
+#include "stack.h"
 #include "mutex.h"
 
 void print_list_stats(struct hash_o_list *l, const char *func) 
@@ -115,6 +116,8 @@ void destroy_hash_table(struct hash_table *t)
       //free(t->t_os);
     }
 
+    destroy_stack(t->t_s1, &destroy_spead_item2);
+    destroy_stack(t->t_s2, &destroy_spead_item2);
 #if 0
 DEBUG>1
     print_list_stats(t->t_l, __func__);
