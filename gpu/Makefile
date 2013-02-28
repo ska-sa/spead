@@ -1,10 +1,8 @@
 CFLAGS += -DIKATCP
 #CFLAGS += -DDEBUG
-CFLAGS += -Wall
-#CFLAGS += -ggdb
 CFLAGS += -O3
 
-CC = gcc -ggdb
+CC = gcc -ggdb -Wall
 
 LIB = -lspead
 
@@ -32,9 +30,9 @@ LDIR = -L../src
 
 #OBJ = $(patsubst %.cu,%.so,$(UTILS))
 EXE= demo
-MODS=         dummy.so ocl.so dumpdata.so writefile.so
+MODS=         dummy.so ocl.so dumpdata.so writefile.so snapshot.so
 MODS+= fft.so
-SRC= shared.c dummy.c  ocl.c  dumpdata.c  writefile.c
+SRC= shared.c dummy.c  ocl.c  dumpdata.c  writefile.c snapshot.c
 
 HDR= shared.h
 OBJ= $(patsubst %.c,%.o,$(SRC))
@@ -42,7 +40,7 @@ OBJ= $(patsubst %.c,%.o,$(SRC))
 all: $(MODS) $(EXE)
 
 %.so: %.cu
-	$(NCC) -DDEBUG $(NFLAGS) $(NLIB) $(LIB) $(LDIR) $(IDIR) $< -o $@
+	$(NCC) $(CFLAGS) $(NFLAGS) $(NLIB) $(LIB) $(LDIR) $(IDIR) $< -o $@
 
 %.o:: %.c $(HDR)
 	$(CC) $(CFLAGS) $(KDIR) $(IDIR) -fPIC -c $< -o $@

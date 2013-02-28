@@ -221,6 +221,9 @@ void *shared_malloc(size_t size)
   struct shared_mem_free   *f;
   void *ptr;
 
+  if (m_area == NULL)
+    create_shared_mem();
+
   if (size < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: a shared memory segment must have a positive size\n", __func__); 

@@ -60,6 +60,7 @@ void destroy_speadtx(struct spead_tx *tx)
     destroy_spead_socket(tx->t_x);
     destroy_store_hs(tx->t_hs);
     destroy_raw_data_file(tx->t_f);
+    destroy_shared_mem();
     munmap(tx, sizeof(struct spead_tx));
   }
 }
