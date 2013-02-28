@@ -9,6 +9,7 @@
 
 #include "spead_api.h"
 #include "hash.h"
+#include "stack.h"
 #include "mutex.h"
 
 void print_list_stats(struct hash_o_list *l, const char *func) 
@@ -55,6 +56,18 @@ struct hash_table *create_hash_table(struct hash_o_list *l, uint64_t id, uint64_
   t->t_items      = 0;
   t->t_m          = 0; 
   t->t_processing = 0; 
+
+  t->t_s1         = create_stack();
+  if (t->t_s1 == NULL){
+    destroy_hash_table(t);
+    return NULL;
+  }
+
+  t->t_s2         = create_stack();
+  if (t->t_s2 == NULL){
+    destroy_hash_table(t);
+    return NULL;
+  }
 
   lock_mutex(&(t->t_m));
 
@@ -103,6 +116,8 @@ void destroy_hash_table(struct hash_table *t)
       //free(t->t_os);
     }
 
+    destroy_stack(t->t_s1, &destroy_spead_item2);
+    destroy_stack(t->t_s2, &destroy_spead_item2);
 #if 0
 DEBUG>1
     print_list_stats(t->t_l, __func__);
@@ -236,12 +251,14 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
   fprintf(stderr, "%s: calculated size required for all sharedmem [%ld]\n", __func__, req_size);
 #endif
 
-  if (create_shared_mem(req_size) < 0) {  /*hashtables objects*/
+#if 0
+  if (create_shared_mem() < 0) {  /*hashtables objects*/
 #ifdef DEBUG
     fprintf(stderr, "%s: could not create shared memory\n", __func__);
 #endif
     return NULL;
   }
+#endif
 
   l = shared_malloc(sizeof(struct hash_o_list));
   if (l == NULL){
@@ -281,7 +298,7 @@ struct hash_o_list *create_o_list(uint64_t len, uint64_t hlen, uint64_t hsize, v
 void destroy_o_list(struct hash_o_list *l)
 {
   /*TODO: is this the final place mem is needed?*/
-  destroy_shared_mem();
+  //destroy_shared_mem();
 
 #if 0
   struct hash_o *o;

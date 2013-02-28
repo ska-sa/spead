@@ -191,6 +191,7 @@ void destroy_server_us(struct u_server *s)
     unload_api_user_module(s->s_mod);
 
     destroy_store_hs(s->s_hs);
+    destroy_shared_mem();
     munmap(s, sizeof(struct u_server));
   }
 

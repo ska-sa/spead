@@ -436,7 +436,7 @@ def DEBUG
 
       case PZ_INIT_PACKET:
 
-        if (spead_packet_unpack_header(p) < 0){
+        if (spead_packet_unpack_header(p) == SPEAD_ERR){
 #ifdef DEBUG 
           fprintf(stderr, "%s: error unpacking spead header\n", __func__);
 #endif
@@ -918,7 +918,7 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
 
     if (push_stack(cd->d_stack, itm) < 0){
       if (itm)
-        free(itm);
+        shared_free(itm, sizeof(struct spead_api_item2));
       return -1;
     }
 
@@ -965,8 +965,14 @@ int calculate_lengths(void *so, void *data)
   itm = so;
   
   if (itm->i_mode == SPEAD_DIRECTADDR){
-    itm->i_len = cd->d_off - itm->i_off;
-    cd->d_off -= itm->i_len;
+    
+    if (cd->d_off > 0){
+      itm->i_len = cd->d_off - itm->i_off;
+      cd->d_off -= itm->i_len;
+    } else {
+      itm->i_len = 0;
+    }
+
 #ifdef PROCESS 
     fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
 #endif
@@ -1062,6 +1068,9 @@ int convert_to_ig(void *so, void *data)
   if (cd == NULL || ht == NULL)
     return -1;
 
+  if (i2->i_len == 0)
+    goto skip_item;
+
   itm = new_item_from_group(cd->d_ig, i2->i_len);
   if (itm == NULL)
     return -1;
@@ -1089,6 +1098,7 @@ int convert_to_ig(void *so, void *data)
     }
   }
 
+skip_item:
   destroy_spead_item2(i2);
 
   return 0;
@@ -1115,8 +1125,11 @@ struct spead_item_group *process_items(struct hash_table *ht)
 #if 1
 
   cd.d_imm = 0;
+  
+  cd.d_stack = ht->t_s1;
+  temp       = ht->t_s2;
 
-#if 1
+#if 0
   cd.d_stack = create_stack();
   if (cd.d_stack == NULL){
     return NULL;
@@ -1158,7 +1171,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
     return NULL;
   }
  
-  destroy_stack(cd.d_stack, &destroy_spead_item2);
+  empty_stack(cd.d_stack, &destroy_spead_item2);
 
   cd.d_stack = temp;
   
@@ -1171,8 +1184,10 @@ struct spead_item_group *process_items(struct hash_table *ht)
   /*TODO: shared mem managed*/
   ig = create_item_group(cd.d_len + cd.d_imm * sizeof(int64_t), get_size_stack(cd.d_stack));
   if (ig == NULL){
-    destroy_stack(cd.d_stack, &destroy_spead_item2);
+    empty_stack(cd.d_stack, &destroy_spead_item2);
+    empty_stack(temp, &destroy_spead_item2);
 #if 0
+    destroy_stack(cd.d_stack, &destroy_spead_item2);
     if (cd.d_data)
       free(cd.d_data);
 #endif
@@ -1191,17 +1206,20 @@ struct spead_item_group *process_items(struct hash_table *ht)
     fprintf(stderr, "%s: convert to item group FAILED\n", __func__);
 #endif
     destroy_item_group(ig);
-    destroy_stack(cd.d_stack, &destroy_spead_item2);
+    empty_stack(cd.d_stack, &destroy_spead_item2);
+    empty_stack(temp, &destroy_spead_item2);
 #if 0
+    destroy_stack(cd.d_stack, &destroy_spead_item2);
     if (cd.d_data)
       free(cd.d_data);
 #endif
     return NULL;
   }
 
-
-  destroy_stack(cd.d_stack, &destroy_spead_item2);
+  empty_stack(cd.d_stack, &destroy_spead_item2);
+  empty_stack(temp, &destroy_spead_item2);
 #if 0
+  destroy_stack(cd.d_stack, &destroy_spead_item2);
   if (cd.d_data)
     free(cd.d_data);
 #endif
@@ -1815,13 +1833,12 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
   fprintf(stderr, "%s: unpacked spead items for packet (%p) from heap %ld po %ld of %ld\n", __func__, p, p->heap_cnt, p->payload_off, p->heap_len);
 #endif
 
-#if 0
-def DEBUG
+#ifdef DEBUG
   for (i=0; i<p->n_items; i++){
     iptr = SPEAD_ITEM(p->data, (i+1));
     id   = SPEAD_ITEM_ID(iptr);
     mode = SPEAD_ITEM_MODE(iptr);
-    fprintf(stderr, "%s: ITEM[%d] mode[%d] id[%d or 0x%x] 0x%lx\n", __func__, i, mode, id, id, iptr);
+    fprintf(stderr, "%s: ITEM[%d] mode[%d] id[\033[32m%s\033[0m\t%d or 0x%x] 0x%lx\n", __func__, i, mode, hr_spead_id(id), id, id, iptr);
   }
   //print_data(p->payload, p->payload_len);
 #endif
@@ -1840,4 +1857,25 @@ def DEBUG
 }
 
 
+char *hr_spead_id(uint64_t sid)
+{
+  switch (sid){
+    case SPEAD_HEAP_CNT_ID:    
+      return "HEAP COUNT";
+        
+    case SPEAD_HEAP_LEN_ID:
+      return "HEAP LENGTH";
+
+    case SPEAD_PAYLOAD_OFF_ID:
+      return "PAYLOAD OFFSET";
+
+    case SPEAD_PAYLOAD_LEN_ID:
+      return "PAYLOAD LENGTH";
+
+    case SPEAD_STREAM_CTRL_ID:
+      return "STREAM TERM";
+  }
+  
+  return "CUSTOM\t";
+}
 
