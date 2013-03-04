@@ -312,9 +312,6 @@ void *shared_malloc(size_t size)
   return ptr;
 }
 
-/*
-  TODO: make this thread safe
-*/
 void shared_free(void *ptr, size_t size)
 {
   struct shared_mem *m;

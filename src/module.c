@@ -16,9 +16,10 @@ struct spead_api_module *load_api_user_module(char *mod)
 {
   void *mhandle;
   struct spead_api_module *m;
+  struct spead_api_module_shared *s;
 
-  int (*cb)(struct spead_item_group *ig);
-  void *(*setup)();
+  int (*cb)(struct spead_api_module *m, struct spead_item_group *ig, void *data);
+  void *(*setup)(struct spead_api_module_shared *s);
   int (*destroy)(void *data);
 
   if (mod == NULL){
@@ -77,6 +78,18 @@ struct spead_api_module *load_api_user_module(char *mod)
 
   m->m_data    = NULL;
 
+  m->m_s       = shared_malloc(sizeof(struct spead_api_module_shared));
+  if (m->m_s == NULL){
+    unload_api_user_module(m);
+    return NULL;
+  }
+
+  s = m->m_s;
+
+  s->s_m          = 0;
+  s->s_data       = NULL;
+  s->s_data_size  = 0;
+
 #if 0
   m->m_data    = (*setup)();
   if (m->m_data == NULL){
@@ -113,6 +126,13 @@ void unload_api_user_module(struct spead_api_module *m)
 
     }
 
+    if (m->m_s){
+      
+      shared_free(m, sizeof(struct spead_api_module_shared));
+      m->m_s = NULL;
+
+    }
+
     shared_free(m, sizeof(struct spead_api_module));
      
   }
@@ -126,7 +146,7 @@ int setup_api_user_module(struct spead_api_module *m)
 {
   if (m){
     if (m->m_setup){
-      m->m_data = (*m->m_setup)();
+      m->m_data = (*m->m_setup)(m->m_s);
 #ifdef DEBUG
       fprintf(stderr, "%s: module (%p) data @ (%p)\n", __func__, m, m->m_data);
 #endif
@@ -157,7 +177,7 @@ int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_g
 #ifdef DEBUG
       fprintf(stderr, "%s: about to call api callback\n", __func__);
 #endif
-      return (*m->m_cdfn)(ig, m->m_data);
+      return (*m->m_cdfn)(m->m_s, ig, m->m_data);
     }
 #ifdef DEBUG
     fprintf(stderr, "%s: null call back function\n", __func__);
@@ -166,3 +186,21 @@ int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_g
   return -1; 
 }
 
+
+void lock_spead_api_module_shared(struct spead_api_module_shared *s)
+{
+  if (s){
+    
+    lock_mutex(&(s->s_m));
+
+  }
+}
+
+void unlock_spead_api_module_shared(struct spead_api_module_shared *s)
+{
+  if (s){
+    
+    unlock_mutex(&(s->s_m));
+
+  }
+}

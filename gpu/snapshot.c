@@ -19,7 +19,7 @@ void spead_api_destroy(void *data)
   }
 }
 
-void *spead_api_setup()
+void *spead_api_setup(struct spead_api_module_shared *s)
 {
   struct snap_shot *ss;
 
@@ -32,7 +32,7 @@ void *spead_api_setup()
   return ss;
 }
 
-int spead_api_callback(struct spead_item_group *ig, void *data)
+int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_group *ig, void *data)
 {
   struct snap_shot *ss;
 
@@ -40,6 +40,7 @@ int spead_api_callback(struct spead_item_group *ig, void *data)
   if (ss == NULL)
     return -1;
 
+  
   
 
 

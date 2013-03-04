@@ -25,10 +25,19 @@
 #define SAPI_SETUP    "spead_api_setup"
 #define SAPI_DESTROY  "spead_api_destroy"
 
+struct spead_api_module_shared {
+  mutex   s_m;
+  void    *s_data;
+  size_t  s_data_size;
+};
+
+struct spead_item_group;
+
 struct spead_api_module {
+  struct spead_api_module_shared *m_s;
   void *m_handle;
-  void *(*m_setup)();
-  int  (*m_cdfn)();
+  void *(*m_setup)(struct spead_api_module_shared *s);
+  int  (*m_cdfn)(struct spead_api_module_shared *s, struct spead_item_group *ig, void *data);
   int  (*m_destroy)(void *data);
   void *m_data;
 };
@@ -172,6 +181,11 @@ void unload_api_user_module(struct spead_api_module *m);
 int setup_api_user_module(struct spead_api_module *m);
 int destroy_api_user_module(struct spead_api_module *m);
 int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_group *ig);
+
+
+void lock_spead_api_module_shared(struct spead_api_module_shared *s);
+void unlock_spead_api_module_shared(struct spead_api_module_shared *s);
+
 void print_data(unsigned char *buf, int size);
 
 

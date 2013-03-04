@@ -11,13 +11,13 @@ void spead_api_destroy(void *data)
 
 }
 
-void *spead_api_setup()
+void *spead_api_setup(struct spead_api_module_shared *s)
 {
   return NULL;
 }
 
 
-int spead_api_callback(struct spead_item_group *ig, void *data)
+int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_group *ig, void *data)
 {
   struct spead_api_item *itm;
   
