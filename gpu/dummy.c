@@ -11,7 +11,7 @@
 
 #define IN_DATA_SET(val) ((val) == 0x08 || (val) == 0x09 || (val) == 0x0)
 
-void spead_api_destroy(void *data)
+void spead_api_destroy(struct spead_api_module_shared *s, void *data)
 {
   fprintf(stdout, "e\ne\n");
 }

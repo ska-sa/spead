@@ -24,7 +24,7 @@ struct write_file {
   void        *w_data;
 };
 
-void spead_api_destroy(void *data)
+void spead_api_destroy(struct spead_api_module_shared *s, void *data)
 {
   struct write_file *ws;
   ws = data;

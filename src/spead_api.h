@@ -21,9 +21,10 @@
 /*API DATASTRUCTURES*/ 
 
 /*modules api*/
-#define SAPI_CALLBACK "spead_api_callback"
-#define SAPI_SETUP    "spead_api_setup"
-#define SAPI_DESTROY  "spead_api_destroy"
+#define SAPI_CALLBACK         "spead_api_callback"
+#define SAPI_SETUP            "spead_api_setup"
+#define SAPI_DESTROY          "spead_api_destroy"
+#define SAPI_TIMER_CALLBACK   "spead_api_timer_callback"
 
 struct spead_api_module_shared {
   mutex   s_m;
@@ -38,7 +39,8 @@ struct spead_api_module {
   void *m_handle;
   void *(*m_setup)(struct spead_api_module_shared *s);
   int  (*m_cdfn)(struct spead_api_module_shared *s, struct spead_item_group *ig, void *data);
-  int  (*m_destroy)(void *data);
+  int  (*m_destroy)(struct spead_api_module_shared *s, void *data);
+  int  (*m_timer)(struct spead_api_module_shared *s, void *data);
   void *m_data;
 };
 
@@ -116,7 +118,7 @@ struct shared_mem_region {
   uint64_t                    r_id;
   uint64_t                    r_size;
   uint64_t                    r_off;
-  struct shared_meme_region   *r_next;
+  struct shared_mem_region   *r_next;
   void                        *r_ptr;
 };
 
@@ -182,12 +184,14 @@ int setup_api_user_module(struct spead_api_module *m);
 int destroy_api_user_module(struct spead_api_module *m);
 int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_group *ig);
 
-
 void lock_spead_api_module_shared(struct spead_api_module_shared *s);
 void unlock_spead_api_module_shared(struct spead_api_module_shared *s);
+void set_data_spead_api_module_shared(struct spead_api_module_shared *s, void *data, size_t size);
+void *get_data_spead_api_module_shared(struct spead_api_module_shared *s);
+void clear_data_spead_api_module_shared(struct spead_api_module_shared *s);
+size_t get_data_size_spead_api_module_shared(struct spead_api_module_shared *s);
 
 void print_data(unsigned char *buf, int size);
-
 
 /*spead store api*/
 struct spead_heap_store *create_store_hs(uint64_t list_len, uint64_t hash_table_count, uint64_t hash_table_size);

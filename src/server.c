@@ -509,6 +509,13 @@ int server_run_loop(struct u_server *s)
     
 #ifdef DATA
     if (timer){
+    
+      if (run_module_timer_callbacks(s->s_mod) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "%s: problem running module timer callbacks\n", __func__);
+#endif
+      }
+
       lock_mutex(&(s->s_m));
       total = s->s_bc - total;
       unlock_mutex(&(s->s_m));

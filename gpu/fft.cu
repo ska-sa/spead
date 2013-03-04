@@ -46,7 +46,7 @@ static __global__ void phase(cufftComplex *data, float *out)
 }
 #endif
 
-void spead_api_destroy(void *data)
+void spead_api_destroy(struct spead_api_module_shared *s, void *data)
 {
   struct cufft_o *fo;
 
@@ -92,7 +92,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
 #ifdef DEBUG
     fprintf(stderr, "cuda err: plan creation failed\n");
 #endif
-    spead_api_destroy(fo);
+    spead_api_destroy(s, fo);
     return NULL;
   }
 
@@ -103,7 +103,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
 #ifdef DEBUG
     fprintf(stderr, "e: malloc failed\n");
 #endif
-    spead_api_destroy(fo);
+    spead_api_destroy(s, fo);
     return NULL;
   }
 
@@ -132,7 +132,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
 #ifdef DEBUG
     fprintf(stderr, "cuda err: failed to cudamalloc\n");
 #endif
-    spead_api_destroy(fo);
+    spead_api_destroy(s, fo);
     return NULL;
   }
 

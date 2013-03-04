@@ -224,9 +224,9 @@ void *shared_malloc(size_t size)
   if (m_area == NULL)
     create_shared_mem();
 
-  if (size < 0){
+  if (size < 0 || size < sizeof(struct shared_mem_free)){
 #ifdef DEBUG
-    fprintf(stderr, "%s: a shared memory segment must have a positive size\n", __func__); 
+    fprintf(stderr, "%s: \033[31ma shared memory segment must have a positive size and > sizeof(struct shared_mem_free) %ld\033[0m\n", __func__, sizeof(struct shared_mem_free)); 
 #endif
     return NULL;
   }
@@ -332,7 +332,7 @@ void shared_free(void *ptr, size_t size)
     s = shared_malloc(sizeof(struct shared_mem_size));
     if (s == NULL || size < sizeof(struct shared_mem_free)){
 #ifdef DEBUG
-      fprintf(stderr, "%s: FAILURE\n", __func__);
+      fprintf(stderr, "%s: FAILURE null or size %ld < shared_mem_free_size %ld\n", __func__, size, sizeof(struct shared_mem_free));
 #endif
       return;
     }
@@ -351,7 +351,7 @@ void shared_free(void *ptr, size_t size)
 
     if (store_named_node_avltree(m->m_free, &(s->s_size), s) < 0){
 #ifdef DEBUG
-      fprintf(stderr, "%s: FAILURE\n", __func__);
+      fprintf(stderr, "%s: FAILURE cannot store size group in free tree\n", __func__);
 #endif  
       shared_free(s, sizeof(struct shared_mem_size));
       unlock_mutex(&(s->s_m));

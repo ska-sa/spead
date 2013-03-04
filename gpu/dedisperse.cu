@@ -62,7 +62,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
   return o;
 }
 
-void spead_api_destroy(void *data)
+void spead_api_destroy(struct spead_api_module_shared *s, void *data)
 {
   struct sapi_obj *o;
 

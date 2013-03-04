@@ -6,7 +6,7 @@
 
 #include <spead_api.h>
 
-void spead_api_destroy(void *data)
+void spead_api_destroy(struct spead_api_module_shared *s, void *data)
 {
 
 }
