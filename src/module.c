@@ -16,10 +16,12 @@ struct spead_api_module *load_api_user_module(char *mod)
 {
   void *mhandle;
   struct spead_api_module *m;
+  struct spead_api_module_shared *s;
 
-  int (*cb)(struct spead_item_group *ig);
-  void *(*setup)();
-  int (*destroy)(void *data);
+  int (*cb)(struct spead_api_module_shared *s, struct spead_item_group *ig, void *data);
+  void *(*setup)(struct spead_api_module_shared *s);
+  int (*destroy)(struct spead_api_module_shared *s, void *data);
+  int (*timer)(struct spead_api_module_shared *s, void *data);
 
   if (mod == NULL){
 #ifdef DEBUG
@@ -38,25 +40,25 @@ struct spead_api_module *load_api_user_module(char *mod)
 
   cb = dlsym(mhandle, SAPI_CALLBACK); 
   if (cb == NULL){
-#ifdef DEBUG
     fprintf(stderr, "%s: module doesn't implement (%s) (%s)\n", __func__, SAPI_CALLBACK, dlerror());
-#endif
     dlclose(mhandle);
     return NULL;
   }
   setup = dlsym(mhandle, SAPI_SETUP); 
   if (setup == NULL){
-#ifdef DEBUG
     fprintf(stderr, "%s: module doesn't implement (%s) (%s)\n", __func__, SAPI_SETUP, dlerror());
-#endif
     dlclose(mhandle);
     return NULL;
   }
   destroy = dlsym(mhandle, SAPI_DESTROY); 
   if (destroy == NULL){
-#ifdef DEBUG
     fprintf(stderr, "%s: module doesn't implement (%s) (%s)\n", __func__, SAPI_DESTROY, dlerror());
-#endif
+    dlclose(mhandle);
+    return NULL;
+  }
+  timer = dlsym(mhandle, SAPI_TIMER_CALLBACK); 
+  if (timer == NULL){
+    fprintf(stderr, "%s: module doesn't implement (%s) (%s)\n", __func__, SAPI_TIMER_CALLBACK, dlerror());
     dlclose(mhandle);
     return NULL;
   }
@@ -74,8 +76,21 @@ struct spead_api_module *load_api_user_module(char *mod)
   m->m_cdfn    = cb;
   m->m_destroy = destroy;
   m->m_setup   = setup;
+  m->m_timer   = timer;
 
   m->m_data    = NULL;
+
+  m->m_s       = shared_malloc(sizeof(struct spead_api_module_shared));
+  if (m->m_s == NULL){
+    unload_api_user_module(m);
+    return NULL;
+  }
+
+  s = m->m_s;
+
+  s->s_m          = 0;
+  s->s_data       = NULL;
+  s->s_data_size  = 0;
 
 #if 0
   m->m_data    = (*setup)();
@@ -102,7 +117,6 @@ void unload_api_user_module(struct spead_api_module *m)
       (*m->m_destroy)(m->m_data);
     }
 #endif
-
     if (m->m_handle){
       dlclose(m->m_handle);
       if((err = dlerror()) != NULL){
@@ -110,13 +124,13 @@ void unload_api_user_module(struct spead_api_module *m)
         fprintf(stderr, "%s: dlerror <%s>\n", __func__, err);
 #endif
       }
-
     }
-
+    if (m->m_s){
+      shared_free(m, sizeof(struct spead_api_module_shared));
+      m->m_s = NULL;
+    }
     shared_free(m, sizeof(struct spead_api_module));
-     
   }
-
 #ifdef DEBUG
   fprintf(stderr, "%s: done\n", __func__);
 #endif
@@ -126,7 +140,7 @@ int setup_api_user_module(struct spead_api_module *m)
 {
   if (m){
     if (m->m_setup){
-      m->m_data = (*m->m_setup)();
+      m->m_data = (*m->m_setup)(m->m_s);
 #ifdef DEBUG
       fprintf(stderr, "%s: module (%p) data @ (%p)\n", __func__, m, m->m_data);
 #endif
@@ -140,7 +154,7 @@ int destroy_api_user_module(struct spead_api_module *m)
 {
   if (m){
     if (m->m_destroy){
-      (*m->m_destroy)(m->m_data);
+      (*m->m_destroy)(m->m_s, m->m_data);
 #ifdef DEBUG
       fprintf(stderr, "%s: module (%p) data destroy called\n", __func__, m);
 #endif
@@ -157,7 +171,7 @@ int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_g
 #ifdef DEBUG
       fprintf(stderr, "%s: about to call api callback\n", __func__);
 #endif
-      return (*m->m_cdfn)(ig, m->m_data);
+      return (*m->m_cdfn)(m->m_s, ig, m->m_data);
     }
 #ifdef DEBUG
     fprintf(stderr, "%s: null call back function\n", __func__);
@@ -166,3 +180,53 @@ int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_g
   return -1; 
 }
 
+
+void lock_spead_api_module_shared(struct spead_api_module_shared *s)
+{
+  if (s){
+    lock_mutex(&(s->s_m));
+  }
+}
+
+void unlock_spead_api_module_shared(struct spead_api_module_shared *s)
+{
+  if (s){
+    unlock_mutex(&(s->s_m));
+  }
+}
+
+void *get_data_spead_api_module_shared(struct spead_api_module_shared *s)
+{
+  return (s)?s->s_data:NULL;
+}
+
+void set_data_spead_api_module_shared(struct spead_api_module_shared *s, void *data, size_t size)
+{
+  if (s){
+    s->s_data = data;
+    s->s_data_size = size;
+  }
+}
+
+size_t get_data_size_spead_api_module_shared(struct spead_api_module_shared *s)
+{
+  return (s)?s->s_data_size:0;
+}
+
+void clear_data_spead_api_module_shared(struct spead_api_module_shared *s)
+{
+  if (s){
+    s->s_data = NULL;
+    s->s_data_size = 0;
+  }
+}
+
+int run_module_timer_callbacks(struct spead_api_module *m)
+{
+  if (m){
+    if (m->m_timer){
+      return (*m->m_timer)(m->m_s, m->m_data);
+    }
+  }
+  return -1;
+}

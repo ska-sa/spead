@@ -11,12 +11,12 @@
 
 #define IN_DATA_SET(val) ((val) == 0x08 || (val) == 0x09 || (val) == 0x0)
 
-void spead_api_destroy(void *data)
+void spead_api_destroy(struct spead_api_module_shared *s, void *data)
 {
   fprintf(stdout, "e\ne\n");
 }
 
-void *spead_api_setup()
+void *spead_api_setup(struct spead_api_module_shared *s)
 {
   
   fprintf(stdout, "set term x11 size 1280,720\nset view map\nsplot '-' matrix with image\n");
@@ -25,7 +25,7 @@ void *spead_api_setup()
   return NULL;
 }
 
-int spead_api_callback(struct spead_item_group *ig, void *data)
+int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_group *ig, void *data)
 {
   struct spead_api_item *itm;
   uint64_t off, i, j;
