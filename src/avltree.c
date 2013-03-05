@@ -808,7 +808,7 @@ void free_node_avltree(struct avl_node *n, void (*d_free)(void *))
 #endif
     /*TODO: we have the nodes in shared mem so we can 
         assume they are nuked the the end of the run*/
-    //shared_free(n, sizeof(struct avl_node)); 
+    shared_free(n, sizeof(struct avl_node)); 
     n = NULL;
   }
 }
@@ -1151,7 +1151,7 @@ void destroy_avltree(struct avl_tree *t, void (*d_free)(void *))
 #endif
         dn->n_parent = NULL;
 
-        //shared_free(dn, sizeof(struct avl_node));
+        shared_free(dn, sizeof(struct avl_node));
 
 #if DEBUG >1
         fprintf(stderr,"avl_tree: done\n");
@@ -1161,8 +1161,8 @@ void destroy_avltree(struct avl_tree *t, void (*d_free)(void *))
     }
   }
 
- // if (t != NULL)
-    //shared_free(t, sizeof(struct avl_tree));
+  if (t != NULL)
+    shared_free(t, sizeof(struct avl_tree));
 }
 
 char *gen_id_avltree(char *prefix)

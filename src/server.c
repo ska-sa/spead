@@ -457,6 +457,7 @@ ndef DEBUG
 
 int server_run_loop(struct u_server *s)
 {
+  struct timespec ts;
   struct sigaction sa;
   uint64_t total;
   int rtn;
@@ -481,6 +482,10 @@ int server_run_loop(struct u_server *s)
 
   total = 0;
 
+  ts.tv_sec  = 0;
+  ts.tv_nsec = 100000000;
+  //ts.tv_nsec = 0;
+
   while (run){
 
     if (populate_fdset_spead_workers(s->s_w) < 0){
@@ -491,7 +496,7 @@ int server_run_loop(struct u_server *s)
       break;
     }
 
-    rtn = pselect(get_high_fd_spead_workers(s->s_w) + 1, get_in_fd_set_spead_workers(s->s_w), (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask);
+    rtn = pselect(get_high_fd_spead_workers(s->s_w) + 1, get_in_fd_set_spead_workers(s->s_w), (fd_set *) NULL, (fd_set *) NULL, &ts, &empty_mask);
     if (rtn < 0){
       switch(errno){
         case EAGAIN:
@@ -506,15 +511,15 @@ int server_run_loop(struct u_server *s)
           continue;
       }
     }
+
+    if (run_module_timer_callbacks(s->s_mod) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: problem running module timer callbacks\n", __func__);
+#endif
+    }
     
 #ifdef DATA
     if (timer){
-    
-      if (run_module_timer_callbacks(s->s_mod) < 0){
-#ifdef DEBUG
-        fprintf(stderr, "%s: problem running module timer callbacks\n", __func__);
-#endif
-      }
 
       lock_mutex(&(s->s_m));
       total = s->s_bc - total;

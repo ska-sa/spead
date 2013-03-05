@@ -104,7 +104,7 @@ struct coalesce_parcel {
 
 /*spead shared_mem api*/
 
-#define SHARED_MEM_REGION_SIZE  100*1024*1024
+#define SHARED_MEM_REGION_SIZE  1000*1024*1024
 
 struct shared_mem {
   mutex                     m_m;
@@ -183,6 +183,8 @@ void unload_api_user_module(struct spead_api_module *m);
 int setup_api_user_module(struct spead_api_module *m);
 int destroy_api_user_module(struct spead_api_module *m);
 int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_group *ig);
+
+int run_module_timer_callbacks(struct spead_api_module *m);
 
 void lock_spead_api_module_shared(struct spead_api_module_shared *s);
 void unlock_spead_api_module_shared(struct spead_api_module_shared *s);

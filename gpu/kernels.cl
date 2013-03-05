@@ -40,3 +40,9 @@ __kernel void phase(__global const float2 *in, __global float *out)
   out[i] = atan2(in[i].y, in[i].x);
 }
 
+__kernel void power_uint8_to_float(__global const uint8_t *in, __global float *out)
+{
+  
+
+
+}
