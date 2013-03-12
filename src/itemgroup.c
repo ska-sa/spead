@@ -219,6 +219,28 @@ struct spead_api_item *get_next_spead_item(struct spead_item_group *ig, struct s
   return get_spead_item_at_off(ig, off);
 }
 
+struct spead_api_item *get_spead_item_with_id(struct spead_item_group *ig, uint64_t iid)
+{
+  struct spead_api_item *itm;
+
+  if (ig == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: null params\n", __func__);
+#endif
+    return NULL;
+  }
+  
+  itm = NULL;
+
+  while ((itm = get_next_spead_item(ig, itm))) {
+    if (itm->i_id == iid){
+      return itm;
+    }
+  }
+  
+  return NULL;
+}
+
 int set_spead_item_io_data(struct spead_api_item *itm, void *ptr, size_t size)
 {
   if (itm){

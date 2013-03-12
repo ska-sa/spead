@@ -215,6 +215,7 @@ int grow_spead_item_group(struct spead_item_group *ig, uint64_t extradata, uint6
 struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n);
 #endif
 struct spead_api_item *get_next_spead_item(struct spead_item_group *ig, struct spead_api_item *itm);
+struct spead_api_item *get_spead_item_with_id(struct spead_item_group *ig, uint64_t iid);
 struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64_t off);
 int set_spead_item_io_data(struct spead_api_item *itm, void *ptr, size_t size);
 int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len);
@@ -253,6 +254,7 @@ int64_t request_packet_raw_packet_datafile(struct data_file *f, void **ptr);
 int write_chunk_raw_data_file(struct data_file *f, uint64_t off, void *src, uint64_t len);
 int write_next_chunk_raw_data_file(struct data_file *f, void *src, uint64_t len);
 
+static char *itoa(int i, char b[]);
 
 /*spead socket api*/
 void destroy_spead_socket(struct spead_socket *x);
@@ -283,6 +285,7 @@ fd_set *get_in_fd_set_spead_workers(struct spead_workers *w);
 
 /*spead worker compare function*/
 int compare_spead_workers(const void *v1, const void *v2);
+
 
 
 

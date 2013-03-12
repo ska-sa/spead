@@ -38,6 +38,8 @@ void destroy_ocl_ds(void *data);
 struct ocl_kernel* create_ocl_kernel(struct ocl_ds *d, char *kernel_name);
 void destroy_ocl_kernel(void *data);
 
+cl_mem create_ocl_mem(struct ocl_ds *ds, size_t size);
+void destroy_ocl_mem(cl_mem m);
 
 #endif
 

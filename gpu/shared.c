@@ -486,5 +486,33 @@ struct ocl_ds *create_ocl_ds(char *kernels_file)
   return ds;
 }
 
+cl_mem create_ocl_mem(struct ocl_ds *ds, size_t size)
+{
+  cl_mem m;
+  cl_int err;
 
+  if (ds == NULL || size <= 0){
+#ifdef DEBUG 
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return NULL;
+  }
+
+  m = clCreateBuffer(ds->d_ctx, CL_MEM_READ_WRITE, size, NULL, &err);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error creating cl read/write buffer\n", __func__);
+#endif
+    return NULL;
+  }
+
+  return m;
+}
+
+void destroy_ocl_mem(cl_mem m)
+{ 
+  if (m){
+    clReleaseMemObject(m);
+  }
+}
 

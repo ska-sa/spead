@@ -18,8 +18,11 @@ struct snap_shot {
 };
 
 struct sapi_object {
-  struct ocl_ds *o_ds;
+  struct ocl_ds     *o_ds;
   struct ocl_kernel *o_power;
+  cl_mem            o_cl_mem_in;
+  cl_mem            o_cl_mem_out;
+  uint64_t          o_cl_mem_len;
 };
 
 void destroy_sapi_object(void *data)
@@ -27,6 +30,8 @@ void destroy_sapi_object(void *data)
   struct sapi_object *so;
   so = data;
   if (so == NULL){
+    destroy_ocl_mem(so->o_cl_mem_in);
+    destroy_ocl_mem(so->o_cl_mem_out);
     destroy_ocl_kernel(so->o_power);
     destroy_ocl_ds(so->o_ds);
     shared_free(so, sizeof(struct sapi_object));
@@ -99,6 +104,9 @@ void *spead_api_setup(struct spead_api_module_shared *s)
   so = shared_malloc(sizeof(struct sapi_object));
   if (so == NULL)
     return NULL;
+
+  so->o_cl_mem_in   = NULL;
+  so->o_cl_mem_out  = NULL;
   
   so->o_ds = create_ocl_ds(KERNELDIR KERNELS_FILE);
   if (so->o_ds == NULL){
@@ -106,7 +114,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
     return NULL;
   }
 
-  so->o_power = create_ocl_kernel(so->o_ds, "power");
+  so->o_power = create_ocl_kernel(so->o_ds, "power_uint8_to_float");
   if (so->o_power == NULL){
     destroy_sapi_object(so);
     return NULL;
@@ -114,6 +122,29 @@ void *spead_api_setup(struct spead_api_module_shared *s)
 
   return so;
 }
+
+int setup_cl_mem_buffers(struct sapi_object *so, uint64_t len)
+{
+  if (so == NULL || len <= 0)
+    return -1;
+  
+  so->o_cl_mem_in = create_ocl_mem(so->o_ds, sizeof(uint8_t)*len);
+  if (so->o_cl_mem_in == NULL)
+    return -1;
+
+  so->o_cl_mem_out = create_ocl_mem(so->o_ds, sizeof(float)*len);
+  if (so->o_cl_mem_out == NULL){
+    destroy_ocl_mem(so->o_cl_mem_in);
+    so->o_cl_mem_in = NULL;
+    return -1;
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: cl_mem_buffers created\n", __func__);
+#endif
+  return 0;
+}
+
 
 int format_bf_data_hack(void *data, uint64_t data_len)
 {
@@ -138,8 +169,8 @@ int format_bf_data_hack(void *data, uint64_t data_len)
   for (time=0; time < TIMESAMPLES; time++){
     for(chan=0; chan < chans; chan++){
       
-      re = da[time+chan*TIMESAMPLES];
-      im = da[time+chan*TIMESAMPLES+1];
+      re = da[BYTES_PER_SAMPLE*(time+chan*TIMESAMPLES)];
+      im = da[BYTES_PER_SAMPLE*(time+chan*TIMESAMPLES)+1];
 
       fprintf(stdout, "%f ", hypotf((float)re, (float)im));
 
@@ -149,9 +180,6 @@ int format_bf_data_hack(void *data, uint64_t data_len)
   fprintf(stdout, "e\ne\n");
   fflush(stdout);
 #endif
-
-  
-
   return 0; 
 }
 
@@ -173,6 +201,19 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
     return -1;
   }
 
+  itm = get_spead_item_with_id(ig, SPEAD_BF_DATA_ID);
+  if (itm == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot find item with id 0x%x\n", __func__, SPEAD_BF_DATA_ID);
+#endif
+    return -1;
+  }
+
+  if (so->o_cl_mem_in == NULL || so->o_cl_mem_out == NULL){
+    if (setup_cl_mem_buffers(so, itm->i_data_len) < 0)
+      return -1;
+  }
+
   ss = get_data_spead_api_module_shared(s);
 
   lock_spead_api_module_shared(s);
@@ -187,27 +228,21 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   }
   
   if (flag && ig != NULL){
-    
+
 #ifdef DEBUG
     fprintf(stderr, "%s: PID %d got the flag\nitems=[%ld] size=[%ld]\n", __func__, getpid(), ig->g_items, ig->g_size);
 #endif
 
-    while ((itm = get_next_spead_item(ig, itm))){
-      
-      if (itm->i_id == SPEAD_BF_DATA_ID){
 #ifdef DEBUG
-        fprintf(stderr, "%s: id [\033[32m%s\033[0m\t0x%x] data size [%ld]\n", __func__, hr_spead_id(itm->i_id), itm->i_id, itm->i_data_len);
+    fprintf(stderr, "%s: id [\033[32m%s\033[0m\t0x%x] data size [%ld]\n", __func__, hr_spead_id(itm->i_id), itm->i_id, itm->i_data_len);
 #endif
 
-        if (format_bf_data_hack(itm->i_data, itm->i_data_len) < 0){
+    if (format_bf_data_hack(itm->i_data, itm->i_data_len) < 0){
 #ifdef DEBUG
-          fprintf(stderr, "%s: error formatting data\n", __func__);
+      fprintf(stderr, "%s: error formatting data\n", __func__);
 #endif
-        }
-        break;
-        
-      }
     }
+
   }
 
   unlock_spead_api_module_shared(s);

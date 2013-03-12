@@ -1178,7 +1178,7 @@ char *gen_id_avltree(char *prefix)
 
   while (id == NULL){
     if (id == NULL && len > 0){
-      id = malloc(sizeof(char)*len);
+      id = shared_malloc(sizeof(char)*len);
 #if 0
       def DEBUG
       fprintf(stderr, "gen_id_avltree: done malloc %p for len: %d\n", id, len);
@@ -1191,8 +1191,7 @@ char *gen_id_avltree(char *prefix)
 #endif
   }
 
-#if 0
-  def DEBUG
+#ifdef DEBUG
   fprintf(stderr, "gen_id_avltree: %s\n", id);
 #endif
   
