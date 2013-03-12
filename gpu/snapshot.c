@@ -67,6 +67,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
 #endif
 
     fprintf(stdout, "set term x11 size 1280,720\nset view map\n");
+fflush(stdout);
     
   
   }
@@ -97,8 +98,8 @@ int format_bf_data_hack(void *data, uint64_t data_len)
   
     for(chan=0; chan < chans; chan++){
       
-      re = da[time+chan*TIMESAMPLES];
-      im = da[time+chan*TIMESAMPLES+1];
+      re = da[BYTES_PER_SAMPLE*(time+chan*TIMESAMPLES)];
+      im = da[BYTES_PER_SAMPLE*(time+chan*TIMESAMPLES)+1];
 
       fprintf(stdout, "%f ", hypotf((float)re, (float)im));
 
@@ -108,6 +109,7 @@ int format_bf_data_hack(void *data, uint64_t data_len)
 
   }
   fprintf(stdout, "e\ne\n");
+fflush(stdout);
   
   return 0; 
 }
@@ -130,7 +132,6 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
     flag = 1;
     ss->flag[0] = 0;
   }
-  unlock_spead_api_module_shared(s);
   
   if (flag && ig != NULL){
     
@@ -145,11 +146,12 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
         fprintf(stderr, "%s: id [\033[32m%s\033[0m\t0x%x] data size [%ld]\n", __func__, hr_spead_id(itm->i_id), itm->i_id, itm->i_data_len);
 #endif
 
-        return format_bf_data_hack(itm->i_data, itm->i_data_len);
+        format_bf_data_hack(itm->i_data, itm->i_data_len);
 
       }
     }
   }
+  unlock_spead_api_module_shared(s);
 
   return 0;
 }
