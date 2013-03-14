@@ -336,7 +336,9 @@ void shared_free(void *ptr, size_t size)
 #endif
       return;
     }
-    
+
+    s->s_m    = 0;
+
     lock_mutex(&(s->s_m));
 
 #if DEBUG>1

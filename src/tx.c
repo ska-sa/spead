@@ -416,6 +416,8 @@ int worker_task_raw_packet_file_speadtx(void *data, struct spead_api_module *m, 
 #ifdef DEBUG
       fprintf(stderr, "%s: send_packet error\n", __func__);
 #endif
+      run = 0;
+      return -1;
     }
   
   }
@@ -512,7 +514,10 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
     
     /*saw a SIGCHLD*/
     if (child){
-      wait_spead_workers(tx->t_w);
+      if (wait_spead_workers(tx->t_w) == 0){
+        run = 0;
+        break;
+      }
     }
     
   }

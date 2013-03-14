@@ -367,18 +367,18 @@ int64_t request_packet_raw_packet_datafile(struct data_file *f, void **ptr)
   return rtn; 
 }
 
-static char *itoa(int i, char b[])
+char *itoa(int64_t i, char b[])
 {
   char const digit[] = "0123456789";
   char *p = b;
-  int shifter;
+  int64_t shifter;
 
   if (b == NULL)
     return NULL;
   
   if (i<0) {
     *p++ = '-';
-    i = -1;
+    i    = -1;
   }
   
   shifter = i;
@@ -391,7 +391,7 @@ static char *itoa(int i, char b[])
   *p = '\0';
   do { 
     *--p = digit[i % 10];
-    i = i/10;
+    i = i / 10;
   } while(i);
 
   return b;

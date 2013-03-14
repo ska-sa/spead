@@ -25,7 +25,9 @@ void spead_api_destroy(struct spead_api_module_shared *s, void *data)
     
     if (json->j_name)
       shared_free(json->j_name, sizeof(char)*(strlen(json->j_name) + 1));
+
     destroy_raw_data_file(json->j_df);
+
     shared_free(json, sizeof(struct json_file));
 
     clear_data_spead_api_module_shared(s);
@@ -95,12 +97,10 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 
   while((itm = get_next_spead_item(ig, itm))){
     
-    len = snprintf(NULL, 0, 
-
     write_next_chunk_raw_data_file(json->j_df, "{", strlen("{"));
     
-    buf = itoa(&(itm->i_id), buf);
-    write_next_chunk_raw_data_file(json->j_df, buf, strlen(buf));
+    src = itoa(itm->i_id, buf);
+    write_next_chunk_raw_data_file(json->j_df, src, strlen(buf));
     write_next_chunk_raw_data_file(json->j_df, ":", strlen(":"));
 
     write_next_chunk_raw_data_file(json->j_df, itm->i_data, itm->i_data_len);

@@ -147,7 +147,9 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus, char *r
   s->s_hpcount = 0;
   s->s_hdcount = 0;
   s->s_cpus    = cpus;
+#if 0
   s->s_cs      = NULL;
+#endif
   s->s_hs      = NULL;
   s->s_m       = 0;
   s->s_mod     = m;
@@ -168,6 +170,7 @@ void destroy_server_us(struct u_server *s)
 
   if (s){
     
+#if 0
     if (s->s_cs){
 
       for (i=0; i < s->s_cpus; i++){
@@ -177,6 +180,8 @@ void destroy_server_us(struct u_server *s)
       free(s->s_cs);
     }
     
+#endif
+
     destroy_spead_socket(s->s_x);
     destroy_spead_workers(s->s_w);
     
@@ -513,7 +518,7 @@ int server_run_loop(struct u_server *s)
     }
 
     if (run_module_timer_callbacks(s->s_mod) < 0){
-#ifdef DEBUG
+#if DEBUG>1
       fprintf(stderr, "%s: problem running module timer callbacks\n", __func__);
 #endif
     }
@@ -614,7 +619,6 @@ int raw_spead_cap_worker(void *data, struct spead_api_module *m, int cfd)
 #endif
       continue;
     }
-      
     
     if (write_next_chunk_raw_data_file(f, p->data, nread) < 0) {
 #ifdef DEBUG

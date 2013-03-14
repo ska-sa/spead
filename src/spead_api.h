@@ -254,7 +254,7 @@ int64_t request_packet_raw_packet_datafile(struct data_file *f, void **ptr);
 int write_chunk_raw_data_file(struct data_file *f, uint64_t off, void *src, uint64_t len);
 int write_next_chunk_raw_data_file(struct data_file *f, void *src, uint64_t len);
 
-static char *itoa(int i, char b[]);
+char *itoa(int64_t i, char b[]);
 
 /*spead socket api*/
 void destroy_spead_socket(struct spead_socket *x);

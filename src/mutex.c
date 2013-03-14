@@ -34,7 +34,15 @@ void lock_mutex(mutex *m)
     c = xchg(m, 2);
 
   while (c){
-    syscall(SYS_futex, m, FUTEX_WAIT, 2, NULL, NULL, 0);
+    if (syscall(SYS_futex, m, FUTEX_WAIT, 2, NULL, NULL, 0) < 0){
+      switch (errno){
+        case EINVAL:
+#ifdef DEBUG
+          fprintf(stderr, "%s: erorr einval\n", __func__);
+#endif
+          return;
+      }
+    }
     c = xchg(m, 2);
   }
   
@@ -60,7 +68,15 @@ void unlock_mutex(mutex *m)
     cpu_relax();
   }
     
-  syscall(SYS_futex, m, FUTEX_WAKE, 1, NULL, NULL, 0);
+  if(syscall(SYS_futex, m, FUTEX_WAKE, 1, NULL, NULL, 0) < 0){
+    switch (errno){
+      case EINVAL:
+#ifdef DEBUG
+        fprintf(stderr, "%s: erorr einval\n", __func__);
+#endif
+        return;
+    }
+  }
   
   return;
 }
