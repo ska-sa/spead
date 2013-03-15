@@ -243,9 +243,6 @@ int add_child_us(struct u_child ***cs, struct u_child *c, int size)
   return size + 1;
 }
 
-#if 0
-struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s, struct spead_api_module *m, int cfd))
-#endif
 struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd))
 {
   int pipefd[2];
