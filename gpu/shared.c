@@ -12,6 +12,7 @@
 #include <CL/opencl.h>
 
 #include "shared.h"
+#include <spead_api.h>
 
 cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
 {
@@ -368,23 +369,150 @@ cl_kernel get_kernel(char *name, cl_program *p)
   return k;
 }
 
-#if 0
-void destroy(cl_kernel *kernel, cl_context *context, cl_command_queue *command_queue, cl_program *program)
-#endif
 void destroy(cl_context *context, cl_command_queue *command_queue, cl_program *program)
 {
   if(program)
     clReleaseProgram(*program);
-
-#if 0
-  if(kernel)
-    clReleaseKernel(*kernel); 
-#endif
 
   if(command_queue)
     clReleaseCommandQueue(*command_queue);
 
   if(context)
     clReleaseContext(*context);
+}
+
+
+
+#if 0
+int compare_kernels(const void *v1, const void *v2)
+{
+  return strcmp((const char*) v1, (const char*) v2);
+}
+#endif
+
+struct ocl_kernel* create_ocl_kernel(struct ocl_ds *d, char *kernel_name)
+{
+  struct ocl_kernel *k;
+
+  if (kernel_name == NULL || d == NULL)
+    return NULL;
+
+  k = shared_malloc(sizeof(struct ocl_kernel));
+  if (k == NULL)
+    return NULL;
+  
+  k->k_name = kernel_name;
+
+  k->k_kernel = get_kernel(kernel_name, &(d->d_p));
+  if (k->k_kernel == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: get_kernel error\n", __func__);
+#endif
+    shared_free(k, sizeof(struct ocl_kernel));
+    return NULL;
+  }
+
+  return k;
+} 
+
+
+void destroy_ocl_kernel(void *data)
+{
+  struct ocl_kernel *k;
+  k = data;
+  if (k){
+    
+    if (k->k_kernel)
+      clReleaseKernel(k->k_kernel);
+
+    shared_free(k, sizeof(struct ocl_kernel));
+  }
+}
+
+void destroy_ocl_ds(void *data)
+{
+  struct ocl_ds *ds;
+  ds = data;
+  if (ds){
+    destroy(&(ds->d_ctx), &(ds->d_cq), &(ds->d_p));
+#if 0
+    destroy_avltree(ds->d_kernels, &destroy_ocl_kernel);
+#endif
+    shared_free(ds, sizeof(struct ocl_ds));
+  }
+}
+
+struct ocl_ds *create_ocl_ds(char *kernels_file)
+{
+  struct ocl_ds *ds;
+
+  if (kernels_file == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cannot start opencl with null kernels path\n", __func__);
+#endif
+    return NULL;
+  }
+
+  ds = shared_malloc(sizeof(struct ocl_ds));
+  if (ds == NULL)
+    return NULL;
+
+  ds->d_ctx       = NULL;
+  ds->d_cq        = NULL;
+  ds->d_p         = NULL;
+#if 0
+  ds->d_kernels   = NULL;
+#endif
+
+  if (setup_ocl(kernels_file, &(ds->d_ctx), &(ds->d_cq), &(ds->d_p)) != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "%s: setup_ocl error\n", __func__);
+#endif
+    destroy_ocl_ds(ds);
+    return NULL;
+  }
+
+#if 0
+  ds->d_kernels = create_avltree(&compare_kernels);
+  if (ds->d_kernels == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: create kernel tree error\n");
+#endif
+    destroy_ocl_ds(ds);
+    return NULL;
+  }
+#endif
+
+  return ds;
+}
+
+cl_mem create_ocl_mem(struct ocl_ds *ds, size_t size)
+{
+  cl_mem m;
+  cl_int err;
+
+  if (ds == NULL || size <= 0){
+#ifdef DEBUG 
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return NULL;
+  }
+
+  m = clCreateBuffer(ds->d_ctx, CL_MEM_READ_WRITE, size, NULL, &err);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error creating cl read/write buffer\n", __func__);
+#endif
+    return NULL;
+  }
+
+  return m;
+}
+
+void destroy_ocl_mem(cl_mem m)
+{ 
+  if (m){
+    clReleaseMemObject(m);
+  }
 }
 

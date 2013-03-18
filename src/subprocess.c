@@ -21,7 +21,16 @@
 void destroy_spead_workers(struct spead_workers *w)
 {
   if (w){
-    destroy_avltree(w->w_tree, &destroy_child_sp); 
+
+    do {
+      wait_spead_workers(w);
+#if DEBUG>1
+      fprintf(stderr, "%s: done a wait worker count [%d]\n", __func__, w->w_count);
+#endif
+    } while (w->w_count > 0);
+
+    //destroy_avltree(w->w_tree, &destroy_child_sp); 
+    destroy_avltree(w->w_tree, NULL); 
     free(w);
   }
 }
@@ -135,32 +144,40 @@ int wait_spead_workers(struct spead_workers *w)
   while((pid = waitpid(WAIT_ANY, &status, WNOHANG)) > 0){
 
     if (WIFEXITED(status)) {
-      fprintf(stderr, "exited, status=%d\n", WEXITSTATUS(status));
+#ifdef DEBUG
+      fprintf(stderr, "%s: [%d] exited, status=%d\n", __func__, pid, WEXITSTATUS(status));
+#endif
       if (del_name_node_avltree(w->w_tree, &pid, &destroy_child_sp) == 0){
         w->w_count--;
       }
 
     } else if (WIFSIGNALED(status)) {
-      fprintf(stderr, "killed by signal %d\n", WTERMSIG(status));
+#ifdef DEBUG
+      fprintf(stderr, "%s: [%d] killed by signal %d\n", __func__, pid, WTERMSIG(status));
+#endif
 
       if (del_name_node_avltree(w->w_tree, &pid, &destroy_child_sp) == 0){
         w->w_count--;
       }
 
     } else if (WIFSTOPPED(status)) {
-      fprintf(stderr, "stopped by signal %d\n", WSTOPSIG(status));
+#ifdef DEBUG
+      fprintf(stderr, "%s: [%d] stopped by signal %d\n", __func__, pid,  WSTOPSIG(status));
+#endif
 
       if (del_name_node_avltree(w->w_tree, &pid, &destroy_child_sp) == 0){
         w->w_count--;
       }
 
     } else if (WIFCONTINUED(status)) {
-      fprintf(stderr, "continued\n");
+#ifdef DEBUG
+      fprintf(stderr, "%s: [%d] continued\n", __func__, pid);
+#endif
     }
 
   }
 
-  return 0;
+  return w->w_count;
 }
 
 
@@ -191,16 +208,17 @@ void destroy_child_sp(void *data)
     if (c->c_fd)
       close(c->c_fd);
 
+#if 1
 #ifdef DEBUG
-    fprintf(stderr, "%s: about to send SIGKILL to child [%d]\n", __func__, c->c_pid);
+    fprintf(stderr, "%s: about to send SIGTERM to child [%d]\n", __func__, c->c_pid);
 #endif
 
-    if (kill(c->c_pid, SIGKILL) < 0) {
+    if (kill(c->c_pid, SIGTERM) < 0) {
 #ifdef DEBUG
-      fprintf(stderr, "%s: kill err (%s)\n", __func__, strerror(errno));
+      fprintf(stderr, "%s: TERM err (%s)\n", __func__, strerror(errno));
 #endif
     }
-    
+#endif
     free(c);
   }
 }
@@ -225,9 +243,6 @@ int add_child_us(struct u_child ***cs, struct u_child *c, int size)
   return size + 1;
 }
 
-#if 0
-struct u_child *fork_child_sp(struct u_server *s, int (*call)(struct u_server *s, struct spead_api_module *m, int cfd))
-#endif
 struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd))
 {
   int pipefd[2];

@@ -288,9 +288,5 @@ int send_raw_data_spead_socket(void *obj, void *data, uint64_t len)
   tx->t_pc++;
   unlock_mutex(&(tx->t_m));
 
-#if DEBUG>1
-  fprintf(stderr, "%s: packet (%p) size [%d] sb [%d] bytes\n", __func__, p, mw, sb);
-#endif
-
   return 0;
 }

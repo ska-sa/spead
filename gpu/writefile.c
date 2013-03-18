@@ -82,7 +82,6 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 
       while ((itm = get_next_spead_item(ig, itm))){
         if (itm->i_id == SPEADTX_IID_FILENAME){
-          //fprintf(stderr, "%s: FILENAME [%s]\n", __func__, itm->i_data);
           ws->w_name = strdup((const char*)itm->i_data); 
         }
 #if 0
@@ -102,15 +101,6 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 #endif
         return -1;
       }
-
-#if 0
-      if (lseek(ws->w_fd, ws->w_size, SEEK_SET) < 0){
-#ifdef DEBUG
-        fprintf(stderr, "%s: lseek error (%s)\n", __func__, strerror(errno));
-#endif
-        return -1;
-      }
-#endif
 
 #ifdef DEBUG
      fprintf(stderr, "[%d] %s: STAT %s fd %d\n", getpid(), __func__, ws->w_name, ws->w_fd);
@@ -136,18 +126,8 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
         }
       } while ((itm = get_next_spead_item(ig, itm)));
 
-      //print_data(data_item->i_data, data_item->i_data_len);
-  
 #ifdef DEBUG
      fprintf(stderr, "[%d] %s: WRITE id %ld off %ld\n", getpid(), __func__, chunk_id, off);
-#endif
-#if 0
-      if (lseek(ws->w_fd, off, SEEK_SET) < 0){
-#ifdef DEBUG
-        fprintf(stderr, "%s: lseek error (%s)\n", __func__, strerror(errno));
-#endif
-        return -1;
-      }
 #endif
       
       sw = data_item->i_data_len;
@@ -188,5 +168,9 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   return 0;
 }
 
+int spead_api_timer_callback(struct spead_api_module_shared *s, void *data)
+{
 
+  return 0;
+}
 

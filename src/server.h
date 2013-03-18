@@ -19,8 +19,9 @@ struct u_server {
   mutex s_m;
   long s_cpus;
   struct data_file *s_f;
+#if 0
   struct u_child **s_cs;
-  
+#endif 
   struct spead_socket *s_x;
   struct spead_workers *s_w;
 

@@ -73,4 +73,9 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   return 0;
 }
 
+int spead_api_timer_callback(struct spead_api_module_shared *s, void *data)
+{
+
+  return 0;
+}
 

@@ -82,6 +82,7 @@ struct spead_api_item2{
 };
 
 struct spead_item_group {
+  char      g_cd;
   uint64_t  g_items;
   uint64_t  g_size;
   uint64_t  g_off;
@@ -104,7 +105,7 @@ struct coalesce_parcel {
 
 /*spead shared_mem api*/
 
-#define SHARED_MEM_REGION_SIZE  100*1024*1024
+#define SHARED_MEM_REGION_SIZE  1000*1024*1024
 
 struct shared_mem {
   mutex                     m_m;
@@ -184,6 +185,8 @@ int setup_api_user_module(struct spead_api_module *m);
 int destroy_api_user_module(struct spead_api_module *m);
 int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_group *ig);
 
+int run_module_timer_callbacks(struct spead_api_module *m);
+
 void lock_spead_api_module_shared(struct spead_api_module_shared *s);
 void unlock_spead_api_module_shared(struct spead_api_module_shared *s);
 void set_data_spead_api_module_shared(struct spead_api_module_shared *s, void *data, size_t size);
@@ -203,21 +206,26 @@ struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid);
 
 void print_store_stats(struct spead_heap_store *hs);
 
+
+void set_descriptor_flag_item_group(struct spead_item_group *ig);
+int is_item_descriptor_item_group(struct spead_item_group *ig);
 struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems);
 void destroy_item_group(struct spead_item_group *ig);
 struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size);
 struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spead_item_group *ig, int pkt_size, uint64_t hid);
 int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data);
+int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data);
+
 #if 0
 int grow_spead_item_group(struct spead_item_group *ig, uint64_t extradata, uint64_t extranitems);
 struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n);
 #endif
 struct spead_api_item *get_next_spead_item(struct spead_item_group *ig, struct spead_api_item *itm);
+struct spead_api_item *get_spead_item_with_id(struct spead_item_group *ig, uint64_t iid);
 struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64_t off);
 int set_spead_item_io_data(struct spead_api_item *itm, void *ptr, size_t size);
 int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len);
 int append_copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len);
-
 int set_item_data_ones(struct spead_api_item *itm);
 int set_item_data_zeros(struct spead_api_item *itm);
 int set_item_data_ramp(struct spead_api_item *itm);
@@ -251,6 +259,7 @@ int64_t request_packet_raw_packet_datafile(struct data_file *f, void **ptr);
 int write_chunk_raw_data_file(struct data_file *f, uint64_t off, void *src, uint64_t len);
 int write_next_chunk_raw_data_file(struct data_file *f, void *src, uint64_t len);
 
+char *itoa(int64_t i, char b[]);
 
 /*spead socket api*/
 void destroy_spead_socket(struct spead_socket *x);
@@ -281,6 +290,7 @@ fd_set *get_in_fd_set_spead_workers(struct spead_workers *w);
 
 /*spead worker compare function*/
 int compare_spead_workers(const void *v1, const void *v2);
+
 
 
 
