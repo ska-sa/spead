@@ -82,6 +82,7 @@ struct spead_api_item2{
 };
 
 struct spead_item_group {
+  char      g_cd;
   uint64_t  g_items;
   uint64_t  g_size;
   uint64_t  g_off;
@@ -205,11 +206,16 @@ struct spead_heap *get_heap_hs(struct spead_heap_store *hs, int64_t hid);
 
 void print_store_stats(struct spead_heap_store *hs);
 
+
+void set_descriptor_flag_item_group(struct spead_item_group *ig);
+int is_item_descriptor_item_group(struct spead_item_group *ig);
 struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems);
 void destroy_item_group(struct spead_item_group *ig);
 struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t size);
 struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spead_item_group *ig, int pkt_size, uint64_t hid);
 int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data);
+int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data);
+
 #if 0
 int grow_spead_item_group(struct spead_item_group *ig, uint64_t extradata, uint64_t extranitems);
 struct spead_api_item *get_spead_item(struct spead_item_group *ig, uint64_t n);
@@ -220,7 +226,6 @@ struct spead_api_item *get_spead_item_at_off(struct spead_item_group *ig, uint64
 int set_spead_item_io_data(struct spead_api_item *itm, void *ptr, size_t size);
 int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len);
 int append_copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len);
-
 int set_item_data_ones(struct spead_api_item *itm);
 int set_item_data_zeros(struct spead_api_item *itm);
 int set_item_data_ramp(struct spead_api_item *itm);

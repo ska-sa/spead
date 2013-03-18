@@ -169,18 +169,6 @@ void destroy_server_us(struct u_server *s)
   int i;
 
   if (s){
-    
-#if 0
-    if (s->s_cs){
-
-      for (i=0; i < s->s_cpus; i++){
-        destroy_child_sp(s->s_cs[i]);
-      }
-
-      free(s->s_cs);
-    }
-    
-#endif
 
     destroy_spead_socket(s->s_x);
     destroy_spead_workers(s->s_w);
@@ -387,8 +375,9 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
       continue;
     }
 
-    if ((rtn = process_packet_hs(s, m, o)) < 0){
-      if (rtn == -1){
+    rtn = process_packet_hs(s, m, o);
+    switch (rtn){
+      case -1:
 #ifdef DEBUG
         fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
 #endif
@@ -397,7 +386,20 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
           fprintf(stderr, "%s: cannot push object!\n", __func__);
 #endif
         }
-      }
+        return -1;
+        break;
+
+      case -2:
+#ifdef DEBUG
+        fprintf(stderr, "%s: error in processing ht has been emptied and returned!\n", __func__);
+#endif
+        break;
+
+      case 11:
+#ifdef DEBUG
+        fprintf(stderr, "%s: Stream has terminatated\n", __func__);
+#endif
+        break;
     }
 
     lock_mutex(&(s->s_m));

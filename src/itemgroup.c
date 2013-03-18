@@ -40,6 +40,7 @@ struct spead_item_group *create_item_group(uint64_t datasize, uint64_t nitems)
 
   ig->g_off   = 0;
   ig->g_items = 0;
+  ig->g_cd    = 0;
 
 #if 0
   ig->g_size  = datasize + nitems*(sizeof(struct spead_api_item));
@@ -300,7 +301,11 @@ int append_copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len)
     itm->i_data_len += len;
     return len;
   }
-  
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: len [%ld] + item data len [%ld] is greater than allocated item len [%ld]\n", __func__, len, itm->i_data_len, itm->i_len);
+#endif
+
   return -1;
 }
 
@@ -369,5 +374,14 @@ int set_item_data_ramp(struct spead_api_item *itm)
   return -1; 
 }
 
+void set_descriptor_flag_item_group(struct spead_item_group *ig)
+{
+  if (ig){
+    ig->g_cd = 1;
+  }
+}
 
-
+int is_item_descriptor_item_group(struct spead_item_group *ig)
+{
+  return (ig) ? ig->g_cd : 0;
+}
