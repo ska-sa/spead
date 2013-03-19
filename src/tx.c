@@ -285,15 +285,16 @@ int worker_task_data_file_speadtx(void *data, struct spead_api_module *m, int cf
 
     unlock_mutex(&(ht->t_m));
 
+    if (tx->t_delay > 0){
+      usleep(tx->t_delay);
+    }
+
 #if 0 
 def DATA
     fprintf(stderr, "[%d] %s: hid %ld\n", pid, __func__, hid);
 #endif
 
-    //usleep(10);
   }
-
-  //unlock_mutex(&(ht->t_m));
 
   destroy_item_group(ig);
 
@@ -371,6 +372,10 @@ int worker_task_pattern_speadtx(void *data, struct spead_api_module *m, int cfd)
     }
 
     unlock_mutex(&(ht->t_m));
+
+    if (tx->t_delay > 0){
+      usleep(tx->t_delay);
+    }
     
   }
   
@@ -432,7 +437,7 @@ int worker_task_raw_packet_file_speadtx(void *data, struct spead_api_module *m, 
   return 0;
 }
 
-int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size, int chunk_size, char *ifile, char *rfile, int delay)
+int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size, int chunk_size, char *ifile, char *rfile, useconds_t delay)
 {
   struct spead_tx *tx;
   uint64_t heaps, packets;
@@ -563,7 +568,8 @@ int main(int argc, char **argv)
 {
   long cpus;
   char c, *port, *host, broadcast, *ifile, *rfile;
-  int i,j,k, pkt_size, chunk_size, delay;
+  int i,j,k, pkt_size, chunk_size;
+  useconds_t delay;
 
   i = 1;
   j = 1;
