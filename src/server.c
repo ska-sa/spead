@@ -147,7 +147,9 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus, char *r
   s->s_hpcount = 0;
   s->s_hdcount = 0;
   s->s_cpus    = cpus;
+#if 0
   s->s_cs      = NULL;
+#endif
   s->s_hs      = NULL;
   s->s_m       = 0;
   s->s_mod     = m;
@@ -167,16 +169,7 @@ void destroy_server_us(struct u_server *s)
   int i;
 
   if (s){
-    
-    if (s->s_cs){
 
-      for (i=0; i < s->s_cpus; i++){
-        destroy_child_sp(s->s_cs[i]);
-      }
-
-      free(s->s_cs);
-    }
-    
     destroy_spead_socket(s->s_x);
     destroy_spead_workers(s->s_w);
     
@@ -382,8 +375,9 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
       continue;
     }
 
-    if ((rtn = process_packet_hs(s, m, o)) < 0){
-      if (rtn == -1){
+    rtn = process_packet_hs(s, m, o);
+    switch (rtn){
+      case -1:
 #ifdef DEBUG
         fprintf(stderr, "%s: cannot process packet return object!\n", __func__);
 #endif
@@ -392,7 +386,20 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
           fprintf(stderr, "%s: cannot push object!\n", __func__);
 #endif
         }
-      }
+        return -1;
+        break;
+
+      case -2:
+#ifdef DEBUG
+        fprintf(stderr, "%s: error in processing ht has been emptied and returned!\n", __func__);
+#endif
+        break;
+
+      case 11:
+#ifdef DEBUG
+        fprintf(stderr, "%s: Stream has terminatated\n", __func__);
+#endif
+        break;
     }
 
     lock_mutex(&(s->s_m));
@@ -457,6 +464,7 @@ ndef DEBUG
 
 int server_run_loop(struct u_server *s)
 {
+  struct timespec ts;
   struct sigaction sa;
   uint64_t total;
   int rtn;
@@ -481,6 +489,10 @@ int server_run_loop(struct u_server *s)
 
   total = 0;
 
+  ts.tv_sec  = 0;
+  ts.tv_nsec = 100000000;
+  //ts.tv_nsec = 0;
+
   while (run){
 
     if (populate_fdset_spead_workers(s->s_w) < 0){
@@ -491,7 +503,7 @@ int server_run_loop(struct u_server *s)
       break;
     }
 
-    rtn = pselect(get_high_fd_spead_workers(s->s_w) + 1, get_in_fd_set_spead_workers(s->s_w), (fd_set *) NULL, (fd_set *) NULL, NULL, &empty_mask);
+    rtn = pselect(get_high_fd_spead_workers(s->s_w) + 1, get_in_fd_set_spead_workers(s->s_w), (fd_set *) NULL, (fd_set *) NULL, &ts, &empty_mask);
     if (rtn < 0){
       switch(errno){
         case EAGAIN:
@@ -506,9 +518,16 @@ int server_run_loop(struct u_server *s)
           continue;
       }
     }
+
+    if (run_module_timer_callbacks(s->s_mod) < 0){
+#if DEBUG>1
+      fprintf(stderr, "%s: problem running module timer callbacks\n", __func__);
+#endif
+    }
     
 #ifdef DATA
     if (timer){
+
       lock_mutex(&(s->s_m));
       total = s->s_bc - total;
       unlock_mutex(&(s->s_m));
@@ -602,7 +621,6 @@ int raw_spead_cap_worker(void *data, struct spead_api_module *m, int cfd)
 #endif
       continue;
     }
-      
     
     if (write_next_chunk_raw_data_file(f, p->data, nread) < 0) {
 #ifdef DEBUG

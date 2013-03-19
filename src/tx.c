@@ -65,7 +65,7 @@ void destroy_speadtx(struct spead_tx *tx)
   }
 }
 
-struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size, int chunk_size)
+struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size, int chunk_size, int delay)
 {
   struct spead_tx *tx; 
 
@@ -86,6 +86,7 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
   tx->t_hs        = NULL;
   tx->t_count     = 0;
   tx->t_pc        = 0;
+  tx->t_delay     = delay;
 
   tx->t_x = create_spead_socket(host, port);
   if (tx->t_x == NULL){
@@ -416,6 +417,12 @@ int worker_task_raw_packet_file_speadtx(void *data, struct spead_api_module *m, 
 #ifdef DEBUG
       fprintf(stderr, "%s: send_packet error\n", __func__);
 #endif
+      run = 0;
+      return -1;
+    }
+
+    if (tx->t_delay > 0){
+      usleep(tx->t_delay);
     }
   
   }
@@ -425,7 +432,7 @@ int worker_task_raw_packet_file_speadtx(void *data, struct spead_api_module *m, 
   return 0;
 }
 
-int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size, int chunk_size, char *ifile, char *rfile)
+int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size, int chunk_size, char *ifile, char *rfile, int delay)
 {
   struct spead_tx *tx;
   uint64_t heaps, packets;
@@ -435,7 +442,7 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   if (register_signals_us() < 0)
     return EX_SOFTWARE;
   
-  tx = create_speadtx(host, port, broadcast, pkt_size, chunk_size);
+  tx = create_speadtx(host, port, broadcast, pkt_size, chunk_size, delay);
   if (tx == NULL)
     return EX_SOFTWARE;
 
@@ -512,7 +519,10 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
     
     /*saw a SIGCHLD*/
     if (child){
-      wait_spead_workers(tx->t_w);
+      if (wait_spead_workers(tx->t_w) == 0){
+        run = 0;
+        break;
+      }
     }
     
   }
@@ -544,7 +554,8 @@ int usage(char **argv, long cpus)
                   "\n\t\t-s [spead packet size]" 
                   "\n\t\t-i [input file]" 
                   "\n\t\t-c [chunk size]"
-                  "\n\t\t-r [raw packet stream]\n\n", argv[0], cpus);
+                  "\n\t\t-r [raw packet stream]"
+                  "\n\t\t-d [delay in us]\n\n", argv[0], cpus);
   return EX_USAGE;
 }
 
@@ -552,7 +563,7 @@ int main(int argc, char **argv)
 {
   long cpus;
   char c, *port, *host, broadcast, *ifile, *rfile;
-  int i,j,k, pkt_size, chunk_size;
+  int i,j,k, pkt_size, chunk_size, delay;
 
   i = 1;
   j = 1;
@@ -568,6 +579,7 @@ int main(int argc, char **argv)
   chunk_size= 8192;
   port      = PORT;
   cpus      = sysconf(_SC_NPROCESSORS_ONLN);
+  delay     = 0;
 
   if (argc < 3)
     return usage(argv, cpus);
@@ -596,6 +608,7 @@ int main(int argc, char **argv)
 
         /*settings*/
         case 'c':
+        case 'd':
         case 'i':
         case 's':
         case 'w':
@@ -628,6 +641,9 @@ int main(int argc, char **argv)
               break;
             case 'r':
               rfile = argv[i] + j;
+              break;
+            case 'd':
+              delay = atoi(argv[i] + j);
               break;
           }
           i++;
@@ -664,6 +680,6 @@ int main(int argc, char **argv)
     return EX_USAGE;
   }
 
-  return register_speadtx(host, port, cpus, broadcast, pkt_size, chunk_size, ifile, rfile);
+  return register_speadtx(host, port, cpus, broadcast, pkt_size, chunk_size, ifile, rfile, delay);
 }
   
