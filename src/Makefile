@@ -1,7 +1,11 @@
+#install
+PREFIX=/usr/local
+INSTALL=install
+
 #CFLAGS += -DDEBUG=2
-CFLAGS += -DPROCESS
-CFLAGS += -DPROCESSDESC
-CFLAGS += -DDEBUG
+#CFLAGS += -DPROCESS
+#CFLAGS += -DPROCESSDESC
+#CFLAGS += -DDEBUG
 CFLAGS += -DIKATCP
 #CFLAGS += -DDISCARD
 CFLAGS += -DDATA
@@ -66,8 +70,9 @@ $(TXEXE): $(TXOBJ) $(SLIB)
 
 install: all
 #	ln -s $(PWD)/$(SLIB) $(PREFIX)/lib/$(SLIB)
-	$(INSTALL) $(EXE) $(PREFIX)/sbin
-	$(INSTALL) $(SLIB) $(PREFIX)/slib
+	$(INSTALL) $(RXEXE) $(PREFIX)/sbin
+	$(INSTALL) $(TXEXE) $(PREFIX)/sbin
+	$(INSTALL) $(SLIB) $(PREFIX)/lib
   
 
 clean: 
