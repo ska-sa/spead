@@ -19,7 +19,7 @@ struct spead_tx {
   struct spead_heap_store   *t_hs;
   uint64_t                  t_count;
   uint64_t                  t_pc;
-  int                       t_delay;
+  useconds_t                t_delay;
 };
 
 

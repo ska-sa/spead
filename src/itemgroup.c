@@ -284,6 +284,10 @@ int copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len)
     return len;
   }
 
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[31mlen [%ld] is greater than allocated item len [%ld]\033[0m\n", __func__, len, itm->i_len);
+#endif
+
   return -1;
 }
 
@@ -303,7 +307,7 @@ int append_copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len)
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: len [%ld] + item data len [%ld] is greater than allocated item len [%ld]\n", __func__, len, itm->i_data_len, itm->i_len);
+  fprintf(stderr, "%s: \033[31mlen [%ld] + item data len [%ld] is greater than allocated item len [%ld]\033[0m\n", __func__, len, itm->i_data_len, itm->i_len);
 #endif
 
   return -1;

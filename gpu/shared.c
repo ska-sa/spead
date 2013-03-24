@@ -503,10 +503,62 @@ cl_mem create_ocl_mem(struct ocl_ds *ds, size_t size)
 #ifdef DEBUG
     fprintf(stderr, "%s: error creating cl read/write buffer\n", __func__);
 #endif
-    return NULL;
+    return -1;
   }
 
   return m;
+}
+
+int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst)
+{
+  cl_int err;
+  cl_event evt;
+
+  if (ds == NULL || src == NULL || dst == NULL || size <= 0){
+#ifdef DEBUG 
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return -1;
+  }
+
+   /*copy data in*/
+  err = clEnqueueWriteBuffer(ds->d_cq, dst, CL_TRUE, 0, size, src, 0, NULL, &evt);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  clReleaseEvent(evt);
+
+  return 0;
+}
+
+int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
+{
+  cl_int err;
+  cl_event evt;
+
+  if (ds == NULL || src == NULL || dst == NULL || size <= 0){
+#ifdef DEBUG 
+    fprintf(stderr, "%s: param error\n", __func__);
+#endif
+    return NULL;
+  }
+
+  /*copy data out*/
+  err = clEnqueueReadBuffer(ds->d_cq, src, CL_TRUE, 0, size, dst, 0, NULL, &evt);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueReadBuffer returns %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  clReleaseEvent(evt);
+  
+  return 0;
 }
 
 void destroy_ocl_mem(cl_mem m)
