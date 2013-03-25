@@ -73,7 +73,7 @@ install: all
 	$(INSTALL) $(RXEXE) $(PREFIX)/sbin
 	$(INSTALL) $(TXEXE) $(PREFIX)/sbin
 	$(INSTALL) $(SLIB) $(PREFIX)/lib
-  
+	/sbin/ldconfig  
 
 clean: 
 	$(RM) $(TXEXE) $(RXEXE) $(SLIB) *.o *.lo core vgcore* test-*

@@ -238,6 +238,9 @@ def DEBUG
 
   sb = sendto(sfd, p->data, mw, 0, dst->ai_addr, dst->ai_addrlen);
   if (sb < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: packet (%p) size [%d] sb [%d] bytes\n", __func__, p, mw, sb);
+#endif
     fprintf(stderr, "%s: sendto err (\033[31m%s\033[0m)\n", __func__, strerror(errno));
     return -1;
   }
