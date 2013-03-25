@@ -283,6 +283,9 @@ int send_raw_data_spead_socket(void *obj, void *data, uint64_t len)
 
   sb = sendto(sfd, data, len, 0, dst->ai_addr, dst->ai_addrlen);
   if (sb < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: packet (%p) size [%d] sb [%d] bytes\n", __func__, p, len, sb);
+#endif
     fprintf(stderr, "%s: sendto err (\033[31m%s\033[0m)\n", __func__, strerror(errno));
     return -1;
   }
