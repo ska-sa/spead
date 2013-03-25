@@ -9,6 +9,8 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+#include <stdarg.h>
+
 #include <CL/opencl.h>
 
 #include "shared.h"
@@ -567,4 +569,46 @@ void destroy_ocl_mem(cl_mem m)
     clReleaseMemObject(m);
   }
 }
+
+int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, ...)
+{
+#if 0
+  va_list ap;
+  size_t workGroupSize[1];
+  cl_int err;
+  cl_event evt;
+
+  
+  if (ds == NULL || k == NULL)
+    return -1;
+
+
+  va_start(ap, k);
+  
+  
+  
+  
+  err = clSetKernelArg(k, 0, sizeof(cl_mem), (void *) &(a->clin));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  va_end(ap);
+
+
+  err = clEnqueueNDRangeKernel(ds->d_cq, k, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+
+#endif
+}
+
 
