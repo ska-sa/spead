@@ -572,6 +572,7 @@ void destroy_ocl_mem(cl_mem m)
 
 int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, ...)
 {
+#if 0
   va_list ap;
   size_t workGroupSize[1];
   cl_int err;
@@ -607,8 +608,7 @@ int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group
   }
 
 
-
-
+#endif
 }
 
 
