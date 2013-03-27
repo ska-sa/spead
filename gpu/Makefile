@@ -28,9 +28,9 @@ LDIR = -L../src
 
 #OBJ = $(patsubst %.cu,%.so,$(UTILS))
 EXE= demo
-MODS=         dummy.so ocl.so dumpdata.so writefile.so snapshot.so csv.so
+MODS=         dummy.so ocl.so dumpdata.so writefile.so snapshot.so csv.so basic_ocl.so
 MODS+= fft.so
-SRC= shared.c dummy.c  ocl.c  dumpdata.c  writefile.c snapshot.c csv.c
+SRC= shared.c dummy.c  ocl.c  dumpdata.c  writefile.c snapshot.c csv.c basic_ocl.c
 
 HDR= shared.h
 OBJ= $(patsubst %.c,%.o,$(SRC))
