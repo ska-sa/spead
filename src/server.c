@@ -723,6 +723,11 @@ int main(int argc, char *argv[])
 
   struct spead_api_module *m;
 
+  if (check_spead_version(VERSION) < 0){
+    fprintf(stderr, "%s: FATAL version mismatch\n", __func__);
+    return EX_SOFTWARE;
+  }
+
   i = 1;
   j = 1;
   broadcast = 0;
@@ -814,11 +819,6 @@ int main(int argc, char *argv[])
       return EX_USAGE;
     }
     
-  }
-
-  if (check_spead_version(VERSION) < 0){
-    fprintf(stderr, "%s: FATAL version mismatch\n", __func__);
-    return EX_SOFTWARE;
   }
 
   if (dylib != NULL){
