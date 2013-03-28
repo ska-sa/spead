@@ -17,6 +17,13 @@ NCC = nvcc
 IDIR = -I../src
 LDIR = -L../src
 
+###############
+#   VERSION   #
+GITVER = $(shell git describe --tags 2> /dev/null || echo unknown)
+CFLAGS += -DVERSION=\"$(GITVER)\"
+
+################
+
 .SECONDARY:
 #.PRECIOUS: %.o
 

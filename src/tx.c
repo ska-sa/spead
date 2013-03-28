@@ -686,6 +686,11 @@ int main(int argc, char **argv)
     return EX_USAGE;
   }
 
+  if (check_spead_version(VERSION) < 0){
+    fprintf(stderr, "%s: FATAL version mismatch\n", __func__);
+    return EX_SOFTWARE;
+  }
+
   return register_speadtx(host, port, cpus, broadcast, pkt_size, chunk_size, ifile, rfile, delay);
 }
   

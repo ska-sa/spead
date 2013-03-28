@@ -13,6 +13,13 @@
 #include "stack.h"
 #include "tx.h"
 
+int check_spead_version(char *version)
+{
+  if (version == NULL)
+    return -1;
+
+  return strcmp(VERSION, version)*(-1);
+}
 
 void *create_spead_packet()
 {

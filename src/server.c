@@ -816,6 +816,11 @@ int main(int argc, char *argv[])
     
   }
 
+  if (check_spead_version(VERSION) < 0){
+    fprintf(stderr, "%s: FATAL version mismatch\n", __func__);
+    return EX_SOFTWARE;
+  }
+
   if (dylib != NULL){
 
     m = load_api_user_module(dylib);
