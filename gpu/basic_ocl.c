@@ -129,7 +129,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 #endif
     return -1;
   }
-  
+
   if (so->o_in == NULL || so->o_out == NULL){
     if (setup_cl_mem_buffers(so, itm->i_data_len) < 0)
       return -1;
@@ -142,7 +142,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
     return -1;
   }
 
-  if (run_1d_ocl_kernel(so->o_ds, so->o_power, itm->i_data_len, so->o_in, so->o_out) < 0){
+  if (run_1d_ocl_kernel(so->o_ds, so->o_power, itm->i_data_len / 2, so->o_in, so->o_out) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: run ocl kernel error\n", __func__);
 #endif

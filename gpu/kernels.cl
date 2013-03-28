@@ -40,8 +40,16 @@ __kernel void phase(__global const float2 *in, __global float *out)
   out[i] = atan2(in[i].y, in[i].x);
 }
 
+#define BYTES_PER_SAMPLE 2
+
 __kernel void power_uint8_to_float(__global const char *in, __global float *out)
 {
-  int i = get_global_id(0);
-  out[i] = (float) in[i];
+  int i = get_global_id(0)*BYTES_PER_SAMPLE;
+
+  float x = (float) in[i];
+  float y = (float) in[i+1];
+
+  out[i]    = (float) hypot(x, y);
+  out[i+1]  = (float) atan2(y, x);
 }
+
