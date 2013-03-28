@@ -45,6 +45,7 @@ void destroy_spead_packet(void *data)
 #endif
 }
 
+
 uint64_t hash_fn_spead_packet(struct hash_table *t, struct hash_o *o)
 {
   struct spead_packet *p;
