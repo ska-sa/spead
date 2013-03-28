@@ -42,7 +42,6 @@ __kernel void phase(__global const float2 *in, __global float *out)
 
 __kernel void power_uint8_to_float(__global const char *in, __global float *out)
 {
-  
-
-
+  int i = get_global_id(0);
+  out[i] = (float) in[i];
 }

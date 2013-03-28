@@ -339,11 +339,11 @@ int64_t request_packet_raw_packet_datafile(struct data_file *f, void **ptr)
     switch (SPEAD_ITEM_ID(item)){
       case SPEAD_PAYLOAD_LEN_ID:
         payload_len = (int64_t) SPEAD_ITEM_ADDR(item);
+#ifdef DEBUG
+        fprintf(stderr, "%s: item [%s]\n", __func__, hr_spead_id(SPEAD_ITEM_ID(item)));
+#endif
         break;
     }
-#ifdef DEBUG
-    fprintf(stderr, "%s: item 0x%lx or %ld\n", __func__, SPEAD_ITEM_ID(item), SPEAD_ITEM_ID(item));
-#endif
   }
 
   if (payload_len <= 0){

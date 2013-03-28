@@ -63,7 +63,7 @@ struct spead_api_module *load_api_user_module(char *mod)
     return NULL;
   }
   
-  m = shared_malloc(sizeof(struct spead_api_module));
+  m = malloc(sizeof(struct spead_api_module));
   if (m == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: could not malloc\n", __func__);
@@ -126,10 +126,14 @@ void unload_api_user_module(struct spead_api_module *m)
       }
     }
     if (m->m_s){
-      shared_free(m, sizeof(struct spead_api_module_shared));
+      shared_free(m->m_s, sizeof(struct spead_api_module_shared));
       m->m_s = NULL;
+    } else {
+#ifdef DEBUG
+      fprintf(stderr, "%s: spead api shared module is already null\n", __func__);
+#endif
     }
-    shared_free(m, sizeof(struct spead_api_module));
+    free(m);
   }
 #ifdef DEBUG
   fprintf(stderr, "%s: done\n", __func__);

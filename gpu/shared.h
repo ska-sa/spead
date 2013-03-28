@@ -43,7 +43,7 @@ void destroy_ocl_mem(cl_mem m);
 
 int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst);
 int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst);
-int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, ...);
+int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, cl_mem mem_in, cl_mem mem_out);
 
 #endif
 
