@@ -60,7 +60,7 @@ cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
 
       // get platform info for each platform and trap the NVIDIA platform if found
       ciErrNum = clGetPlatformIDs (num_platforms, clPlatformIDs, NULL);
-#ifdef DEBUG
+#if DEBUG>1
       fprintf(stderr, "Available platforms:\n");
 #endif
       for(i = 0; i < num_platforms; ++i)
@@ -68,12 +68,12 @@ cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
         ciErrNum = clGetPlatformInfo (clPlatformIDs[i], CL_PLATFORM_NAME, 1024, &chBuffer, NULL);
         if(ciErrNum == CL_SUCCESS)
         {
-#ifdef DEBUG
+#if DEBUG>1
           fprintf(stderr, "platform %d: %s\n", i, chBuffer);
 #endif
           if(strstr(chBuffer, "NVIDIA") != NULL)
           {
-#ifdef DEBUG
+#if DEBUG>1
             fprintf(stderr, "++selected platform %d\n", i);
 #endif
             *clSelectedPlatformID = clPlatformIDs[i];
@@ -399,7 +399,7 @@ struct ocl_kernel* create_ocl_kernel(struct ocl_ds *d, char *kernel_name)
   if (kernel_name == NULL || d == NULL)
     return NULL;
 
-  k = shared_malloc(sizeof(struct ocl_kernel));
+  k = malloc(sizeof(struct ocl_kernel));
   if (k == NULL)
     return NULL;
   
@@ -410,7 +410,7 @@ struct ocl_kernel* create_ocl_kernel(struct ocl_ds *d, char *kernel_name)
 #ifdef DEBUG
     fprintf(stderr, "%s: get_kernel error\n", __func__);
 #endif
-    shared_free(k, sizeof(struct ocl_kernel));
+    free(k);
     return NULL;
   }
 
@@ -427,7 +427,7 @@ void destroy_ocl_kernel(void *data)
     if (k->k_kernel)
       clReleaseKernel(k->k_kernel);
 
-    shared_free(k, sizeof(struct ocl_kernel));
+    free(k);
   }
 }
 
@@ -440,7 +440,7 @@ void destroy_ocl_ds(void *data)
 #if 0
     destroy_avltree(ds->d_kernels, &destroy_ocl_kernel);
 #endif
-    shared_free(ds, sizeof(struct ocl_ds));
+    free(ds);
   }
 }
 
@@ -455,7 +455,7 @@ struct ocl_ds *create_ocl_ds(char *kernels_file)
     return NULL;
   }
 
-  ds = shared_malloc(sizeof(struct ocl_ds));
+  ds = malloc(sizeof(struct ocl_ds));
   if (ds == NULL)
     return NULL;
 
@@ -505,7 +505,7 @@ cl_mem create_ocl_mem(struct ocl_ds *ds, size_t size)
 #ifdef DEBUG
     fprintf(stderr, "%s: error creating cl read/write buffer\n", __func__);
 #endif
-    return -1;
+    return NULL;
   }
 
   return m;
@@ -518,7 +518,7 @@ int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst)
 
   if (ds == NULL || src == NULL || dst == NULL || size <= 0){
 #ifdef DEBUG 
-    fprintf(stderr, "%s: param error\n", __func__);
+    fprintf(stderr, "%s: param error ds (%p) src (%p) dst (%p) size %ld\n", __func__, ds, src, dst, size);
 #endif
     return -1;
   }
@@ -546,7 +546,7 @@ int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
 #ifdef DEBUG 
     fprintf(stderr, "%s: param error\n", __func__);
 #endif
-    return NULL;
+    return -1;
   }
 
   /*copy data out*/
@@ -570,25 +570,19 @@ void destroy_ocl_mem(cl_mem m)
   }
 }
 
-int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, ...)
+int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, cl_mem mem_in, cl_mem mem_out)
 {
-#if 0
-  va_list ap;
   size_t workGroupSize[1];
   cl_int err;
   cl_event evt;
-
   
-  if (ds == NULL || k == NULL)
+  if (ds == NULL || k == NULL || mem_in == NULL || mem_out == NULL)
     return -1;
 
-
-  va_start(ap, k);
+  workGroupSize[0] = work_group_size;
   
   
-  
-  
-  err = clSetKernelArg(k, 0, sizeof(cl_mem), (void *) &(a->clin));
+  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(mem_in));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
@@ -596,10 +590,15 @@ int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group
     return -1;
   }
 
-  va_end(ap);
+  err = clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(mem_out));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
 
-
-  err = clEnqueueNDRangeKernel(ds->d_cq, k, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
+  err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
@@ -607,8 +606,10 @@ int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group
     return -1;
   }
 
+  clReleaseEvent(evt);
+  clFinish(ds->d_cq);
 
-#endif
+  return 0;
 }
 
 

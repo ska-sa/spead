@@ -291,7 +291,7 @@ fd_set *get_in_fd_set_spead_workers(struct spead_workers *w);
 /*spead worker compare function*/
 int compare_spead_workers(const void *v1, const void *v2);
 
-
+int check_spead_version(char *version);
 
 
 #endif
