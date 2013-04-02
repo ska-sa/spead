@@ -175,12 +175,15 @@ struct spead_workers {
   int               w_hfd;
 };
 
+struct spead_pipeline {
+  struct stack *l_mods;
+};
 
 /*API FUNCTIONS*/
 
 /*spead module api*/
 struct spead_api_module *load_api_user_module(char *mod);
-void unload_api_user_module(struct spead_api_module *m);
+void unload_api_user_module(void *data);
 int setup_api_user_module(struct spead_api_module *m);
 int destroy_api_user_module(struct spead_api_module *m);
 int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_group *ig);
@@ -193,6 +196,15 @@ void set_data_spead_api_module_shared(struct spead_api_module_shared *s, void *d
 void *get_data_spead_api_module_shared(struct spead_api_module_shared *s);
 void clear_data_spead_api_module_shared(struct spead_api_module_shared *s);
 size_t get_data_size_spead_api_module_shared(struct spead_api_module_shared *s);
+
+/*spead pipeline api*/
+struct spead_pipeline *create_spead_pipeline(struct stack *pl);
+void unload_spead_pipeline(void *data);
+int setup_spead_pipeline(struct spead_pipeline *l);
+void destroy_spead_pipeline(void *data);
+int run_callbacks_spead_pipeline(struct spead_pipeline *l, void *data);
+int run_timers_spead_pipeline(struct spead_pipeline *l);
+
 
 void print_data(unsigned char *buf, int size);
 

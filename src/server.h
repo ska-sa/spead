@@ -21,6 +21,7 @@ struct u_server {
   struct data_file *s_f;
 #if 0
   struct u_child **s_cs;
+  struct spead_api_module *s_mod;
 #endif 
   struct spead_socket *s_x;
   struct spead_workers *s_w;
@@ -31,7 +32,7 @@ struct u_server {
   uint64_t s_bc;
   uint64_t s_pc;
   struct spead_heap_store *s_hs;
-  struct spead_api_module *s_mod;
+  struct spead_pipeline *s_p;
 #ifndef IKATCP
   struct katcl_line *s_kl;
 #endif

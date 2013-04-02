@@ -43,8 +43,10 @@ int compare_spead_workers(const void *v1, const void *v2)
     return 1;
   return 0;
 }
-
+#if 0
 struct spead_workers *create_spead_workers(struct spead_api_module *m, void *data, long count, int (*call)(void *data, struct spead_api_module *m, int cfd))
+#endif
+struct spead_workers *create_spead_workers(struct spead_pipeline *l, void *data, long count, int (*call)(void *data, struct spead_api_module *m, int cfd))
 {
   struct spead_workers  *w;
   struct u_child        *c;
@@ -71,7 +73,7 @@ struct spead_workers *create_spead_workers(struct spead_api_module *m, void *dat
 
   for (i=0; i<count; i++){
   
-    c = fork_child_sp(m, data, call);
+    c = fork_child_sp(l, data, call);
     if (c == NULL)
       continue;         /* continue starting other children*/
     
@@ -242,8 +244,10 @@ int add_child_us(struct u_child ***cs, struct u_child *c, int size)
   
   return size + 1;
 }
-
+#if 0
 struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd))
+#endif
+struct u_child *fork_child_sp(struct spead_pipeline *l, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd))
 {
   int pipefd[2];
   int excode;
@@ -289,11 +293,15 @@ struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call
   close(pipefd[0]); /*close read end in child*/
   
   /*setup module data*/
+#if 0
   if (setup_api_user_module(m) == 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: child [%d] has api data @ (%p)\n", __func__, getpid(), m->m_data);
 #endif
   }
+#endif
+
+  if (setup_spead_pipeline(l) < 0){}
 
   /*in child use exit not return*/ 
   if ((*call)(data, m, pipefd[1]) < 0){
@@ -304,11 +312,14 @@ struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call
   }
 
   /*destroy module data*/
+#if 0
   if (destroy_api_user_module(m) == 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: child [%d] has called destroy api data\n", __func__, getpid());
 #endif
   }
+#endif
+  if (destroy_spead_pipeline(l) < 0){}
 
   exit(excode);
   return NULL;
