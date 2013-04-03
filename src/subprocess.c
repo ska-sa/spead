@@ -46,7 +46,7 @@ int compare_spead_workers(const void *v1, const void *v2)
 #if 0
 struct spead_workers *create_spead_workers(struct spead_api_module *m, void *data, long count, int (*call)(void *data, struct spead_api_module *m, int cfd))
 #endif
-struct spead_workers *create_spead_workers(struct spead_pipeline *l, void *data, long count, int (*call)(void *data, struct spead_api_module *m, int cfd))
+struct spead_workers *create_spead_workers(struct spead_pipeline *l, void *data, long count, int (*call)(void *data, struct spead_pipeline *l, int cfd))
 {
   struct spead_workers  *w;
   struct u_child        *c;
@@ -247,7 +247,7 @@ int add_child_us(struct u_child ***cs, struct u_child *c, int size)
 #if 0
 struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd))
 #endif
-struct u_child *fork_child_sp(struct spead_pipeline *l, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd))
+struct u_child *fork_child_sp(struct spead_pipeline *l, void *data, int (*call)(void *data, struct spead_pipeline *l, int cfd))
 {
   int pipefd[2];
   int excode;
@@ -304,7 +304,7 @@ struct u_child *fork_child_sp(struct spead_pipeline *l, void *data, int (*call)(
   if (setup_spead_pipeline(l) < 0){}
 
   /*in child use exit not return*/ 
-  if ((*call)(data, m, pipefd[1]) < 0){
+  if ((*call)(data, l, pipefd[1]) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: child [%d] task returned error\n", __func__, getpid());
 #endif
@@ -319,7 +319,7 @@ struct u_child *fork_child_sp(struct spead_pipeline *l, void *data, int (*call)(
 #endif
   }
 #endif
-  if (destroy_spead_pipeline(l) < 0){}
+  destroy_spead_pipeline(l);
 
   exit(excode);
   return NULL;

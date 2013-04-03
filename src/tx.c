@@ -124,7 +124,7 @@ uint64_t get_count_speadtx(struct spead_tx *tx)
   return tx->t_count;
 }
 
-int worker_task_data_file_speadtx(void *data, struct spead_api_module *m, int cfd)
+int worker_task_data_file_speadtx(void *data, struct spead_pipeline *l, int cfd)
 {
   struct spead_item_group *ig;
   struct spead_api_item *itm, *itm2, *itm3;
@@ -305,7 +305,7 @@ def DATA
   return 0;
 }
 
-int worker_task_pattern_speadtx(void *data, struct spead_api_module *m, int cfd)
+int worker_task_pattern_speadtx(void *data, struct spead_pipeline *l, int cfd)
 {
 #define ITMS 4
   struct spead_item_group *ig;
@@ -389,7 +389,7 @@ int worker_task_pattern_speadtx(void *data, struct spead_api_module *m, int cfd)
   return 0;
 }
 
-int worker_task_raw_packet_file_speadtx(void *data, struct spead_api_module *m, int cfd)
+int worker_task_raw_packet_file_speadtx(void *data, struct spead_pipeline *l, int cfd)
 {
   struct spead_tx *tx;
   int64_t rb;

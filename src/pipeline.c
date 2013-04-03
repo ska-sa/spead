@@ -132,7 +132,7 @@ void destroy_spead_pipeline(void *data)
   struct spead_pipeline *l;
   l = data;
   if (l){
-    traverse_stack(l->l_mods, &destroy_modulues_spead_pipeline, NULL);
+    traverse_stack(l->l_mods, &destroy_modules_spead_pipeline, NULL);
   }
 }
 

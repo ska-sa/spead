@@ -1242,7 +1242,7 @@ void print_store_stats(struct spead_heap_store *hs)
     return;
 }
 
-int store_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o)
+int store_packet_hs(struct u_server *s, struct spead_pipeline *l, struct hash_o *o)
 {
   struct spead_heap_store   *hs;
   struct spead_packet       *p;
@@ -1374,7 +1374,7 @@ def DATA
 #endif
       }
     }
-    else if(run_api_user_callback_module(m, ig) < 0){   /*SPEAD_API_MODULE CALLBACK*/
+    else if(run_callbacks_spead_pipeline(l, ig) < 0){   /*SPEAD_API_MODULE CALLBACK*/
 #ifdef DEBUG
       fprintf(stderr, "%s: user callback failed\n", __func__);
 #endif
@@ -1390,7 +1390,7 @@ def DATA
   return 0;
 }
 
-int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o)
+int process_packet_hs(struct u_server *s, struct spead_pipeline *l, struct hash_o *o)
 {
   struct spead_heap_store *hs;
   struct spead_packet *p;
@@ -1457,11 +1457,11 @@ int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct has
     fprintf(stderr, "%s: GOT STREAM TERMINATOR\n", __func__);
 #endif
 
-    rtn = store_packet_hs(s, m, o);
+    rtn = store_packet_hs(s, l, o);
 
     return rtn;
   } else {
-    rtn = store_packet_hs(s, m, o);
+    rtn = store_packet_hs(s, l, o);
   }
 
   return rtn;

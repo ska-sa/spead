@@ -28,6 +28,7 @@
 #endif
 
 #include "server.h"
+#include "stack.h"
 #include "spead_api.h"
 #include "hash.h"
 #include "mutex.h"
@@ -304,7 +305,7 @@ void print_format_bitrate(struct u_server *s, char x, uint64_t bps)
 #endif
 }
 
-int worker_task_us(void *data, struct spead_api_module *m, int cfd)
+int worker_task_us(void *data, struct spead_pipeline *l, int cfd)
 {
   struct u_server *s;
   struct spead_packet *p;
@@ -383,7 +384,7 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
       continue;
     }
 
-    rtn = process_packet_hs(s, m, o);
+    rtn = process_packet_hs(s, l, o);
     switch (rtn){
       case -1:
 #ifdef DEBUG
@@ -527,7 +528,14 @@ int server_run_loop(struct u_server *s)
       }
     }
 
+#if 0
     if (run_module_timer_callbacks(s->s_mod) < 0){
+#if DEBUG>1
+      fprintf(stderr, "%s: problem running module timer callbacks\n", __func__);
+#endif
+    }
+#endif
+    if (run_timers_spead_pipeline(s->s_p) < 0){
 #if DEBUG>1
       fprintf(stderr, "%s: problem running module timer callbacks\n", __func__);
 #endif
@@ -573,7 +581,7 @@ int server_run_loop(struct u_server *s)
   return 0;
 }
 
-int raw_spead_cap_worker(void *data, struct spead_api_module *m, int cfd)
+int raw_spead_cap_worker(void *data, struct spead_pipeline *l, int cfd)
 {
   struct u_server *s;
   struct spead_packet *p;
@@ -685,7 +693,7 @@ int register_client_handler_server(struct stack *pl, char *port, long cpus, uint
 
   if (raw_pkt_file){
 
-    s->s_w = create_spead_workers(s->s_mod, s, cpus, &raw_spead_cap_worker);
+    s->s_w = create_spead_workers(s->s_p, s, cpus, &raw_spead_cap_worker);
     if (s->s_w == NULL){
       shutdown_server_us(s);
       fprintf(stderr, "%s: create spead workers failed\n", __func__);
@@ -701,7 +709,7 @@ int register_client_handler_server(struct stack *pl, char *port, long cpus, uint
       return -1;
     }
 
-    s->s_w = create_spead_workers(s->s_mod, s, cpus, &worker_task_us);
+    s->s_w = create_spead_workers(s->s_p, s, cpus, &worker_task_us);
     if (s->s_w == NULL){
       shutdown_server_us(s);
       fprintf(stderr, "%s: create spead workers failed\n", __func__);
