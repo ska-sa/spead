@@ -187,9 +187,6 @@ void destroy_server_us(struct u_server *s)
     }
 #endif
 
-#if 0
-    unload_api_user_module(s->s_mod);
-#endif
     unload_spead_pipeline(s->s_p);
 
     destroy_store_hs(s->s_hs);
@@ -829,7 +826,6 @@ int main(int argc, char *argv[])
               
               push_stack(pl, argv[i]+j);
 
-              //fprintf(stderr, "%s:+mod: %s\n", __func__, argv[i]+j);
               break;
             case 'p':
               port = argv[i] + j;  
@@ -856,8 +852,7 @@ int main(int argc, char *argv[])
 
     } else {
       if (mod_start){
-        //fprintf(stderr, "%s: mod: %s\n", __func__, argv[i]);        
-        push_stack(pl, argv[i]+j);
+        push_stack(pl, argv[i]);
         i++;
       } else {
         fprintf(stderr, "%s: extra argument %s\n", argv[0], argv[i]);

@@ -21,6 +21,9 @@ void unload_spead_pipeline(void *data)
     destroy_stack(l->l_mods, &unload_api_user_module);
     free(l);
   }
+#ifdef DEBUG
+  fprintf(stderr, "%s: done\n", __func__);
+#endif
 }
 
 int load_modules_spead_pipeline(void *so, void *data)
