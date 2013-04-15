@@ -1,6 +1,7 @@
 /**Author adam@ska.ac.za**/
 
-void radix2_dif_butterfly(__global const float2 A, __global const float2 B, __global const int k, __global const int N, __global float2 *X, __global float2 *Y)
+
+void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int N, __global const float2 *X, __global const float2 *Y)
 {
   float2 x, y, z, w; 
 
@@ -16,15 +17,15 @@ void radix2_dif_butterfly(__global const float2 A, __global const float2 B, __gl
   z.x = y.x * w.x - y.y * w.y;
   z.y = y.y * w.x + y.x * w.y;
  
-  *X.x = x.x;
-  *X.y = x.y;
-  *Y.x = z.x;
-  *Y.y = z.y;
+  X->x = x.x;
+  X->y = x.y;
+  Y->x = z.x;
+  Y->y = z.y;
 }
 
-__kernel void radix2_power_2_inplace_fft(__global const float2 *in, __global const int N, __global const int passes)
+__kernel void radix2_power_2_inplace_fft(__global const float2 *in, const int N, const int passes)
 {
-  int a, b, w, p, t, m, groups, threads;
+  register int a, b, w, p, t, m, groups, threads;
 
   threads = get_global_size(0);
   t = get_global_id(0);
@@ -45,4 +46,5 @@ __kernel void radix2_power_2_inplace_fft(__global const float2 *in, __global con
     barrier(CLK_GLOBAL_MEM_FENCE);
   }
 
+  
 }

@@ -8,13 +8,13 @@
 
 #include "shared.h"
 
-#define KERNELS_FILE  "/kernels.cl"
+#define KERNELS_FILE  "/radix2_po2_kernel.cl"
 
 #define SPEAD_BF_DATA_ID    0xb001
 
 struct sapi_object {
   struct ocl_ds     *o_ds;
-  struct ocl_kernel *o_power;
+  struct ocl_kernel *o_fft;
   cl_mem            o_in;
   cl_mem            o_out;
   float             *o_host;
@@ -28,7 +28,7 @@ void destroy_sapi_object(void *data)
   if (so == NULL){
     destroy_ocl_mem(so->o_in);
     destroy_ocl_mem(so->o_out);
-    destroy_ocl_kernel(so->o_power);
+    destroy_ocl_kernel(so->o_fft);
     destroy_ocl_ds(so->o_ds);
     if (so->o_host)
       free(so->o_host);
@@ -82,7 +82,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
     return NULL;
 
   so->o_ds          = NULL;
-  so->o_power       = NULL;
+  so->o_fft         = NULL;
   so->o_in          = NULL;
   so->o_out         = NULL;
   so->o_len         = 0;
@@ -94,14 +94,14 @@ void *spead_api_setup(struct spead_api_module_shared *s)
     return NULL;
   }
 
-  so->o_power = create_ocl_kernel(so->o_ds, "power_uint8_to_float");
-  if (so->o_power == NULL){
+  so->o_fft = create_ocl_kernel(so->o_ds, "radix2_power_2_inplace_fft");
+  if (so->o_fft == NULL){
     destroy_sapi_object(so);
     return NULL;
   }
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: pid [%d] sapi obj (%p) kernel (%p)\n", __func__, getpid(), so, so->o_power);
+  fprintf(stderr, "%s: pid [%d] sapi obj (%p) kernel (%p)\n", __func__, getpid(), so, so->o_fft);
 #endif
   
   return so;
@@ -141,14 +141,14 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 #endif
     return -1;
   }
-
+#if 0
   if (run_1d_ocl_kernel(so->o_ds, so->o_power, itm->i_data_len / 2, so->o_in, so->o_out) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: run ocl kernel error\n", __func__);
 #endif
     return -1;
   }
-  
+#endif
   if (xfer_from_ocl_mem(so->o_ds, so->o_out, itm->i_data_len, so->o_host) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: xfer to ocl error\n", __func__);
