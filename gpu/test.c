@@ -18,7 +18,7 @@ int power_of_2(int x)
 
 int main(int argc, char *argv[])
 {
-  int t, p, a, b, groups, m;
+  int t, p, a, b, groups, m, w;
   int N = atoi(argv[1]);
   
   int passes, threads;
@@ -41,9 +41,9 @@ int main(int argc, char *argv[])
       
       a = t + (t / m) * m;
       b = a + m; 
+      w = (t % m) * groups;
 
-      fprintf(stderr, "groups [%d] of m[%d] thread[%d] pass[%d] A[%d] B[%d]\n", groups, m, t, p, a, b); 
-
+      fprintf(stderr, "groups [%d] of m[%d] thread[%d] pass[%d] A[%d] B[%d] W[%d]\n", groups, m, t, p, a, b, w); 
       if ((t+1) % m == 0)
         fprintf(stderr, "\n");
 
@@ -55,15 +55,6 @@ int main(int argc, char *argv[])
     fprintf(stderr, "----------------\n");
 
   }
-
-#if 0
-  for (i=0; i<passes; i++){
-    a = idx;
-    b = a+m;
-    fprintf(stderr, "pass %d m[%d] A[%d] B[%d]\n", i, m, a, b);
-    m = m >> 1;
-  }
-#endif
   
   return 0;
 }
