@@ -48,3 +48,25 @@ __kernel void radix2_power_2_inplace_fft(__global const float2 *in, const int N,
 
   
 }
+
+__kernel void uint8_re_to_float2(__global const uint8_t *in, __global const float2 *out)
+{
+  register int i;
+
+  i = get_global_id(0);
+
+  out[i].x = (float) in[i];
+  out[i].y = 0.0;
+
+}
+
+__kernel void uint8_cmplx_to_float2(__global const uint8_t *in, __global const float2 *out)
+{
+  register int i;
+
+  i = get_global_id(0);
+
+  out[i].x = (float) in[i];
+  out[i].y = (float) in[i+1];
+
+}

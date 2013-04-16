@@ -402,8 +402,6 @@ int worker_task_raw_packet_file_speadtx(void *data, struct spead_pipeline *l, in
 
   fprintf(stderr, "%s: raw packet file\n", __func__); 
 
-  
-
   while(run){
 
     rb = request_packet_raw_packet_datafile(tx->t_f, &ptr);

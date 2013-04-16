@@ -10,7 +10,7 @@
 
 #define KERNELS_FILE  "/radix2_po2_kernel.cl"
 
-#define SPEAD_BF_DATA_ID    0xb001
+#define SPEAD_DATA_ID    0xb001
 
 struct sapi_object {
   struct ocl_ds     *o_ds;
@@ -122,10 +122,10 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
     return -1;
   } 
   
-  itm = get_spead_item_with_id(ig, SPEAD_BF_DATA_ID);
+  itm = get_spead_item_with_id(ig, SPEAD_DATA_ID);
   if (itm == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "%s: cannot find item with id 0x%x\n", __func__, SPEAD_BF_DATA_ID);
+    fprintf(stderr, "%s: cannot find item with id 0x%x\n", __func__, SPEAD_DATA_ID);
 #endif
     return -1;
   }
@@ -141,6 +141,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 #endif
     return -1;
   }
+
 #if 0
   if (run_1d_ocl_kernel(so->o_ds, so->o_power, itm->i_data_len / 2, so->o_in, so->o_out) < 0){
 #ifdef DEBUG
@@ -149,6 +150,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
     return -1;
   }
 #endif
+
   if (xfer_from_ocl_mem(so->o_ds, so->o_out, itm->i_data_len, so->o_host) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: xfer to ocl error\n", __func__);

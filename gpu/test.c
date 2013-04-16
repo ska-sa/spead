@@ -56,6 +56,21 @@ int main(int argc, char *argv[])
 
   }
 
+  for (t=0; t < N; t++){
+    
+    int r = t, in=0;
+    int count=0;
+
+    while (count < passes){
+      count++;
+      in = in << 1;
+      in = in | (r & 0x1);
+      r = r >> 1;
+    }
+
+    fprintf(stderr, "bit-reversal of [%d] is [%d]\n", t, in);
+  
+  }
 
   
   return 0;
