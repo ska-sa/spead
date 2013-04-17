@@ -612,4 +612,18 @@ int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group
   return 0;
 }
 
+int is_power_of_2(int x)
+{
+  return (x != 0) ? ((x & (x-1)) == 0 ? 0 : -1) : -1;
+}
+
+int power_of_2(int x)
+{
+  int p=0;
+  do {
+    x = x >> 1;
+    p++;
+  } while (x > 0);
+  return (p-1);
+}
 

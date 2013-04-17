@@ -28,6 +28,7 @@
 #endif
 
 #include "server.h"
+#include "stack.h"
 #include "spead_api.h"
 #include "hash.h"
 #include "mutex.h"
@@ -123,7 +124,7 @@ int register_signals_us()
   return 0;
 }
 
-struct u_server *create_server_us(struct spead_api_module *m, long cpus, char *raw_pkt_file)
+struct u_server *create_server_us(struct stack *pl, long cpus, char *raw_pkt_file)
 {
   struct u_server *s;
 
@@ -149,13 +150,20 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus, char *r
   s->s_cpus    = cpus;
 #if 0
   s->s_cs      = NULL;
+  s->s_mod     = m;
 #endif
   s->s_hs      = NULL;
   s->s_m       = 0;
-  s->s_mod     = m;
 #ifndef IKATCP
   s->s_kl      = NULL;
 #endif
+
+  s->s_p       = create_spead_pipeline(pl);
+  if (s->s_p == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: no modules loaded into pipeline\n", __func__);
+#endif
+  }
 
   if (raw_pkt_file){
     s->s_f = write_raw_data_file(raw_pkt_file);
@@ -166,8 +174,6 @@ struct u_server *create_server_us(struct spead_api_module *m, long cpus, char *r
 
 void destroy_server_us(struct u_server *s)
 {
-  int i;
-
   if (s){
 
     destroy_spead_socket(s->s_x);
@@ -181,7 +187,7 @@ void destroy_server_us(struct u_server *s)
     }
 #endif
 
-    unload_api_user_module(s->s_mod);
+    unload_spead_pipeline(s->s_p);
 
     destroy_store_hs(s->s_hs);
     destroy_shared_mem();
@@ -296,7 +302,7 @@ void print_format_bitrate(struct u_server *s, char x, uint64_t bps)
 #endif
 }
 
-int worker_task_us(void *data, struct spead_api_module *m, int cfd)
+int worker_task_us(void *data, struct spead_pipeline *l, int cfd)
 {
   struct u_server *s;
   struct spead_packet *p;
@@ -375,7 +381,7 @@ int worker_task_us(void *data, struct spead_api_module *m, int cfd)
       continue;
     }
 
-    rtn = process_packet_hs(s, m, o);
+    rtn = process_packet_hs(s, l, o);
     switch (rtn){
       case -1:
 #ifdef DEBUG
@@ -519,7 +525,14 @@ int server_run_loop(struct u_server *s)
       }
     }
 
+#if 0
     if (run_module_timer_callbacks(s->s_mod) < 0){
+#if DEBUG>1
+      fprintf(stderr, "%s: problem running module timer callbacks\n", __func__);
+#endif
+    }
+#endif
+    if (run_timers_spead_pipeline(s->s_p) < 0){
 #if DEBUG>1
       fprintf(stderr, "%s: problem running module timer callbacks\n", __func__);
 #endif
@@ -565,7 +578,7 @@ int server_run_loop(struct u_server *s)
   return 0;
 }
 
-int raw_spead_cap_worker(void *data, struct spead_api_module *m, int cfd)
+int raw_spead_cap_worker(void *data, struct spead_pipeline *l, int cfd)
 {
   struct u_server *s;
   struct spead_packet *p;
@@ -573,7 +586,7 @@ int raw_spead_cap_worker(void *data, struct spead_api_module *m, int cfd)
   struct sockaddr_storage peer_addr;
   socklen_t peer_addr_len;
 
-  ssize_t nread;
+  size_t nread;
   
   struct data_file *f;
 
@@ -641,7 +654,10 @@ int raw_spead_cap_worker(void *data, struct spead_api_module *m, int cfd)
   return 0;
 }
 
+#if 0
 int register_client_handler_server(struct spead_api_module *m, char *port, long cpus, uint64_t hashes, uint64_t hashsize, int broadcast, char *raw_pkt_file)
+#endif
+int register_client_handler_server(struct stack *pl, char *port, long cpus, uint64_t hashes, uint64_t hashsize, int broadcast, char *raw_pkt_file)
 {
   struct u_server *s;
   
@@ -650,10 +666,11 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
     return -1;
   }
 
-  s = create_server_us(m, cpus, raw_pkt_file);
+  s = create_server_us(pl, cpus, raw_pkt_file);
   if (s == NULL){
     fprintf(stderr, "%s: error could not create server\n", __func__);
-    unload_api_user_module(m);
+    //unload_api_user_module(m);
+    destroy_stack(pl, NULL);
     return -1;
   }
 
@@ -673,7 +690,7 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
 
   if (raw_pkt_file){
 
-    s->s_w = create_spead_workers(s->s_mod, s, cpus, &raw_spead_cap_worker);
+    s->s_w = create_spead_workers(s->s_p, s, cpus, &raw_spead_cap_worker);
     if (s->s_w == NULL){
       shutdown_server_us(s);
       fprintf(stderr, "%s: create spead workers failed\n", __func__);
@@ -689,7 +706,7 @@ int register_client_handler_server(struct spead_api_module *m, char *port, long 
       return -1;
     }
 
-    s->s_w = create_spead_workers(s->s_mod, s, cpus, &worker_task_us);
+    s->s_w = create_spead_workers(s->s_p, s, cpus, &worker_task_us);
     if (s->s_w == NULL){
       shutdown_server_us(s);
       fprintf(stderr, "%s: create spead workers failed\n", __func__);
@@ -718,10 +735,14 @@ int main(int argc, char *argv[])
 {
   long cpus;
   int i, j, c, broadcast;
-  char *port, *dylib, *raw_pkt_file;
+  char *port, *raw_pkt_file, mod_start;
   uint64_t hashes, hashsize;
+  
+  struct stack *pl;
 
+#if 0
   struct spead_api_module *m;
+#endif
 
   if (check_spead_version(VERSION) < 0){
     fprintf(stderr, "%s: FATAL version mismatch\n", __func__);
@@ -735,13 +756,14 @@ int main(int argc, char *argv[])
   hashes   = 1000;
   hashsize = 100;
   
-  dylib = NULL;
-  m     = NULL;
   raw_pkt_file = NULL;
 
   port = PORT;
   cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
+  mod_start = 0;
+  pl = NULL;
+  
 #ifdef DEBUG
   fprintf(stderr, "\nS-P-E-A-D S.E.R.V.E.R\n\n");
 #endif  
@@ -749,6 +771,7 @@ int main(int argc, char *argv[])
   while (i < argc){
     if (argv[i][0] == '-'){
       c = argv[i][j];
+      mod_start = 0;
 
       switch(c){
         case '\0':
@@ -767,6 +790,7 @@ int main(int argc, char *argv[])
 
         case 'h':
           fprintf(stderr, "usage:\n\t%s\n\t\t-w [workers (d:%ld)]\n\t\t-p [port (d:%s)]\n\t\t-d [data sink module]\n\t\t-b [buffers (d:%ld)]\n\t\t-l [buffer length (d:%ld)]\n\t\t-x (enable receive from broadcast [priv])\n\t\t-r (dump raw spead packets)\n\n", argv[0], cpus, port, hashes, hashsize);
+          destroy_stack(pl, NULL);
           return EX_OK;
 
         /*settings*/
@@ -782,6 +806,7 @@ int main(int argc, char *argv[])
             i++;
           }
           if (i >= argc){
+            destroy_stack(pl, NULL);
             fprintf(stderr, "%s: option -%c requires a parameter\n", argv[0], c);
             return EX_USAGE;
           }
@@ -790,7 +815,17 @@ int main(int argc, char *argv[])
               raw_pkt_file = argv[i] +j;
               break;
             case 'd':
-              dylib = argv[i] + j;  
+              //dylib = argv[i] + j;  
+              mod_start = 1;
+
+              pl = create_stack();
+              if (pl == NULL){
+                fprintf(stderr, "%s: cannot create pipeline stack\n", __func__);
+                return EX_SOFTWARE;
+              }
+              
+              push_stack(pl, argv[i]+j);
+
               break;
             case 'p':
               port = argv[i] + j;  
@@ -811,16 +846,25 @@ int main(int argc, char *argv[])
 
         default:
           fprintf(stderr, "%s: unknown option -%c\n", argv[0], c);
+          destroy_stack(pl, NULL);
           return EX_USAGE;
       }
 
     } else {
-      fprintf(stderr, "%s: extra argument %s\n", argv[0], argv[i]);
-      return EX_USAGE;
+      if (mod_start){
+        push_stack(pl, argv[i]);
+        i++;
+      } else {
+        fprintf(stderr, "%s: extra argument %s\n", argv[0], argv[i]);
+        destroy_stack(pl, NULL);
+        return EX_USAGE;
+      }
     }
     
   }
 
+#if 0
+  return 0;
   if (dylib != NULL){
 
     m = load_api_user_module(dylib);
@@ -830,7 +874,8 @@ int main(int argc, char *argv[])
     }
 
   }
+#endif
 
-  return register_client_handler_server(m, port, cpus, hashes, hashsize, broadcast, raw_pkt_file);
+  return register_client_handler_server(pl, port, cpus, hashes, hashsize, broadcast, raw_pkt_file);
 }
 

@@ -107,9 +107,15 @@ struct spead_api_module *load_api_user_module(char *mod)
   return m;
 }
 
+#if 0
 void unload_api_user_module(struct spead_api_module *m)
+#endif
+void unload_api_user_module(void *data)
 {
+  struct spead_api_module *m;
   char *err;
+  
+  m = data;
 
   if (m){
 #if 0   

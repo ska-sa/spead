@@ -27,11 +27,9 @@ void empty_stack(struct stack *s, void (*call)(void *data))
 {
   void *d;
   if (s){
-    if (s->s_data){
-      while (pop_stack(s, &d) < 0) {
-        if (call){
-          (*call)(d);
-        }
+    while (pop_stack(s, &d) == 0) {
+      if (call){
+        (*call)(d);
       }
     }
   }
