@@ -9,11 +9,11 @@ int is_power_of_2(int x)
 int power_of_2(int x)
 {
   int p=0;
-  do {
+  while (x > 1) {
     x = x >> 1;
     p++;
-  } while(x > 0);
-  return (p-1);
+  }
+  return p;
 }
 
 int main(int argc, char *argv[])
@@ -29,6 +29,12 @@ int main(int argc, char *argv[])
   }
    
   passes = power_of_2(N);
+
+  if (passes == 0){
+    fprintf(stderr, "need a minimum of 2 data points\n");
+    return 1;
+  }
+
   threads = N >> 1;
   m = threads;
   groups = threads / m;

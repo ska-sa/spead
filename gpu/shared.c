@@ -620,10 +620,10 @@ int is_power_of_2(int x)
 int power_of_2(int x)
 {
   int p=0;
-  do {
+  while (x > 1) {
     x = x >> 1;
     p++;
-  } while (x > 0);
-  return (p-1);
+  }
+  return p;
 }
 
