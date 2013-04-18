@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "bit-reversal of [%d] is [%d]", t, in);
 
     if (t < in){
-      fprintf(stderr, " do something");
+      fprintf(stderr, " do swap");
       need++;
     } else if (t == in) {
       fprintf(stderr, " ====");
