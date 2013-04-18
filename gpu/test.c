@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
   fprintf(stderr, "%d passes needed by %d threads\n", passes, threads);
   
-#if 1
+#if 0
   for (p=0; p<passes; p++){
     for (t=0; t<threads; t++){
       
@@ -81,7 +81,9 @@ int main(int argc, char *argv[])
     if (t < in){
       fprintf(stderr, " do something");
       need++;
-    } 
+    } else if (t == in) {
+      fprintf(stderr, " ====");
+    }
 
     fprintf(stderr, "\n");
   
@@ -92,8 +94,14 @@ int main(int argc, char *argv[])
 
   int diff  = (passes % 2) ? /*odd*/ ((passes+1) >> 1) - 1 : /*even*/ (passes >> 1) - 1;
   int flips = ((N >> 1) - (1 << diff));
-
+  
   fprintf(stderr, "calculated flips needed: diff %d flips %d threads - flips %d\n", diff, flips, threads - flips);
+#if 0
+  for (t=0; t<flips; t++)
+  {
+    
+  }
+#endif
 
   return 0;
 }
