@@ -175,12 +175,15 @@ struct spead_workers {
   int               w_hfd;
 };
 
+struct spead_pipeline {
+  struct stack *l_mods;
+};
 
 /*API FUNCTIONS*/
 
 /*spead module api*/
 struct spead_api_module *load_api_user_module(char *mod);
-void unload_api_user_module(struct spead_api_module *m);
+void unload_api_user_module(void *data);
 int setup_api_user_module(struct spead_api_module *m);
 int destroy_api_user_module(struct spead_api_module *m);
 int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_group *ig);
@@ -193,6 +196,15 @@ void set_data_spead_api_module_shared(struct spead_api_module_shared *s, void *d
 void *get_data_spead_api_module_shared(struct spead_api_module_shared *s);
 void clear_data_spead_api_module_shared(struct spead_api_module_shared *s);
 size_t get_data_size_spead_api_module_shared(struct spead_api_module_shared *s);
+
+/*spead pipeline api*/
+struct spead_pipeline *create_spead_pipeline(struct stack *pl);
+void unload_spead_pipeline(void *data);
+int setup_spead_pipeline(struct spead_pipeline *l);
+void destroy_spead_pipeline(void *data);
+int run_callbacks_spead_pipeline(struct spead_pipeline *l, void *data);
+int run_timers_spead_pipeline(struct spead_pipeline *l);
+
 
 void print_data(unsigned char *buf, int size);
 
@@ -236,7 +248,7 @@ void destroy_spead_item2(void *data);
 struct spead_api_item *init_spead_api_item(struct spead_api_item *itm, int vaild, int id, int len, unsigned char *data);
 #endif
 
-int process_packet_hs(struct u_server *s, struct spead_api_module *m, struct hash_o *o);  
+int process_packet_hs(struct u_server *s, struct spead_pipeline *l, struct hash_o *o);  
 
 char *hr_spead_id(uint64_t sid);
 
@@ -276,10 +288,10 @@ int send_spead_stream_terminator(struct spead_tx *tx);
 
 /*spead workers subprocess api*/
 void destroy_child_sp(void *data);
-struct u_child *fork_child_sp(struct spead_api_module *m, void *data, int (*call)(void *data, struct spead_api_module *m, int cfd));
+struct u_child *fork_child_sp(struct spead_pipeline *l, void *data, int (*call)(void *data, struct spead_pipeline *l, int cfd));
 int add_child_us(struct u_child ***cs, struct u_child *c, int size);
 
-struct spead_workers *create_spead_workers(struct spead_api_module *m, void *data, long count, int (*call)(void *data, struct spead_api_module *m, int cfd));
+struct spead_workers *create_spead_workers(struct spead_pipeline *l, void *data, long count, int (*call)(void *data, struct spead_pipeline *l, int cfd));
 void destroy_spead_workers(struct spead_workers *w);
 int wait_spead_workers(struct spead_workers *w);
 int get_count_spead_workers(struct spead_workers *w);
