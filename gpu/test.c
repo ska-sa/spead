@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
   fprintf(stderr, "%d passes needed by %d threads\n", passes, threads);
   
-#if 0
+#if 1
   for (p=0; p<passes; p++){
     for (t=0; t<threads; t++){
       
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
   }
 #endif
 #if 1
-  int need = 0;
+  int need = 0, same = 0;
   for (t=0; t < N; t++){
     
     int r = t, in=0;
@@ -76,17 +76,26 @@ int main(int argc, char *argv[])
       r = r >> 1;
     }
 
+#if 1
     fprintf(stderr, "bit-reversal of [%d] is [%d]", t, in);
-
     if (t < in){
-      fprintf(stderr, " do swap");
+      fprintf(stderr, "\tdo swap use %d", need);
       need++;
     } else if (t == in) {
-      fprintf(stderr, " ====");
+      fprintf(stderr, "\t====");
+      same++;
+    } else {
+      fprintf(stderr, "\t😸  ");
     }
 
     fprintf(stderr, "\n");
-  
+#endif
+#if 0
+    if (t < in){
+      fprintf(stderr, "%d\t%d\n", need, t);
+      need++;
+    }
+#endif
   }
 
   fprintf(stderr, "need count %d\n", need);
@@ -95,7 +104,7 @@ int main(int argc, char *argv[])
   int diff  = (passes % 2) ? /*odd*/ ((passes+1) >> 1) - 1 : /*even*/ (passes >> 1) - 1;
   int flips = ((N >> 1) - (1 << diff));
   
-  fprintf(stderr, "calculated flips needed: diff %d flips %d threads - flips %d\n", diff, flips, threads - flips);
+  fprintf(stderr, "calculated flips needed: diff %d flips %d same %d\n", diff, flips, same);
 #if 0
   for (t=0; t<flips; t++)
   {
