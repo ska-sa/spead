@@ -53,7 +53,7 @@ struct shared_mem_region *create_shared_mem_region(uint64_t mid, uint64_t size)
   ptr = mmap(NULL, size, PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
   if (ptr == MAP_FAILED){
 #ifdef DEBUG
-    fprintf(stderr, "%s: mmap error %s\n", __func__, strerror(errno));
+    fprintf(stderr, "%s: mmap error 0 %s\n", __func__, strerror(errno));
 #endif
     return NULL;
   }
@@ -61,9 +61,16 @@ struct shared_mem_region *create_shared_mem_region(uint64_t mid, uint64_t size)
   r = mmap(NULL, sizeof(struct shared_mem_region), PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
   if (r == MAP_FAILED){
 #ifdef DEBUG
-    fprintf(stderr, "%s: mmap error %s\n", __func__, strerror(errno));
+    fprintf(stderr, "%s: mmap error 1 %s\n", __func__, strerror(errno));
 #endif
     munmap(ptr, size);
+    return NULL;
+  }
+
+  if (ptr == NULL || r == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: mmap error 2 %s\n", __func__, strerror(errno));
+#endif
     return NULL;
   }
   
