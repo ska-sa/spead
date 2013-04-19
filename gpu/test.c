@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
   fprintf(stderr, "%d passes needed by %d threads\n", passes, threads);
   
-#if 1
+#if 0
   for (p=0; p<passes; p++){
     for (t=0; t<threads; t++){
       

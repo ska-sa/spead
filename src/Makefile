@@ -13,6 +13,7 @@ CFLAGS += -DDATA
 CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
+#CFLAGS += -m32
 CC = gcc -ggdb
 
 LIB = -lspead -L.
@@ -87,7 +88,7 @@ install: all
 	/sbin/ldconfig  
 
 clean: 
-	$(RM) $(TXEXE) $(RXEXE) $(DLIB) *.o *.lo core vgcore* test-*
+	$(RM) $(TXEXE) $(RXEXE) $(SLIB) $(RXEXE)-static $(TXEXE)-static $(DLIB) *.o *.lo core vgcore* test-*
 
 fresh: 
 	make clean && make
