@@ -146,7 +146,8 @@ int run_pipeline(struct demo_o *d)
   }
   
   off   = 0;
-  chunk = 64*1024;
+  //chunk = 64*1024;
+  chunk = 16;
   size  = get_data_file_size(d->f);
   have  = size;
 
@@ -165,8 +166,9 @@ int run_pipeline(struct demo_o *d)
   itm = new_item_from_group(ig, chunk);
   
   itm->i_valid = 1;
-  itm->i_id    = 0x0;
+  itm->i_id    = 0xb001;
   itm->i_len   = chunk;
+  itm->i_data_len = chunk;
   
   count = 0;
   do {

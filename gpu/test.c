@@ -62,8 +62,8 @@ int main(int argc, char *argv[])
 
   }
 #endif
-#if 1
   int need = 0, same = 0;
+#if 1
   for (t=0; t < N; t++){
     
     int r = t, in=0;

@@ -3,12 +3,19 @@
 
 #include <CL/opencl.h>
 
+#if 1 
 struct float2 {
   float x;
   float y;
 };
 typedef struct float2 float2;
+#endif
 
+struct fft_map {
+  int A;
+  int B;
+  int W;
+};
 
 struct ocl_ds {
   cl_context       d_ctx;
