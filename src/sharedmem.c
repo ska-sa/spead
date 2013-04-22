@@ -73,13 +73,17 @@ struct shared_mem_region *create_shared_mem_region(uint64_t mid, uint64_t size)
 #endif
     return NULL;
   }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: r(%p) ptr(%p)\n", __func__,  r, ptr);
+#endif
   
   r->r_m    = 0;
   r->r_id   = mid;
   r->r_size = size;
   r->r_off  = 0;
-  r->r_ptr  = ptr;
   r->r_next = NULL;
+  r->r_ptr  = ptr;
 
 #ifdef DEBUG
   fprintf(stderr, "%s: created %ld byte shared mem region from (%p - %p)\n", __func__, size, r->r_ptr, r->r_ptr + size); 

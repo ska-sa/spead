@@ -45,8 +45,18 @@ __kernel void radix2_power_2_inplace_fft(__global const float2 *in, const int N,
 
     barrier(CLK_GLOBAL_MEM_FENCE);
   }
+  
+}
+
+__kernel void radix2_bit_reversal(__global const float2 *in, const int N)
+{
+  register int i;
+  float2 x;
+
+  i = get_global_id(0);
 
   
+
 }
 
 __kernel void uint8_re_to_float2(__global const uint8_t *in, __global const float2 *out)
