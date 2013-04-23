@@ -1,5 +1,5 @@
 CFLAGS += -DIKATCP
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 CFLAGS += -O3
 
 CC = gcc -ggdb -Wall
@@ -57,7 +57,7 @@ clean:
 	$(RM) $(OBJ) $(EXE) core vgcore* *.o *.so
 
 $(EXE): $(EXE).c
-	$(CC) $(CFLAGS) -Wl,-rpath,\"$(shell pwd)/\" $< -o $@ $(LIB) $(IDIR) $(LDIR)
+	$(CC) $(CFLAGS) -Wl,-rpath,\"$(shell pwd)/\" $< -o $@ $(LIB) $(IDIR) $(LDIR) -ldl
 
 
 #ocl: ocl.c shared.c
