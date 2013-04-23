@@ -53,7 +53,7 @@ struct shared_mem_region *create_shared_mem_region(uint64_t mid, uint64_t size)
   ptr = mmap(NULL, size, PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
   if (ptr == MAP_FAILED){
 #ifdef DEBUG
-    fprintf(stderr, "%s: mmap error %s\n", __func__, strerror(errno));
+    fprintf(stderr, "%s: mmap error 0 %s\n", __func__, strerror(errno));
 #endif
     return NULL;
   }
@@ -61,18 +61,29 @@ struct shared_mem_region *create_shared_mem_region(uint64_t mid, uint64_t size)
   r = mmap(NULL, sizeof(struct shared_mem_region), PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
   if (r == MAP_FAILED){
 #ifdef DEBUG
-    fprintf(stderr, "%s: mmap error %s\n", __func__, strerror(errno));
+    fprintf(stderr, "%s: mmap error 1 %s\n", __func__, strerror(errno));
 #endif
     munmap(ptr, size);
     return NULL;
   }
+
+  if (ptr == NULL || r == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: mmap error 2 %s\n", __func__, strerror(errno));
+#endif
+    return NULL;
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: r(%p) ptr(%p)\n", __func__,  r, ptr);
+#endif
   
   r->r_m    = 0;
   r->r_id   = mid;
   r->r_size = size;
   r->r_off  = 0;
-  r->r_ptr  = ptr;
   r->r_next = NULL;
+  r->r_ptr  = ptr;
 
 #ifdef DEBUG
   fprintf(stderr, "%s: created %ld byte shared mem region from (%p - %p)\n", __func__, size, r->r_ptr, r->r_ptr + size); 

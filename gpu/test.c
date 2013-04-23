@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
   fprintf(stderr, "%d passes needed by %d threads\n", passes, threads);
   
-#if 1
+#if 0
   for (p=0; p<passes; p++){
     for (t=0; t<threads; t++){
       
@@ -62,8 +62,8 @@ int main(int argc, char *argv[])
 
   }
 #endif
-#if 1
   int need = 0, same = 0;
+#if 1
   for (t=0; t < N; t++){
     
     int r = t, in=0;
@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
       r = r >> 1;
     }
 
-#if 1
+#if 0
     fprintf(stderr, "bit-reversal of [%d] is [%d]", t, in);
     if (t < in){
       fprintf(stderr, "\tdo swap use %d", need);
@@ -90,9 +90,9 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "\n");
 #endif
-#if 0
+#if 1
     if (t < in){
-      fprintf(stderr, "%d\t%d\n", need, t);
+      fprintf(stderr, "%d\t%d-%d\n", need, t, in);
       need++;
     }
 #endif

@@ -3,12 +3,24 @@
 
 #include <CL/opencl.h>
 
+#if 1 
 struct float2 {
   float x;
   float y;
 };
 typedef struct float2 float2;
+#endif
 
+struct fft_map {
+  int A;
+  int B;
+  int W;
+};
+
+struct bit_flip_map {
+  int A;
+  int B;
+};
 
 struct ocl_ds {
   cl_context       d_ctx;
@@ -23,7 +35,6 @@ struct ocl_kernel {
   char *k_name;
   cl_kernel k_kernel;
 };
-
 
 cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID);
 const char* oclErrorString(cl_int error);
