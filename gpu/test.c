@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
       r = r >> 1;
     }
 
-#if 1
+#if 0
     fprintf(stderr, "bit-reversal of [%d] is [%d]", t, in);
     if (t < in){
       fprintf(stderr, "\tdo swap use %d", need);
@@ -90,9 +90,9 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "\n");
 #endif
-#if 0
+#if 1
     if (t < in){
-      fprintf(stderr, "%d\t%d\n", need, t);
+      fprintf(stderr, "%d\t%d-%d\n", need, t, in);
       need++;
     }
 #endif

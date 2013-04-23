@@ -14,17 +14,26 @@
 
 struct sapi_object {
   struct ocl_ds     *o_ds;
+
   struct ocl_kernel *o_fft;
+  struct ocl_kernel *o_bit_flip;
+  struct ocl_kernel *o_bit_setup;
   struct ocl_kernel *o_fft_setup;
   struct ocl_kernel *o_u2f;
+
   cl_mem            o_map;
+  cl_mem            o_flip;
   cl_mem            o_in;
   cl_mem            o_out;
+#if 0
   float2            *o_host;
+#endif
+  void              *o_host;
 
   int               o_N;
   int               o_threads;
   int               o_passes;
+  int               o_flips;
 };
 
 void destroy_sapi_object(void *data)
@@ -32,15 +41,23 @@ void destroy_sapi_object(void *data)
   struct sapi_object *so;
   so = data;
   if (so == NULL){
+
     destroy_ocl_mem(so->o_in);
     destroy_ocl_mem(so->o_out);
     destroy_ocl_mem(so->o_map);
+    destroy_ocl_mem(so->o_flip);
+
     destroy_ocl_kernel(so->o_fft);
+    destroy_ocl_kernel(so->o_bit_flip);
     destroy_ocl_kernel(so->o_u2f);
     destroy_ocl_kernel(so->o_fft_setup);
+    destroy_ocl_kernel(so->o_bit_setup);
+    
     destroy_ocl_ds(so->o_ds);
+    
     if (so->o_host)
       free(so->o_host);
+    
     free(so);
   }
 }
@@ -61,16 +78,25 @@ void *spead_api_setup(struct spead_api_module_shared *s)
     return NULL;
 
   so->o_ds          = NULL;
+  
+  /*ocl kernels*/
   so->o_fft         = NULL;
   so->o_u2f         = NULL;
   so->o_fft_setup   = NULL;
+  so->o_bit_setup   = NULL;
+  
+  /*mem regions*/
   so->o_in          = NULL;
   so->o_out         = NULL;
   so->o_host        = NULL;
   so->o_map         = NULL;
+  so->o_flip        = NULL;
+  
+  /*vars*/
   so->o_N           = 0;
   so->o_passes      = 0;
   so->o_threads     = 0;
+  so->o_flips       = 0;
   
   so->o_ds = create_ocl_ds(KERNELDIR KERNELS_FILE);
   if (so->o_ds == NULL){
@@ -96,6 +122,18 @@ void *spead_api_setup(struct spead_api_module_shared *s)
     return NULL;
   }
 
+  so->o_bit_setup = create_ocl_kernel(so->o_ds, "radix2_bit_flip_setup");
+  if (so->o_bit_setup == NULL){
+    destroy_sapi_object(so);
+    return NULL;
+  }
+
+  so->o_bit_flip = create_ocl_kernel(so->o_ds, "radix2_bit_flip");
+  if (so->o_bit_flip == NULL){
+    destroy_sapi_object(so);
+    return NULL;
+  }
+
 #ifdef DEBUG
   fprintf(stderr, "%s: pid [%d] sapi obj (%p) FFT kernel (%p)\n", __func__, getpid(), so, so->o_fft);
 #endif
@@ -104,25 +142,21 @@ void *spead_api_setup(struct spead_api_module_shared *s)
 }
 
 
-
-
-int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
+int create_fft_map(struct sapi_object *so, struct ocl_kernel *k, int64_t len)
 {
   size_t workGroupSize[1];
   cl_int err;
   cl_event evt;
-  struct ocl_kernel *k;
   struct ocl_ds     *ds;
 
-  if (so == NULL || len <= 0){
+  if (so == NULL || k == NULL){
 #ifdef DEBUG
-    fprintf(stderr, "%s: params so (%p) len %ld\n", __func__, so, len);
+    fprintf(stderr, "%s: params\n", __func__);
 #endif
     return -1;
   }
 
-  k = so->o_fft_setup;
-  ds= so->o_ds;
+  ds = so->o_ds;
 
   if (is_power_of_2(len) < 0){
 #ifdef DEBUG
@@ -133,7 +167,10 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
 
   so->o_N       = len;
   so->o_threads = len >> 1;
+
+  /*calculate the passes*/
   so->o_passes  = power_of_2(len);
+
   if (so->o_passes == 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: need more data points\n", __func__);
@@ -141,8 +178,13 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
     return -1;
   }
 
+  
+  /*calculate the bit flips*/
+  so->o_flips = ((so->o_N >> 1) - (1 <<  ( (so->o_passes%2) ? ((so->o_passes+1)>>1)-1 : (so->o_passes >> 1)-1 )));
+
+
 #ifdef DEBUG
-  fprintf(stderr, "%s: \033[32m%ld bit FFT with %d threads and %d passes\033[0m\n", __func__, len, so->o_threads, so->o_passes);
+  fprintf(stderr, "%s: \033[32m%ld bit FFT with %d threads and %d passes %d flips\033[0m\n", __func__, len, so->o_threads, so->o_passes, so->o_flips);
 #endif
 
 
@@ -156,7 +198,6 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
   }
 
 
-
   workGroupSize[0] = so->o_threads;
   
   err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_map));
@@ -164,6 +205,7 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
 #ifdef DEBUG
     fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
 #endif
+    destroy_ocl_mem(so->o_map);
     return -1;
   }
 
@@ -172,6 +214,7 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
 #ifdef DEBUG
     fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
 #endif
+    destroy_ocl_mem(so->o_map);
     return -1;
   }
 
@@ -180,15 +223,124 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
 #ifdef DEBUG
     fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
 #endif
+    destroy_ocl_mem(so->o_map);
     return -1;
   }
 
   clReleaseEvent(evt);
   clFinish(ds->d_cq);
 
+  return 0;
+}
+
+
+
+int create_bit_flip_map(struct sapi_object *so, struct ocl_kernel *k)
+{
+  size_t workGroupSize[1];
+  cl_int err;
+  cl_event evt;
+  struct ocl_ds     *ds;
+
+  if (so == NULL || k == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: params\n", __func__);
+#endif
+    return -1;
+  }
+
+  ds = so->o_ds;
+   
+  /*create the bit flip map*/
+  so->o_flip = create_ocl_mem(so->o_ds, sizeof(struct bit_flip_map) * so->o_flips);
+  if (so->o_flip == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: fft map memory creation failed\n", __func__);
+#endif
+    return -1;
+  }
+
+  workGroupSize[0] = 1;
+  
+  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_flip));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    destroy_ocl_mem(so->o_flip);
+    return -1;
+  }
+
+  err = clSetKernelArg(k->k_kernel, 1, sizeof(int), (void *) &(so->o_flips));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    destroy_ocl_mem(so->o_flip);
+    return -1;
+  }
+
+  err = clSetKernelArg(k->k_kernel, 2, sizeof(int), (void *) &(so->o_N));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    destroy_ocl_mem(so->o_flip);
+    return -1;
+  }
+
+  err = clSetKernelArg(k->k_kernel, 3, sizeof(int), (void *) &(so->o_passes));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    destroy_ocl_mem(so->o_flip);
+    return -1;
+  }
+
+  err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+#endif
+    destroy_ocl_mem(so->o_flip);
+    return -1;
+  }
+
+  clReleaseEvent(evt);
+  clFinish(ds->d_cq);
+
+  return 0;
+}
+
+int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
+{
+  if (so == NULL || len <= 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: params so (%p) len %ld\n", __func__, so, len);
+#endif
+    return -1;
+  }
+
+
+  if (create_fft_map(so, so->o_fft_setup, len) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: create fft map fail\n", __func__);
+#endif
+    return -1;
+  }
+
+  if (create_bit_flip_map(so, so->o_bit_setup) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: create fft map fail\n", __func__);
+#endif
+    destroy_ocl_mem(so->o_map);
+    return -1;
+  }
 
 #if 0
   so->o_host = malloc(sizeof(struct fft_map) * so->o_threads * so->o_passes);
+  so->o_host = malloc(sizeof(struct bit_flip_map) * so->o_flips);
 #endif
   so->o_host = malloc(sizeof(float2)*len);
   if (so->o_host == NULL){
@@ -196,6 +348,7 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
     fprintf(stderr, "%s: host memory creation failed\n", __func__);
 #endif
     destroy_ocl_mem(so->o_map);
+    destroy_ocl_mem(so->o_flip);
     return -1;
   }
 
@@ -220,6 +373,7 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
   if (so->o_in == NULL){
     free(so->o_host);
     destroy_ocl_mem(so->o_map);
+    destroy_ocl_mem(so->o_flip);
 #ifdef DEBUG
     fprintf(stderr, "%s: device mem in creation failed\n", __func__);
 #endif
@@ -231,6 +385,7 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
     free(so->o_host);
     destroy_ocl_mem(so->o_in);
     destroy_ocl_mem(so->o_map);
+    destroy_ocl_mem(so->o_flip);
     so->o_in    = NULL;
     so->o_host  = NULL;
 #ifdef DEBUG
@@ -372,7 +527,66 @@ int run_radix2_fft(struct sapi_object *so, struct ocl_kernel *k)
   return 0;
 }
 
+int run_radix2_bitflip(struct sapi_object *so, struct ocl_kernel *k)
+{
+  size_t workGroupSize[1];
+  cl_int err;
+  cl_event evt;
+  struct ocl_ds     *ds;
+  
+  if (so == NULL || k == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: params\n", __func__);
+#endif
+    return -1;
+  }
+  
+  ds = so->o_ds;
+  if (ds == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: ds null\n", __func__);
+#endif
+    return -1;
+  }
 
+
+  workGroupSize[0] = so->o_flips;
+  
+  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_map));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+  err = clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(so->o_out));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+  err = clSetKernelArg(k->k_kernel, 2, sizeof(const int), (void *) &(so->o_flips));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  clReleaseEvent(evt);
+  clFinish(ds->d_cq);
+
+  return 0;
+}
 
 
 int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_group *ig, void *data)
@@ -411,7 +625,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   }
 
 
-
+#if 1
   /*copy in uint8*/
   if (xfer_to_ocl_mem(so->o_ds, itm->i_data, sizeof(unsigned char) * itm->i_data_len, so->o_in) < 0){
 #ifdef DEBUG
@@ -438,8 +652,18 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
     return -1;
   }
 
+#if 1
+  /*run the bitflips*/
+  if (run_radix2_bitflip(so, so->o_bit_flip) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: run fft fail\n", __func__);
+#endif
+    return -1;
+  }
+#endif
   
 
+#endif
   /*copy data out*/
   if (xfer_from_ocl_mem(so->o_ds, so->o_out, sizeof(float2) * so->o_N, so->o_host) < 0){
 #ifdef DEBUG
@@ -450,30 +674,28 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 
 #ifdef DEBUG
   int i;
+  float2 *out = so->o_host;
   for (i=0; i<so->o_N; i++){
-    fprintf(stderr, "%f %f\n", so->o_host[i].x, so->o_host[i].y);
+    fprintf(stderr, "%f %f\n", out[i].x, out[i].y);
   }
 #endif
 
-#if 0
-#if 0
-  if (run_1d_ocl_kernel(so->o_ds, so->o_power, itm->i_data_len / 2, so->o_in, so->o_out) < 0){
+#if 0 
+def DEBUG
+  /*check bitflip map*/
+  if (xfer_from_ocl_mem(so->o_ds, so->o_flip, sizeof(struct bit_flip_map) * so->o_flips, so->o_host) < 0){
 #ifdef DEBUG
-    fprintf(stderr, "%s: run ocl kernel error\n", __func__);
+    fprintf(stderr, "%s: xfer from ocl error\n", __func__);
 #endif
     return -1;
   }
-#endif
 
-  if (xfer_from_ocl_mem(so->o_ds, so->o_out, itm->i_data_len, so->o_host) < 0){
-#ifdef DEBUG
-    fprintf(stderr, "%s: xfer to ocl error\n", __func__);
-#endif
-    return -1;
+  int i;
+  struct bit_flip_map *bfm = so->o_host;
+  for (i=0; i<so->o_flips; i++){
+    fprintf(stderr, "%d %d-%d\n", i, bfm[i].A, bfm[i].B);
   }
 #endif
-
-
   return 0;
 }
 

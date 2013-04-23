@@ -9,6 +9,10 @@ struct fft_map {
   int W;
 };
 
+struct bit_flip_map {
+  int A;
+  int B;
+};
 
 __kernel void radix2_fft_setup(__global struct fft_map *map, const int passes)
 {
@@ -79,15 +83,51 @@ __kernel void radix2_power_2_inplace_fft(__global struct fft_map *map, __global 
   
 }
 
-__kernel void radix2_bit_reversal(__global const float2 *in, const int N)
+__kernel void radix2_bit_flip_setup(__global struct bit_flip_map *flip, const int flips, const int N, const int passes)
+{
+  register int i, r, in, count, have;
+  
+  have = 0;
+
+  for (i=0; i<N; i++){
+    
+    r = i;
+    in = 0;
+    count = 0;
+
+    while (count < passes){
+      count++;
+      in = in << 1;
+      in = in | (r & 0x1);
+      r = r >> 1;
+    }
+
+    if (i < in){
+      flip[have].A = i;
+      flip[have].B = in;
+      have++;
+    }
+
+    if (have == flips){
+      i=N;
+      break;
+    }
+  }
+
+}
+
+__kernel void radix2_bit_flip(__global const struct bit_flip_map *flip, __global float2 *in, const int flips)
 {
   register int i;
-  float2 x;
+  float2 temp;
 
   i = get_global_id(0);
-
   
+  temp = in[flip[i].A];
 
+  in[flip[i].A] = in[flip[i].B];
+
+  in[flip[i].B] = temp;
 }
 
 __kernel void uint8_re_to_float2(__global const unsigned char *in, __global const float2 *out)

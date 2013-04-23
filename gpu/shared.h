@@ -17,6 +17,11 @@ struct fft_map {
   int W;
 };
 
+struct bit_flip_map {
+  int A;
+  int B;
+};
+
 struct ocl_ds {
   cl_context       d_ctx;
   cl_command_queue d_cq;
@@ -30,7 +35,6 @@ struct ocl_kernel {
   char *k_name;
   cl_kernel k_kernel;
 };
-
 
 cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID);
 const char* oclErrorString(cl_int error);
