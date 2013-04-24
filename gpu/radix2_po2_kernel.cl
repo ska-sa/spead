@@ -41,20 +41,29 @@ __kernel void radix2_fft_setup(__global struct fft_map *map, const int passes)
 
 void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int N, __global const float2 *X, __global const float2 *Y)
 {
-  float2 x, y, z, w; 
-
+  register float2 x, y, z, w; 
+#if 0
   x.x = A.x + B.x;
   x.y = A.y + B.y;
   
   y.x = A.x - B.x;
   y.y = A.y - B.y;
+#endif
 
-  w.x = cos(2 * M_PI_F * k / N);
-  w.y = (-1) * sin(2 * M_PI_F * k / N);
+  w.x = (float) cos(2.0 * M_PI_F * k / N);
+  w.y = (float) (-1.0) * sin(2.0 * M_PI_F * k / N);
 
-  z.x = y.x * w.x - y.y * w.y;
-  z.y = y.y * w.x + y.x * w.y;
- 
+#if 0
+  z.x = (y.x * w.x) - (y.y * w.y);
+  z.y = (y.y * w.x) + (y.x * w.y);
+#endif
+
+#if 1
+  x = A + B;
+  y = A - B;
+  z = y * w;
+#endif
+
   X->x = x.x;
   X->y = x.y;
   Y->x = z.x;
@@ -65,9 +74,14 @@ __kernel void radix2_power_2_inplace_fft(__global struct fft_map *map, __global 
 {
   register int a, b, w, p, t, idx, threads;
 
+  idx = 0;
+  a = 0;
+  b = 0;
+  w = 0;
+
   threads = get_global_size(0);
   t = get_global_id(0);
-  
+
   for (p=0; p<passes; p++){
     
     idx = t * passes + p;

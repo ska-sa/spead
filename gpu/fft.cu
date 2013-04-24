@@ -18,7 +18,7 @@
 #define BUFFER  1
 #endif
 
-#define SPEAD_DATA_ID       0x0
+#define SPEAD_DATA_ID       0xb001
 
 struct cufft_o {
   cufftHandle     plan;
@@ -85,28 +85,11 @@ void *spead_api_setup(struct spead_api_module_shared *s)
     return NULL;
   }
   
-  fo->d_host  = NULL;
+  fo->d_host   = NULL;
   fo->d_device = NULL;
+  fo->len      = 0;
   
-  if (cufftPlan1d(&(fo->plan), NX, CUFFT_C2C, BATCH) != CUFFT_SUCCESS) {
-#ifdef DEBUG
-    fprintf(stderr, "cuda err: plan creation failed\n");
-#endif
-    spead_api_destroy(s, fo);
-    return NULL;
-  }
-
-  fo->len = sizeof(cufftComplex)*NX*BATCH;
-
-  fo->d_host = (cufftComplex*) malloc(fo->len); 
-  if (fo->d_host == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "e: malloc failed\n");
-#endif
-    spead_api_destroy(s, fo);
-    return NULL;
-  }
-
+ 
 #if 0
   fo->h_out = (float*) malloc(sizeof(float)*NX*BATCH); 
   if (fo->d_host == NULL){
@@ -127,15 +110,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
   }
 #endif
 
-  cudaMalloc((void **) &(fo->d_device), fo->len);
-  if (cudaGetLastError() != cudaSuccess){
-#ifdef DEBUG
-    fprintf(stderr, "cuda err: failed to cudamalloc\n");
-#endif
-    spead_api_destroy(s, fo);
-    return NULL;
-  }
-
+ 
 #if 0
   fo->buf = create_item_group(BUFFER*NX*BATCH*sizeof(float2), BUFFER);
   if (fo->buf == NULL){
@@ -149,7 +124,48 @@ void *spead_api_setup(struct spead_api_module_shared *s)
   return fo;
 }
 
-int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
+int setup_cufft(struct spead_api_module_shared *s, struct cufft_o *fo, int64_t len)
+{
+  if (fo == NULL || len <= 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: params\n", __func__);
+#endif
+    return -1;
+  }
+
+  if (cufftPlan1d(&(fo->plan), len, CUFFT_C2C, BATCH) != CUFFT_SUCCESS) {
+#ifdef DEBUG
+    fprintf(stderr, "cuda err: plan creation failed\n");
+#endif
+    spead_api_destroy(s, fo);
+    return -1;
+  }
+
+  fo->len = len;
+
+  fo->d_host = (cufftComplex*) malloc(sizeof(cufftComplex) * fo->len); 
+  if (fo->d_host == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "e: malloc failed\n");
+#endif
+    spead_api_destroy(s, fo);
+    return -1;
+  }
+
+  cudaMalloc((void **) &(fo->d_device), sizeof(cufftComplex) * fo->len);
+  if (cudaGetLastError() != cudaSuccess){
+#ifdef DEBUG
+    fprintf(stderr, "cuda err: failed to cudamalloc\n");
+#endif
+    spead_api_destroy(s, fo);
+    return -1;
+  }
+
+
+  return 0;
+}
+
+int cufft_callback(struct spead_api_module_shared *s, struct cufft_o *fo, struct spead_api_item *itm)
 {
   uint64_t i;
 
@@ -163,17 +179,28 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
   if (fo == NULL || itm == NULL){
     return -1;
   }
- 
+  
+  if (fo->d_host == NULL || fo->d_device == NULL || fo->len == 0){
+    if (setup_cufft(s, fo, itm->i_data_len) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: failed to setup fft\n", __func__);
+#endif
+      return -1;
+    }
+  }
+
+#if 0
   if (NX*BATCH != itm->i_data_len){
 #ifdef DEBUG
     fprintf(stderr, "e: data len [%ld] doesn't match fft setup NX*BATCH [%ld]\n", itm->i_data_len, (long int) NX*BATCH);
 #endif
     return -1;
   }
+#endif
 
-  hst  = fo->d_host;
-  dvc = fo->d_device;
-  d   = itm->i_data;
+  hst   = fo->d_host;
+  dvc   = fo->d_device;
+  d     = itm->i_data;
 
   if (hst == NULL || dvc == NULL || d == NULL){
 #ifdef DEBUG
@@ -183,13 +210,12 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
   }
 
   /*prepare the data into cuComplex*/
-  
-  for (i=0; i<NX*BATCH; i++){
+  for (i=0; i<fo->len; i++){
     hst[i].x = (float) d[i];
     hst[i].y = 0;
   }
   
-  cudaMemcpy(dvc, hst, fo->len, cudaMemcpyHostToDevice);
+  cudaMemcpy(dvc, hst, sizeof(cufftComplex) * fo->len, cudaMemcpyHostToDevice);
   if (cudaGetLastError() != cudaSuccess){
 #ifdef DEBUG
     fprintf(stderr, "cuda err: failed copy\n");
@@ -205,7 +231,6 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
     return -1;  
   }
 
-
 #if 0
   /*cuda kernel*/
   power<<<NX/1024, 1024>>>(dvc, fo->out);  
@@ -213,8 +238,7 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
   cudaMemcpy(fo->h_out, fo->out, sizeof(float)*NX*BATCH, cudaMemcpyDeviceToHost);
 #endif
 
-
-  cudaMemcpy(hst, dvc, fo->len, cudaMemcpyDeviceToHost);
+  cudaMemcpy(hst, dvc, sizeof(cufftComplex) * fo->len, cudaMemcpyDeviceToHost);
   if (cudaGetLastError() != cudaSuccess){
 #ifdef DEBUG
     fprintf(stderr, "cuda err: failed copy\n");
@@ -222,14 +246,14 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
     return -1;
   }
 
-
+#if 0
   if (set_spead_item_io_data(itm, hst, fo->len) < 0){
 #ifdef DEBUG
     fprintf(stderr, "err: storeing cufft output\n");
 #endif
     return -1;
   }
-
+#endif
 
 #if 0
   print_data( (unsigned char *) in, sizeof(cufftComplex)*NX*BATCH);
@@ -238,16 +262,16 @@ int cufft_callback(struct cufft_o *fo, struct spead_api_item *itm)
   }
 #endif
 
-#if 0
   /*compute power*/
-  for (i=0; i<NX*BATCH; i++){
 #ifdef DEBUG
-    fprintf(stdout, "%ld %0.5f\n", i, cuCabsf(in[i]));
-#endif
+  fprintf(stdout, "set term x11 size 1200,720\nset style data line\nset style line 1 lt 2 lw 1 pt 0 lc rgb \"green\"\nplot \"-\" using 0:1 ls 1 title \"fft power\"\n");
+  for (i=1; i<fo->len; i++){
+    fprintf(stdout, "%f\n", cuCabsf(hst[i]));
   }
-#ifdef DEBUG
   fprintf(stdout, "e\n");
 #endif
+
+#if 0
   /*compute phase*/
   for (i=0; i<NX*BATCH; i++){
 #ifdef DEBUG
@@ -283,29 +307,8 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   }
   
 
-  off = 0;
-
-  while (off < ig->g_size){
-
-    itm = get_spead_item_at_off(ig, off);
-
-#if 0
-def DEBUG
-    fprintf(stderr, "ITEM id[0x%x] vaild [%d] len [%ld]\n", itm->i_id, itm->i_valid, itm->i_len);
-#endif
-
-    if (itm == NULL)
-      return -1;
-
-    if (itm->i_id == SPEAD_DATA_ID){
-      break;
-    }
-
-    off += sizeof(struct spead_api_item) + itm->i_len;
-  }
-
-
-  if (itm->i_id != SPEAD_DATA_ID){
+  itm = get_spead_item_with_id(ig, SPEAD_DATA_ID);
+  if (itm == NULL || itm->i_id != SPEAD_DATA_ID){
 #ifdef DEBUG
     fprintf(stderr, "%s: err dont have requested data id\n", __func__);
 #endif
@@ -314,7 +317,7 @@ def DEBUG
 
 
 
-  if (cufft_callback(fo, itm) < 0){
+  if (cufft_callback(s, fo, itm) < 0){
     return -1;
   }
 
@@ -379,6 +382,11 @@ def DEBUG
   return 0;
 }
 
+int spead_api_timer_callback(struct spead_api_module_shared *s, void *data)
+{
+
+  return 0;
+}
 
 #if 0
 #define PI (3.141592653589793)
