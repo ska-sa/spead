@@ -137,11 +137,14 @@ __kernel void radix2_bit_flip(__global const struct bit_flip_map *flip, __global
 
   i = get_global_id(0);
   
-  temp = in[flip[i].A];
+  temp.x = in[flip[i].A].x;
+  temp.y = in[flip[i].A].y;
 
-  in[flip[i].A] = in[flip[i].B];
+  in[flip[i].A].x = in[flip[i].B].x;
+  in[flip[i].A].y = in[flip[i].B].y;
 
-  in[flip[i].B] = temp;
+  in[flip[i].B].x = temp.x;
+  in[flip[i].B].y = temp.y;
 }
 
 __kernel void uint8_re_to_float2(__global const unsigned char *in, __global const float2 *out)

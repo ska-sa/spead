@@ -9,7 +9,7 @@
 
 #define S_RATE     1024 
 #define BUF_SIZE   (S_RATE * 2)
-#define FREQ_HZ    4
+#define FREQ_HZ    300
 
 static int run = 1;
 
