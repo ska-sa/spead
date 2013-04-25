@@ -16,7 +16,7 @@ struct bit_flip_map {
 
 __kernel void radix2_fft_setup(__global struct fft_map *map, const int passes)
 {
-  register int t, p, m, threads, groups, idx;
+  int t, p, m, threads, groups, idx;
 
   t = get_global_id(0);
   threads = get_global_size(0);
@@ -41,7 +41,7 @@ __kernel void radix2_fft_setup(__global struct fft_map *map, const int passes)
 
 void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int N, __global const float2 *X, __global const float2 *Y)
 {
-  register float2 x, y, z, w; 
+  float2 x, y, z, w; 
 #if 1
   x.x = A.x + B.x;
   x.y = A.y + B.y;
@@ -72,7 +72,7 @@ void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int
 
 __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __global const float2 *in, const int N, const int passes)
 {
-  register int a, b, w, p, t, idx, threads;
+  int a, b, w, p, t, idx, threads;
 
   idx = 0;
   a = 0;
@@ -99,7 +99,7 @@ __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __g
 
 __kernel void radix2_bit_flip_setup(__global struct bit_flip_map *flip, const int flips, const int N, const int passes)
 {
-  register int i, r, in, count, have;
+  int i, r, in, count, have;
   
   have = 0;
 
@@ -132,8 +132,8 @@ __kernel void radix2_bit_flip_setup(__global struct bit_flip_map *flip, const in
 
 __kernel void radix2_bit_flip(__global const struct bit_flip_map *flip, __global const float2 *in, const int flips)
 {
-  register int i;
-  register float2 temp;
+  int i;
+  float2 temp;
 
   i = get_global_id(0);
   
@@ -157,7 +157,7 @@ __kernel void radix2_bit_flip(__global const struct bit_flip_map *flip, __global
 
 __kernel void uint8_re_to_float2(__global const unsigned char *in, __global const float2 *out)
 {
-  register int i;
+  int i;
 
   i = get_global_id(0);
 
