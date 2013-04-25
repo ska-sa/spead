@@ -42,7 +42,7 @@ __kernel void radix2_fft_setup(__global struct fft_map *map, const int passes)
 void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int N, __global const float2 *X, __global const float2 *Y)
 {
   register float2 x, y, z, w; 
-#if 0
+#if 1
   x.x = A.x + B.x;
   x.y = A.y + B.y;
   
@@ -53,12 +53,12 @@ void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int
   w.x = (float) cos(2.0 * M_PI_F * k / N);
   w.y = (float) (-1.0) * sin(2.0 * M_PI_F * k / N);
 
-#if 0
+#if 1
   z.x = (y.x * w.x) - (y.y * w.y);
   z.y = (y.y * w.x) + (y.x * w.y);
 #endif
 
-#if 1
+#if 0
   x = A + B;
   y = A - B;
   z = y * w;
@@ -70,7 +70,7 @@ void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int
   Y->y = z.y;
 }
 
-__kernel void radix2_power_2_inplace_fft(__global struct fft_map *map, __global const float2 *in, const int N, const int passes)
+__kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __global const float2 *in, const int N, const int passes)
 {
   register int a, b, w, p, t, idx, threads;
 
@@ -103,7 +103,7 @@ __kernel void radix2_bit_flip_setup(__global struct bit_flip_map *flip, const in
   
   have = 0;
 
-  for (i=0; i<N; i++){
+  for (i=0; i<N || have < flips; i++){
     
     r = i;
     in = 0;
@@ -123,20 +123,27 @@ __kernel void radix2_bit_flip_setup(__global struct bit_flip_map *flip, const in
     }
 
     if (have == flips){
-      i=N;
+      //i=N;
       break;
     }
   }
 
 }
 
-__kernel void radix2_bit_flip(__global const struct bit_flip_map *flip, __global float2 *in, const int flips)
+__kernel void radix2_bit_flip(__global const struct bit_flip_map *flip, __global const float2 *in, const int flips)
 {
   register int i;
-  float2 temp;
+  register float2 temp;
 
   i = get_global_id(0);
   
+#if 0
+  temp = in[flip[i].A];
+  in[flip[i].A] = in[flip[i].B];
+  in[flip[i].B] = temp;
+#endif
+
+#if 1
   temp.x = in[flip[i].A].x;
   temp.y = in[flip[i].A].y;
 
@@ -145,6 +152,7 @@ __kernel void radix2_bit_flip(__global const struct bit_flip_map *flip, __global
 
   in[flip[i].B].x = temp.x;
   in[flip[i].B].y = temp.y;
+#endif
 }
 
 __kernel void uint8_re_to_float2(__global const unsigned char *in, __global const float2 *out)
