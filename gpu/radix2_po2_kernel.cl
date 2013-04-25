@@ -2,6 +2,7 @@
 
 //#pragma OPENCL EXTENSION cl_khr_fp64: enable
 
+#include <CL/opencl.h>
 
 struct fft_map {
   int A;
@@ -13,8 +14,6 @@ struct bit_flip_map {
   int A;
   int B;
 };
-
-typedef cl_float2 float2;
 
 __kernel void radix2_fft_setup(__global struct fft_map *map, const int passes)
 {
