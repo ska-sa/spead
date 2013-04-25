@@ -678,8 +678,8 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   fprintf(stdout, "set term x11 size 1200,720\nset style data line\nset style line 1 lt 2 lw 1 pt 0 lc rgb \"green\"\nplot \"-\" using 0:1 ls 1 title \"fft power\"\n");
   float2 *out = so->o_host;
   for (i=0; i<so->o_N; i++){
-    //fprintf(stdout, "%f\n", hypotf(out[i].x, out[i].y));
-    fprintf(stdout, "%f %f\n", out[i].x, out[i].y);
+    fprintf(stdout, "%f\n", hypotf(out[i].x, out[i].y));
+    //fprintf(stdout, "%f %f\n", out[i].x, out[i].y);
   }
   fprintf(stdout, "e\n\n");
 #endif
