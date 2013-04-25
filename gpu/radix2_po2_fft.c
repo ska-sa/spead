@@ -553,7 +553,7 @@ int run_radix2_bitflip(struct sapi_object *so, struct ocl_kernel *k)
 
   workGroupSize[0] = so->o_flips;
   
-  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_map));
+  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_flip));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));

@@ -13,11 +13,6 @@ struct bit_flip_map {
   int B;
 };
 
-struct float2 {
-  float x;
-  float y;
-};
-
 __kernel void radix2_fft_setup(__global struct fft_map *map, const int passes)
 {
   int t, p, m, threads, groups, idx;
