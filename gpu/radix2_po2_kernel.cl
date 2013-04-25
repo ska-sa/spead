@@ -72,14 +72,13 @@ void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int
 
 __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __global const float2 *in, const int N, const int passes)
 {
-  int a, b, w, p, t, idx, threads;
+  int a, b, w, p, t, idx;
 
   idx = 0;
   a = 0;
   b = 0;
   w = 0;
 
-  threads = get_global_size(0);
   t = get_global_id(0);
 
   for (p=0; p<passes; p++){
