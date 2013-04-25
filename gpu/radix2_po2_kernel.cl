@@ -39,7 +39,7 @@ __kernel void radix2_fft_setup(__global struct fft_map *map, const int passes)
   
 }
 
-void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int N, __global const float2 *X, __global const float2 *Y)
+void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int N, __global float2 *X, __global float2 *Y)
 {
   float2 x, y, z, w; 
 #if 1
