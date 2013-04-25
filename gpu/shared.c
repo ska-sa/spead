@@ -313,7 +313,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   }
 
 
-  err = clBuildProgram(*program, 0, NULL, "-I /usr/local/cuda/include -I /usr/include/linux", NULL, NULL);
+  err = clBuildProgram(*program, 0, NULL, "-I /usr/local/cuda/include -I /opt/AMDAPP/include", NULL, NULL);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clBuildProgram returns %s\n", oclErrorString(err));
