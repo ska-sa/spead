@@ -1,5 +1,5 @@
 CFLAGS += -DIKATCP
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 CFLAGS += -O3
 
 CC = gcc -ggdb -Wall
@@ -37,15 +37,16 @@ CFLAGS += -DVERSION=\"$(GITVER)\"
 #UTILS = cudafft.cu dedisperse.cu
 
 #OBJ = $(patsubst %.cu,%.so,$(UTILS))
-EXE= demo
+EXE= demo wave_gen
 MODS=         dummy.so ocl.so dumpdata.so writefile.so snapshot.so csv.so basic_ocl.so pipeline_0.so pipeline_1.so radix2_po2_fft.so
 #MODS+= fft.so
 SRC= shared.c dummy.c  ocl.c  dumpdata.c  writefile.c snapshot.c csv.c basic_ocl.c pipeline_0.c pipeline_1.c radix2_po2_fft.c
 
 HDR= shared.h
 OBJ= $(patsubst %.c,%.o,$(SRC))
+EXELIST= $(patsubst %,%.elf,$(EXE))
 
-all: $(MODS) $(EXE)
+all: $(MODS) $(EXELIST)
 
 %.so: %.cu
 	$(NCC) $(CFLAGS) $(NFLAGS) $(NLIB) $(LIB) $(LDIR) $(IDIR) $< -o $@
@@ -59,8 +60,9 @@ all: $(MODS) $(EXE)
 clean:
 	$(RM) $(OBJ) $(EXE) core vgcore* *.o *.so
 
-$(EXE): $(EXE).c
-	$(CC) $(CFLAGS) -Wl,-rpath,\"$(shell pwd)/\" $< -o $@ $(LIB) $(IDIR) $(LDIR)
+%.elf: %.c
+	$(CC) $(CFLAGS) -Wl,-rpath,\"$(shell pwd)/\" $< -o $@ $(LIB) $(IDIR) $(LDIR) -ldl -lm
+	mv $@ $(patsubst %.elf,%,$@)  
 
 
 #ocl: ocl.c shared.c
