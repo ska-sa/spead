@@ -38,6 +38,7 @@ __kernel void radix2_fft_setup(__global struct fft_map *map, const int passes)
   
 }
 
+#if 0 
 void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int N, __global float2 *X, __global float2 *Y)
 {
   float2 x, y, z, w; 
@@ -68,15 +69,17 @@ void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int
   Y->x = z.x;
   Y->y = z.y;
 }
+#endif
 
 __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __global float2 *in, const int N, const int passes)
 {
-  int a, b, w, p, t, idx;
+  int a, b, k, p, t, idx;
+  float2 x, y, z, w;
 
   idx = 0;
   a = 0;
   b = 0;
-  w = 0;
+  k = 0;
 
   t = get_global_id(0);
 
@@ -86,9 +89,25 @@ __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __g
 
     a = map[idx].A;
     b = map[idx].B;
-    w = map[idx].W;
+    k = map[idx].W;
     
-    radix2_dif_butterfly(in[a], in[b], w, N, &in[a], &in[b]);
+    //radix2_dif_butterfly(in[a], in[b], w, N, &in[a], &in[b]);
+    x.x = in[a].x + in[b].x;
+    x.y = in[a].y + in[b].y;
+
+    y.x = in[a].x - in[b].x;
+    y.y = in[a].y - in[b].y;
+
+    w.x = (float) cos(2.0 * M_PI_F * k / N);
+    w.y = (float) (-1.0) * sin(2.0 * M_PI_F * k / N);
+
+    z.x = (y.x * w.x) - (y.y * w.y);
+    z.y = (y.y * w.x) + (y.x * w.y);
+  
+    in[a].x = x.x;
+    in[a].y = x.y;
+    in[b].x = z.x;
+    in[b].y = z.y;
 
     barrier(CLK_GLOBAL_MEM_FENCE);
   }
