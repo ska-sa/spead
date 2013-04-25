@@ -70,7 +70,7 @@ void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int
   Y->y = z.y;
 }
 
-__kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __global const float2 *in, const int N, const int passes)
+__kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __global float2 *in, const int N, const int passes)
 {
   int a, b, w, p, t, idx;
 
