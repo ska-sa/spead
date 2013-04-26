@@ -184,13 +184,20 @@ int run_pipeline(struct demo_o *d, uint64_t chunk)
   do {
     
     //memcpy(itm->i_data, src + off, (have < chunk) ? have : chunk);
-    if ((rb = request_chunk_datafile(d->f, chunk, &dst, NULL)) < 0) {
+    if ((rb = request_chunk_datafile(d->f, (have < chunk) ? have : chunk, &dst, NULL)) < 0) {
 #ifdef DEBUG
       fprintf(stderr, "%s: error getting chunk\n", __func__);
 #endif
       break;
     }
-      
+    
+    if (size > 0 && copy_to_spead_item(itm, dst, rb) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error putting chunk\n", __func__);
+#endif
+      break;
+    }
+
     for (i=0; i<d->mcount; i++){
       if (run_api_user_callback_module(d->mods[i], ig) < 0){
 #ifdef DEBUG

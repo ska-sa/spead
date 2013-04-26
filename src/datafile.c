@@ -335,7 +335,8 @@ int64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, ui
 
       unlock_mutex(&(f->f_m));
 
-#ifdef DEBUG
+#if 0 
+def DEBUG
       fprintf(stderr, "%s: pid [%d] got [%ld] bytes @ (%p) which is off [%ld]\n", __func__, getpid(), rtn, *ptr, *chunk_off_rtn);
 #endif
 

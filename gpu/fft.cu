@@ -265,7 +265,8 @@ int cufft_callback(struct spead_api_module_shared *s, struct cufft_o *fo, struct
   /*compute power*/
 #ifdef DEBUG
   fprintf(stdout, "set term x11 size 1200,720\nset style data line\nset style line 1 lt 2 lw 1 pt 0 lc rgb \"green\"\nplot \"-\" using 0:1 ls 1 title \"fft power\"\n");
-  for (i=fo->len/2; i<fo->len; i++){
+  //for (i=fo->len/2; i<fo->len; i++){
+  for (i=1; i<fo->len; i++){
     fprintf(stdout, "%f\n", cuCabsf(hst[i]));
     //fprintf(stdout, "%f %f\n", hst[i].x, hst[i].y);
   }
