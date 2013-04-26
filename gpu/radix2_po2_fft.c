@@ -185,7 +185,7 @@ int create_fft_map(struct sapi_object *so, struct ocl_kernel *k, int64_t len)
 
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: \033[32m%ld bit FFT with %d threads and %d passes %d flips CL_MAX_WORK_GROUP %d\033[0m\n", __func__, len, so->o_threads, so->o_passes, so->o_flips, CL_DEVICE_MAX_WORK_GROUP_SIZE);
+  fprintf(stderr, "%s: \033[32m%ld bit FFT with %d threads and %d passes %d flips\033[0m\n", __func__, len, so->o_threads, so->o_passes, so->o_flips);
 #endif
 
 
