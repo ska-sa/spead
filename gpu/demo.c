@@ -146,8 +146,10 @@ int run_pipeline(struct demo_o *d)
   }
   
   off   = 0;
-  chunk = 32*1024;
   //chunk = 32*1024;
+  //chunk = 64*1024;
+  //chunk = 1024*1024;
+  chunk = 8;
   //chunk = 1024*1024;
   size  = get_data_file_size(d->f);
   have  = size;
