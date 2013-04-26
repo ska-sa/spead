@@ -339,6 +339,9 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     return -1;
   }
 
+#ifdef DEBUG
+  fprintf(stderr, "%s: CL_DEVICE_MAX_WORK_GROUP_SIZE %ld\n", __func__, CL_DEVICE_MAX_WORK_GROUP_SIZE);
+#endif
 
   munmap(fc, fs.st_size);
   close(fd);
@@ -367,6 +370,10 @@ cl_kernel get_kernel(char *name, cl_program *p)
 #endif
     return NULL;
   }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: CL_KERNEL_WORK_GROUP_SIZE %ld\n", __func__, CL_KERNEL_WORK_GROUP_SIZE);
+#endif
 
   return k;
 }
