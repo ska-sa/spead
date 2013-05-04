@@ -68,7 +68,7 @@ cl_int oclGetPlatformID(cl_platform_id* clSelectedPlatformID)
         ciErrNum = clGetPlatformInfo (clPlatformIDs[i], CL_PLATFORM_NAME, 1024, &chBuffer, NULL);
         if(ciErrNum == CL_SUCCESS)
         {
-#if DEBUG>1
+#ifdef DEBUG
           fprintf(stderr, "platform %d: %s\n", i, chBuffer);
 #endif
           if(strstr(chBuffer, "NVIDIA") != NULL)
@@ -277,6 +277,46 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
 #ifdef DEBUG
   fprintf(stderr, "Device name: %s\n", name);
 #endif
+  
+  cl_uint units;
+  clGetDeviceInfo(devices[0], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(units), &units, NULL); 
+#ifdef DEBUG
+  fprintf(stderr, "Max clock frequency: %d\n", units);
+#endif
+  clGetDeviceInfo(devices[0], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(units), &units, NULL); 
+#ifdef DEBUG
+  fprintf(stderr, "Max compute units: %d\n", units);
+#endif
+  cl_ulong localmemsize;
+  clGetDeviceInfo(devices[0], CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(localmemsize), &localmemsize, NULL); 
+#ifdef DEBUG
+  fprintf(stderr, "Global memsize: %ld\n", localmemsize);
+#endif
+  clGetDeviceInfo(devices[0], CL_DEVICE_LOCAL_MEM_SIZE, sizeof(localmemsize), &localmemsize, NULL); 
+#ifdef DEBUG
+  fprintf(stderr, "Local memsize: %ld\n", localmemsize);
+#endif
+  size_t wgs;
+  clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL); 
+#ifdef DEBUG
+  fprintf(stderr, "Max work group size: %ld\n", wgs);
+#endif
+  clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(units), &units, NULL); 
+#ifdef DEBUG
+  fprintf(stderr, "Max work item dimentions: %d\n", units);
+#endif
+  size_t wid[units];
+  clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)*units, &wid, NULL); 
+#ifdef DEBUG
+  fprintf(stderr, "Max work item sizes: ");
+  int i;
+  for (i=0; i <units;i++)
+    fprintf(stdout, "%d ", wid[i]);
+  fprintf(stdout, "\n");
+#endif
+  
+
+
 
   *context = clCreateContext(0, 1, devices, NULL, NULL, &err);
   if (err != CL_SUCCESS){

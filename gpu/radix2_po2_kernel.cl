@@ -18,6 +18,7 @@ __kernel void radix2_fft_setup(__global struct fft_map *map, const int passes)
   int t, p, m, threads, groups, idx;
 
   t = get_global_id(0);
+  //t = get_global_id(1)*get_global_size(0)+get_global_id(0);
   threads = get_global_size(0);
 
   m = threads; 
@@ -83,6 +84,7 @@ __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __g
 
   t = get_global_id(0);
 
+  #pragma unroll
   for (p=0; p<passes; p++){
     
     idx = t * passes + p;
@@ -98,8 +100,14 @@ __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __g
     y.x = in[a].x - in[b].x;
     y.y = in[a].y - in[b].y;
 
+#if 1
+    w.x = (float) native_cos(2.0 * M_PI_F * k / N);
+    w.y = (float) (-1.0) * native_sin(2.0 * M_PI_F * k / N);
+#endif
+#if 0
     w.x = (float) cos(2.0 * M_PI_F * k / N);
     w.y = (float) (-1.0) * sin(2.0 * M_PI_F * k / N);
+#endif
 
     z.x = (y.x * w.x) - (y.y * w.y);
     z.y = (y.y * w.x) + (y.x * w.y);
@@ -181,6 +189,12 @@ __kernel void uint8_re_to_float2(__global const unsigned char *in, __global cons
   out[i].x = (float) in[i];
   out[i].y = 0.0;
 
+}
+
+__kernel void power(__global const float2 *in, __global float *out)
+{
+  int i = get_global_id(0);
+  out[i] = hypot(in[i].x, in[i].y);
 }
 
 #if 0

@@ -237,7 +237,8 @@ int write_chunk_raw_data_file(struct data_file *f, uint64_t off, void *src, uint
   
   }
 
-#ifdef DEBUG
+#if 0 
+def DEBUG
   fprintf(stderr, "%s: worte [%ld] bytes to <%s> @ [%ld]\n", __func__, len, f->f_name, off);
 #endif
 

@@ -178,7 +178,7 @@ int run_api_user_callback_module(struct spead_api_module *m, struct spead_item_g
 {
   if (m){
     if (m->m_cdfn){
-#ifdef DEBUG
+#if DEBUG>1
       fprintf(stderr, "%s: about to call api callback\n", __func__);
 #endif
       return (*m->m_cdfn)(m->m_s, ig, m->m_data);

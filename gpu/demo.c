@@ -209,7 +209,7 @@ int run_pipeline(struct demo_o *d, uint64_t chunk)
     off  += chunk;
     have -= chunk;
   
-    fprintf(stderr, "[%ld] at [%ld] of [%ld] left [%ld]\n", count++, off, size, have);
+    //fprintf(stderr, "[%ld] at [%ld] of [%ld] left [%ld]\n", count++, off, size, have);
 
   } while ( (size > 0) ? off < size : 1 );
 
