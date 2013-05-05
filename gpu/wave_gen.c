@@ -41,7 +41,6 @@ int main(int argc, char *argv[])
   unsigned char buf[BUF_SIZE];
   int i;
 
-
   if (register_signals_us() < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: logic error\n", __func__);
@@ -62,13 +61,13 @@ int main(int argc, char *argv[])
 
   fprintf(stderr, "%s: radians: %f\n", __func__, freq_rad);
 
-  while (run){
+  for (i=0; i<BUF_SIZE; i++){
+    phase += freq_rad;
+    buf[i] = (unsigned char)((sin(phase)+1)*128);
+    //fprintf(stdout,"%d ", buf[i]);
+  }
 
-    for (i=0; i<BUF_SIZE; i++){
-      phase += freq_rad;
-      buf[i] = (unsigned char)((sin(phase)+1)*128);
-      //fprintf(stdout,"%d ", buf[i]);
-    }
+  while (run){
 
     if (write_next_chunk_raw_data_file(df, buf, BUF_SIZE) < 0){
 #ifdef DEBUG
