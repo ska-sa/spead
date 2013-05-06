@@ -201,16 +201,8 @@ int create_fft_map(struct sapi_object *so, struct ocl_kernel *k, int64_t len)
 
   workGroupSize[0] = so->o_threads;
   
-  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_map));
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
-#endif
-    destroy_ocl_mem(so->o_map);
-    return -1;
-  }
-
-  err = clSetKernelArg(k->k_kernel, 1, sizeof(int), (void *) &(so->o_passes));
+  err  = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_map));
+  err |= clSetKernelArg(k->k_kernel, 1, sizeof(int), (void *) &(so->o_passes));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
@@ -263,34 +255,10 @@ int create_bit_flip_map(struct sapi_object *so, struct ocl_kernel *k)
 
   workGroupSize[0] = 1;
   
-  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_flip));
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
-#endif
-    destroy_ocl_mem(so->o_flip);
-    return -1;
-  }
-
-  err = clSetKernelArg(k->k_kernel, 1, sizeof(int), (void *) &(so->o_flips));
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
-#endif
-    destroy_ocl_mem(so->o_flip);
-    return -1;
-  }
-
-  err = clSetKernelArg(k->k_kernel, 2, sizeof(int), (void *) &(so->o_N));
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
-#endif
-    destroy_ocl_mem(so->o_flip);
-    return -1;
-  }
-
-  err = clSetKernelArg(k->k_kernel, 3, sizeof(int), (void *) &(so->o_passes));
+  err  = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_flip));
+  err |= clSetKernelArg(k->k_kernel, 1, sizeof(int), (void *) &(so->o_flips));
+  err |= clSetKernelArg(k->k_kernel, 2, sizeof(int), (void *) &(so->o_N));
+  err |= clSetKernelArg(k->k_kernel, 3, sizeof(int), (void *) &(so->o_passes));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
@@ -429,15 +397,8 @@ int convert_real_to_float2(struct sapi_object *so, struct ocl_kernel *k)
    
   workGroupSize[0] = so->o_N;
   
-  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_in));
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
-#endif
-    return -1;
-  }
-
-  err = clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(so->o_out));
+  err  = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_in));
+  err |= clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(so->o_out));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
@@ -458,7 +419,7 @@ int convert_real_to_float2(struct sapi_object *so, struct ocl_kernel *k)
   cl_ulong ev_start_time = (cl_ulong) 0;     
   cl_ulong ev_end_time   = (cl_ulong) 0;   
 
-  err = clWaitForEvents(1, &evt);
+  err  = clWaitForEvents(1, &evt);
   err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
   err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
 
@@ -507,31 +468,10 @@ int run_radix2_fft(struct sapi_object *so, struct ocl_kernel *k)
    
   workGroupSize[0] = so->o_threads;
   
-  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_map));
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
-#endif
-    return -1;
-  }
-
-  err = clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(so->o_out));
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
-#endif
-    return -1;
-  }
-
-  err = clSetKernelArg(k->k_kernel, 2, sizeof(const int), (void *) &(so->o_N));
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
-#endif
-    return -1;
-  }
-  
-  err = clSetKernelArg(k->k_kernel, 3, sizeof(const int), (void *) &(so->o_passes));
+  err  = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_map));
+  err |= clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(so->o_out));
+  err |= clSetKernelArg(k->k_kernel, 2, sizeof(const int), (void *) &(so->o_N));
+  err |= clSetKernelArg(k->k_kernel, 3, sizeof(const int), (void *) &(so->o_passes));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
@@ -552,7 +492,7 @@ int run_radix2_fft(struct sapi_object *so, struct ocl_kernel *k)
   cl_ulong ev_start_time = (cl_ulong) 0;     
   cl_ulong ev_end_time   = (cl_ulong) 0;   
 
-  err = clWaitForEvents(1, &evt);
+  err  = clWaitForEvents(1, &evt);
   err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
   err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
 
@@ -601,21 +541,10 @@ int run_radix2_bitflip(struct sapi_object *so, struct ocl_kernel *k)
 
   workGroupSize[0] = so->o_flips;
   
-  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_flip));
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
-#endif
-    return -1;
-  }
-  err = clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(so->o_out));
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
-#endif
-    return -1;
-  }
-  err = clSetKernelArg(k->k_kernel, 2, sizeof(const int), (void *) &(so->o_flips));
+  err  = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_flip));
+  err |= clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(so->o_out));
+  err |= clSetKernelArg(k->k_kernel, 2, sizeof(const int), (void *) &(so->o_flips));
+
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
@@ -636,7 +565,7 @@ int run_radix2_bitflip(struct sapi_object *so, struct ocl_kernel *k)
   cl_ulong ev_start_time = (cl_ulong) 0;     
   cl_ulong ev_end_time   = (cl_ulong) 0;   
 
-  err = clWaitForEvents(1, &evt);
+  err  = clWaitForEvents(1, &evt);
   err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
   err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
 
