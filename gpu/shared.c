@@ -243,6 +243,9 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
 #endif
     return -1;
   }
+#ifdef DEBUG
+  fprintf(stderr, "%s: have %d devices\n", numDevices);
+#endif
  
   devices = malloc(sizeof(cl_device_id) * numDevices);
   if (devices == NULL){
