@@ -274,51 +274,43 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     return -1;
   }
   
+#if 1
 #ifdef DEBUG
   fprintf(stderr, "Device name: %s\n", name);
-#endif
   
-#if 1
   cl_bool ecc;
-  clGetDeviceInfo(devices[0],CL_DEVICE_ERROR_CORRECTION_SUPPORT, sizeof(ecc), &ecc, NULL);
-#ifdef DEBUG
+  clGetDeviceInfo(devices[0], CL_DEVICE_ERROR_CORRECTION_SUPPORT, sizeof(ecc), &ecc, NULL);
   fprintf(stderr, "ECC: %d\n", ecc);
-#endif
+
   cl_uint units;
   clGetDeviceInfo(devices[0], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(units), &units, NULL); 
-#ifdef DEBUG
   fprintf(stderr, "Max clock frequency: %d\n", units);
-#endif
+
   clGetDeviceInfo(devices[0], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(units), &units, NULL); 
-#ifdef DEBUG
-  fprintf(stderr, "Max compute units: %d\n", units);
-#endif
+  fprintf(stderr, "Max compute units (multiprocessors): %d\n", units);
+
   cl_ulong localmemsize;
   clGetDeviceInfo(devices[0], CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(localmemsize), &localmemsize, NULL); 
-#ifdef DEBUG
   fprintf(stderr, "Global memsize: %ld\n", localmemsize);
-#endif
+
   clGetDeviceInfo(devices[0], CL_DEVICE_LOCAL_MEM_SIZE, sizeof(localmemsize), &localmemsize, NULL); 
-#ifdef DEBUG
   fprintf(stderr, "Local memsize: %ld\n", localmemsize);
-#endif
+
   size_t wgs;
   clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL); 
-#ifdef DEBUG
   fprintf(stderr, "Max work group size: %ld\n", wgs);
-#endif
+
   clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(units), &units, NULL); 
-#ifdef DEBUG
   fprintf(stderr, "Max work item dimentions: %d\n", units);
-#endif
+
   size_t wid[units];
   clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)*units, &wid, NULL); 
-#ifdef DEBUG
   fprintf(stderr, "Max work item sizes: ");
+
   int i;
   for (i=0; i <units;i++)
-    fprintf(stdout, "%d ", wid[i]);
-  fprintf(stdout, "\n");
+    fprintf(stderr, "%d ", wid[i]);
+  fprintf(stderr, "\n");
 #endif
 #endif
 
@@ -359,7 +351,8 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   }
 
 
-  err = clBuildProgram(*program, 0, NULL, "-I /usr/local/cuda/include -I /opt/AMDAPP/include", NULL, NULL);
+  err = clBuildProgram(*program, 0, NULL, "-I /usr/local/cuda/include -I /opt/AMDAPP/include"
+     "-cl-fast-relaxed-math -cl-single-precision-constant -cl-denorms-are-zero -cl-mad-enable -cl-no-signed-zeros ", NULL, NULL);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clBuildProgram returns %s\n", oclErrorString(err));
@@ -385,7 +378,8 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     return -1;
   }
 
-#ifdef DEBUG
+#if 0
+def DEBUG
   fprintf(stderr, "%s: CL_DEVICE_MAX_WORK_GROUP_SIZE %ld\n", __func__, CL_DEVICE_MAX_WORK_GROUP_SIZE);
 #endif
 
@@ -417,9 +411,18 @@ cl_kernel get_kernel(char *name, cl_program *p)
     return NULL;
   }
 
+
+#if 1 
 #ifdef DEBUG
-  fprintf(stderr, "%s: CL_KERNEL_WORK_GROUP_SIZE %ld\n", __func__, CL_KERNEL_WORK_GROUP_SIZE);
+  size_t temp;
+  clGetKernelWorkGroupInfo(k, NULL, CL_KERNEL_WORK_GROUP_SIZE, sizeof(temp), &temp, NULL);
+  fprintf(stderr, "CL_KERNEL_WORK_GROUP_SIZE %ld\n", temp);
+  clGetKernelWorkGroupInfo(k, NULL, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &temp, NULL);
+  fprintf(stderr, "CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE %ld\n", temp);
 #endif
+#endif
+
+
 
   return k;
 }

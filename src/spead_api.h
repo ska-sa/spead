@@ -305,6 +305,8 @@ int compare_spead_workers(const void *v1, const void *v2);
 
 int check_spead_version(char *version);
 
+int sub_time(struct timeval *delta, struct timeval *alpha, struct timeval *beta);
+void print_time(struct timeval *result, uint64_t bytes);
 
 #endif
 
