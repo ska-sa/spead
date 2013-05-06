@@ -327,7 +327,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     return -1;
   }
 
-  *command_queue = clCreateCommandQueue(*context, devices[0], 0, &err);
+  *command_queue = clCreateCommandQueue(*context, devices[0], CL_QUEUE_PROFILING_ENABLE, &err);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clCreateCommandQueue returns %s\n", oclErrorString(err));
@@ -585,8 +585,32 @@ int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst)
 #ifdef DEBUG
     fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
 #endif
+    clReleaseEvent(evt);
     return -1;
   }
+
+  clFinish(ds->d_cq);
+
+  cl_ulong ev_start_time = (cl_ulong) 0;     
+  cl_ulong ev_end_time   = (cl_ulong) 0;   
+
+  err = clWaitForEvents(1, &evt);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
+
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+#endif
+    clReleaseEvent(evt);
+    return -1;
+  }
+
+  float run_time = (float)(ev_end_time - ev_start_time)/1000;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+#endif
 
   clReleaseEvent(evt);
 
@@ -614,6 +638,29 @@ int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
     return -1;
   }
 
+  clFinish(ds->d_cq);
+
+  cl_ulong ev_start_time = (cl_ulong) 0;     
+  cl_ulong ev_end_time   = (cl_ulong) 0;   
+
+  err = clWaitForEvents(1, &evt);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
+
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+#endif
+    clReleaseEvent(evt);
+    return -1;
+  }
+
+  float run_time = (float)(ev_end_time - ev_start_time)/1000;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+#endif
+
   clReleaseEvent(evt);
   
   return 0;
@@ -626,6 +673,7 @@ void destroy_ocl_mem(cl_mem m)
   }
 }
 
+#if 0
 int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, cl_mem mem_in, cl_mem mem_out)
 {
   size_t workGroupSize[1];
@@ -636,7 +684,6 @@ int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group
     return -1;
 
   workGroupSize[0] = work_group_size;
-  
   
   err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(mem_in));
   if (err != CL_SUCCESS){
@@ -667,6 +714,7 @@ int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group
 
   return 0;
 }
+#endif
 
 int is_power_of_2(int x)
 {
