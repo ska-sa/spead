@@ -194,7 +194,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   char name[100];
 
   char *fc;
-  int fd;
+  int fd, i;
   struct stat fs;
 
   if (kf == NULL || context == NULL || command_queue == NULL || program == NULL){
@@ -314,7 +314,6 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)*units, &wid, NULL); 
   fprintf(stderr, "Max work item sizes: ");
 
-  int i;
   for (i=0; i <units;i++)
     fprintf(stderr, "%d ", wid[i]);
   fprintf(stderr, "\n");
