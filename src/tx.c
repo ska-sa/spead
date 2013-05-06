@@ -442,7 +442,7 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   sigset_t empty_mask;
   int rtn;
 
-  fprintf(stderr, "%s %s\n", ifile, rfile);
+  //fprintf(stderr, "%s %s\n", ifile, rfile);
   
   if (register_signals_us() < 0)
     return EX_SOFTWARE;
