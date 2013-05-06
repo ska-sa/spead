@@ -20,6 +20,9 @@ struct data_file *create_raw_data_file(char *fname)
 {
   struct data_file *f;
 
+  if (fname == NULL)
+    return NULL;
+
   f = mmap(NULL, sizeof(struct data_file), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
   if (f == MAP_FAILED){
 #ifdef DEBUG

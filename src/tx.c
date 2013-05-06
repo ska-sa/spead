@@ -441,6 +441,8 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   uint64_t heaps, packets;
   sigset_t empty_mask;
   int rtn;
+
+  fprintf(stderr, "%s %s\n", ifile, rfile);
   
   if (register_signals_us() < 0)
     return EX_SOFTWARE;
