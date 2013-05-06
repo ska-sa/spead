@@ -111,8 +111,8 @@ __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __g
     y.y = in[a].y - in[b].y;
 
 #if 1
-    w.x = (float) native_cos(2.0 * M_PI_F * k / N);
-    w.y = (float) (-1.0) * native_sin(2.0 * M_PI_F * k / N);
+    w.x = (float) native_cos(2.0f * M_PI_F * k / N);
+    w.y = (float) (-1.0) * native_sin(2.0f * M_PI_F * k / N);
 #endif
 
 #if 0
