@@ -322,7 +322,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
 
 
 
-  *context = clCreateContext(0, 1, devices, NULL, NULL, &err);
+  *context = clCreateContext(0, numDevices, devices, NULL, NULL, &err);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clCreateContext returns %s\n", oclErrorString(err));
