@@ -453,8 +453,31 @@ int convert_real_to_float2(struct sapi_object *so, struct ocl_kernel *k)
     return -1;
   }
 
-  clReleaseEvent(evt);
   clFinish(ds->d_cq);
+
+  cl_ulong ev_start_time = (cl_ulong) 0;     
+  cl_ulong ev_end_time   = (cl_ulong) 0;   
+
+  err = clWaitForEvents(1, &evt);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
+
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+#endif
+    clReleaseEvent(evt);
+    return -1;
+  }
+
+  float run_time = (float)(ev_end_time - ev_start_time)/1000;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+#endif
+
+
+  clReleaseEvent(evt);
   
   return 0;
 }
@@ -524,8 +547,31 @@ int run_radix2_fft(struct sapi_object *so, struct ocl_kernel *k)
     return -1;
   }
 
-  clReleaseEvent(evt);
   clFinish(ds->d_cq);
+
+  cl_ulong ev_start_time = (cl_ulong) 0;     
+  cl_ulong ev_end_time   = (cl_ulong) 0;   
+
+  err = clWaitForEvents(1, &evt);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
+
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+#endif
+    clReleaseEvent(evt);
+    return -1;
+  }
+
+  float run_time = (float)(ev_end_time - ev_start_time)/1000;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+#endif
+
+
+  clReleaseEvent(evt);
 
   return 0;
 }
@@ -585,8 +631,32 @@ int run_radix2_bitflip(struct sapi_object *so, struct ocl_kernel *k)
     return -1;
   }
 
-  clReleaseEvent(evt);
   clFinish(ds->d_cq);
+
+  cl_ulong ev_start_time = (cl_ulong) 0;     
+  cl_ulong ev_end_time   = (cl_ulong) 0;   
+
+  err = clWaitForEvents(1, &evt);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
+
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+#endif
+    clReleaseEvent(evt);
+    return -1;
+  }
+
+  float run_time = (float)(ev_end_time - ev_start_time)/1000;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+#endif
+
+
+
+  clReleaseEvent(evt);
 
   return 0;
 }
