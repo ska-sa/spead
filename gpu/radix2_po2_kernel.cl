@@ -74,7 +74,7 @@ void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int
 
 __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __global float2 *in, const int N, const int passes)
 {
-  int a, b, k, p, t, idx;
+  int a, b, k, p, t, m, threads, groups, idx;
   float2 x, y, z, w;
 
   idx = 0;
@@ -83,17 +83,27 @@ __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __g
   k = 0;
 
   t = get_global_id(0);
+  threads = get_global_size(0);
+  m = threads;
+  groups = threads / m;
 
   #pragma unroll
   for (p=0; p<passes; p++){
     
     idx = t * passes + p;
 
+#if 0
     a = map[idx].A;
     b = map[idx].B;
     k = map[idx].W;
-    
+#endif
+
+    a = t + (t / m) * m;
+    b = a + m;
+    k = (t % m) * groups;
+
     //radix2_dif_butterfly(in[a], in[b], w, N, &in[a], &in[b]);
+
     x.x = in[a].x + in[b].x;
     x.y = in[a].y + in[b].y;
 
@@ -104,6 +114,7 @@ __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __g
     w.x = (float) native_cos(2.0 * M_PI_F * k / N);
     w.y = (float) (-1.0) * native_sin(2.0 * M_PI_F * k / N);
 #endif
+
 #if 0
     w.x = (float) cos(2.0 * M_PI_F * k / N);
     w.y = (float) (-1.0) * sin(2.0 * M_PI_F * k / N);
@@ -118,6 +129,10 @@ __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __g
     in[b].y = z.y;
 
     barrier(CLK_GLOBAL_MEM_FENCE);
+
+    m = m >> 1;  
+    groups = (m > 0) ? threads / m : 0;
+
   }
   
 }

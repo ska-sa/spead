@@ -324,12 +324,14 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
   }
 
 
+#if 1
   if (create_fft_map(so, so->o_fft_setup, len) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: create fft map fail\n", __func__);
 #endif
     return -1;
   }
+#endif
 
   if (create_bit_flip_map(so, so->o_bit_setup) < 0){
 #ifdef DEBUG
