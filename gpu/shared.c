@@ -194,7 +194,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   char name[100];
 
   char *fc;
-  int fd;
+  int fd, i, j;
   struct stat fs;
 
   if (kf == NULL || context == NULL || command_queue == NULL || program == NULL){
@@ -243,6 +243,9 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
 #endif
     return -1;
   }
+#ifdef DEBUG
+  fprintf(stderr, "%s: have %d devices\n", __func__, numDevices);
+#endif
  
   devices = malloc(sizeof(cl_device_id) * numDevices);
   if (devices == NULL){
@@ -266,53 +269,56 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     return -1;
   }
 
-  err = clGetDeviceInfo(devices[0], CL_DEVICE_NAME, sizeof(name), &name, NULL); 
-  if (err != CL_SUCCESS){
-    munmap(fc, fs.st_size);
-    close(fd);
-    free(devices);
-    return -1;
-  }
-  
+  for (i=0; i< numDevices; i++){
+    err = clGetDeviceInfo(devices[i], CL_DEVICE_NAME, sizeof(name), &name, NULL); 
+    if (err != CL_SUCCESS){
+      munmap(fc, fs.st_size);
+      close(fd);
+      free(devices);
+      return -1;
+    }
+#ifdef DEBUG
+    fprintf(stderr, "Device name: %s\n", name);
+#endif
+
 #if 1
 #ifdef DEBUG
-  fprintf(stderr, "Device name: %s\n", name);
-  
-  cl_bool ecc;
-  clGetDeviceInfo(devices[0], CL_DEVICE_ERROR_CORRECTION_SUPPORT, sizeof(ecc), &ecc, NULL);
-  fprintf(stderr, "ECC: %d\n", ecc);
 
-  cl_uint units;
-  clGetDeviceInfo(devices[0], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(units), &units, NULL); 
-  fprintf(stderr, "Max clock frequency: %d\n", units);
+    cl_bool ecc;
+    clGetDeviceInfo(devices[i], CL_DEVICE_ERROR_CORRECTION_SUPPORT, sizeof(ecc), &ecc, NULL);
+    fprintf(stderr, "ECC: %d\n", ecc);
 
-  clGetDeviceInfo(devices[0], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(units), &units, NULL); 
-  fprintf(stderr, "Max compute units (multiprocessors): %d\n", units);
+    cl_uint units;
+    clGetDeviceInfo(devices[i], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(units), &units, NULL); 
+    fprintf(stderr, "Max clock frequency: %d\n", units);
 
-  cl_ulong localmemsize;
-  clGetDeviceInfo(devices[0], CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(localmemsize), &localmemsize, NULL); 
-  fprintf(stderr, "Global memsize: %ld\n", localmemsize);
+    clGetDeviceInfo(devices[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(units), &units, NULL); 
+    fprintf(stderr, "Max compute units (multiprocessors): %d\n", units);
 
-  clGetDeviceInfo(devices[0], CL_DEVICE_LOCAL_MEM_SIZE, sizeof(localmemsize), &localmemsize, NULL); 
-  fprintf(stderr, "Local memsize: %ld\n", localmemsize);
+    cl_ulong localmemsize;
+    clGetDeviceInfo(devices[i], CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(localmemsize), &localmemsize, NULL); 
+    fprintf(stderr, "Global memsize: %ld\n", localmemsize);
 
-  size_t wgs;
-  clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL); 
-  fprintf(stderr, "Max work group size: %ld\n", wgs);
+    clGetDeviceInfo(devices[i], CL_DEVICE_LOCAL_MEM_SIZE, sizeof(localmemsize), &localmemsize, NULL); 
+    fprintf(stderr, "Local memsize: %ld\n", localmemsize);
 
-  clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(units), &units, NULL); 
-  fprintf(stderr, "Max work item dimentions: %d\n", units);
+    size_t wgs;
+    clGetDeviceInfo(devices[i], CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL); 
+    fprintf(stderr, "Max work group size: %ld\n", wgs);
 
-  size_t wid[units];
-  clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)*units, &wid, NULL); 
-  fprintf(stderr, "Max work item sizes: ");
+    clGetDeviceInfo(devices[i], CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(units), &units, NULL); 
+    fprintf(stderr, "Max work item dimentions: %d\n", units);
 
-  int i;
-  for (i=0; i <units;i++)
-    fprintf(stderr, "%d ", wid[i]);
-  fprintf(stderr, "\n");
+    size_t wid[units];
+    clGetDeviceInfo(devices[i], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)*units, &wid, NULL); 
+    fprintf(stderr, "Max work item sizes: ");
+
+    for (j=0; j<units;j++)
+      fprintf(stderr, "%d ", wid[j]);
+    fprintf(stderr, "\n");
 #endif
 #endif
+  }
 
 
 
@@ -610,7 +616,7 @@ int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst)
   float bit_rate = size / run_time * 10e-3;
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: \033[32m%f usec bitrate %f GB/s\033[0m\n", __func__, run_time, bit_rate);
+  fprintf(stderr, "%s: \033[32m%ld bytes in %f usec bitrate %f GB/s\033[0m\n", __func__, size, run_time, bit_rate);
 #endif
 
   clReleaseEvent(evt);
@@ -660,7 +666,7 @@ int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
   float bit_rate = size / run_time * 10e-3;
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: \033[32m%f usec bitrate %f GB/s\033[0m\n", __func__, run_time, bit_rate);
+  fprintf(stderr, "%s: \033[32m%ld bytes in %f usec bitrate %f GB/s\033[0m\n", __func__, size, run_time, bit_rate);
 #endif
 
   clReleaseEvent(evt);
