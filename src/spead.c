@@ -1493,3 +1493,47 @@ char *hr_spead_id(uint64_t sid)
   return "CUSTOM\t";
 }
 
+int sub_time(struct timeval *delta, struct timeval *alpha, struct timeval *beta)
+{
+  if(alpha->tv_usec < beta->tv_usec){
+    if(alpha->tv_sec <= beta->tv_sec){
+      delta->tv_sec  = 0;
+      delta->tv_usec = 0;
+      return -1;
+    }
+    delta->tv_sec  = alpha->tv_sec - (beta->tv_sec + 1);
+    delta->tv_usec = (1000000 + alpha->tv_usec) - beta->tv_usec;
+  } else {
+    if(alpha->tv_sec < beta->tv_sec){
+      delta->tv_sec  = 0;
+      delta->tv_usec = 0;
+      return -1;
+    }
+    delta->tv_sec  = alpha->tv_sec  - beta->tv_sec;
+    delta->tv_usec = alpha->tv_usec - beta->tv_usec;
+  }
+#ifdef DEBUG
+  if(delta->tv_usec >= 1000000){
+    fprintf(stderr, "major logic failure: %lu.%06lu-%lu.%06lu yields %lu.%06lu\n", alpha->tv_sec, alpha->tv_usec, beta->tv_sec, beta->tv_usec, delta->tv_sec, delta->tv_usec);
+    abort();
+  }
+#endif
+  return 0;
+}
+
+void print_time(struct timeval *result, uint64_t bytes)
+{
+  //int64_t us;
+  //int64_t bpus;
+
+  //us = result->tv_sec*1000*1000 + result->tv_usec;
+  //bpus = bytes / us * 1000 * 1000 / 1024 / 1024;
+  //bpus = (bytes / us) * 1000 * 1000;
+  //print_format_bitrate('R', bpus);
+
+#ifdef DATA
+  fprintf(stderr, "RTIME\t[%d]:\t%3lu.%06ld seconds\n", getpid(), result->tv_sec, result->tv_usec);
+#endif
+}
+
+
