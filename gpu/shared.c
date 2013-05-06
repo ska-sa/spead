@@ -607,9 +607,10 @@ int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst)
   }
 
   float run_time = (float)(ev_end_time - ev_start_time)/1000;
+  float bit_rate = size / run_time * 10e-3;
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+  fprintf(stderr, "%s: \033[32m%f usec bitrate %f GB/s\033[0m\n", __func__, run_time, bit_rate);
 #endif
 
   clReleaseEvent(evt);
@@ -656,9 +657,10 @@ int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
   }
 
   float run_time = (float)(ev_end_time - ev_start_time)/1000;
+  float bit_rate = size / run_time * 10e-3;
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+  fprintf(stderr, "%s: \033[32m%f usec bitrate %f GB/s\033[0m\n", __func__, run_time, bit_rate);
 #endif
 
   clReleaseEvent(evt);
