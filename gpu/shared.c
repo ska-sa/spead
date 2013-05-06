@@ -278,6 +278,12 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   fprintf(stderr, "Device name: %s\n", name);
 #endif
   
+#if 1
+  cl_bool ecc;
+  clGetDeviceInfo(devices[0],CL_DEVICE_ERROR_CORRECTION_SUPPORT, sizeof(ecc), &ecc, NULL);
+#ifdef DEBUG
+  fprintf(stderr, "ECC: %d\n", ecc);
+#endif
   cl_uint units;
   clGetDeviceInfo(devices[0], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(units), &units, NULL); 
 #ifdef DEBUG
@@ -314,7 +320,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     fprintf(stdout, "%d ", wid[i]);
   fprintf(stdout, "\n");
 #endif
-  
+#endif
 
 
 
