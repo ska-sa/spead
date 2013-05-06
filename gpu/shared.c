@@ -269,17 +269,21 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     return -1;
   }
 
-  err = clGetDeviceInfo(devices[0], CL_DEVICE_NAME, sizeof(name), &name, NULL); 
-  if (err != CL_SUCCESS){
-    munmap(fc, fs.st_size);
-    close(fd);
-    free(devices);
-    return -1;
+  for (i=0; i< numDevices; i++){
+    err = clGetDeviceInfo(devices[i], CL_DEVICE_NAME, sizeof(name), &name, NULL); 
+    if (err != CL_SUCCESS){
+      munmap(fc, fs.st_size);
+      close(fd);
+      free(devices);
+      return -1;
+    }
+#ifdef DEBUG
+    fprintf(stderr, "Device name: %s\n", name);
+#endif
   }
-  
+
 #if 1
 #ifdef DEBUG
-  fprintf(stderr, "Device name: %s\n", name);
   
   cl_bool ecc;
   clGetDeviceInfo(devices[0], CL_DEVICE_ERROR_CORRECTION_SUPPORT, sizeof(ecc), &ecc, NULL);
