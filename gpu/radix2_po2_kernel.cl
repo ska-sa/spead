@@ -128,7 +128,9 @@ __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __g
     in[b].x = z.x;
     in[b].y = z.y;
 
-    barrier(CLK_GLOBAL_MEM_FENCE);
+    barrier(CLK_LOCAL_MEM_FENCE);
+    //barrier(CLK_GLOBAL_MEM_FENCE);
+    //mem_fence(CLK_GLOBAL_MEM_FENCE);
 
     m = m >> 1;  
     groups = (m > 0) ? threads / m : 0;
@@ -206,10 +208,16 @@ __kernel void uint8_re_to_float2(__global const unsigned char *in, __global cons
 
 }
 
-__kernel void power(__global const float2 *in, __global float *out)
+__kernel void power_phase(__global const float2 *in)
 {
   int i = get_global_id(0);
-  out[i] = hypot(in[i].x, in[i].y);
+  float2 temp;
+
+  temp.x = hypot(in[i].x, in[i].y);
+  temp.y = atan2(in[i].y, in[i].x);
+
+  in[i].x = temp.x;
+  in[i].y = temp.y;
 }
 
 #if 0
