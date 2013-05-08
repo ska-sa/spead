@@ -1064,7 +1064,7 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
     cd->d_off += itm->i_len;
 
 #ifdef PROCESS
-    fprintf(stderr, "%s: copied [%ld] say in same packet start with off %ld\n", __func__, cc, cd->d_off);
+    fprintf(stderr, "%s: copied [%ld] say in same packet start with off %ld\n", __func__, itm->i_len, cd->d_off);
 #endif
 
     return 0;
@@ -1076,7 +1076,7 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
     cd->d_off = 0;
 
 #ifdef PROCESS
-    fprintf(stderr, "%s: copied [%ld] advance to next packet start with off %ld\n", __func__, cc, cd->d_off);
+    fprintf(stderr, "%s: copied [%ld] advance to next packet start with off %ld still need to copy %ld\n", __func__, cc, cd->d_off, itm->i_len - cc);
 #endif
 
     return 1;
@@ -1109,8 +1109,12 @@ int convert_to_ig(void *so, void *data)
     goto skip_item;
 
   itm = new_item_from_group(cd->d_ig, i2->i_len);
-  if (itm == NULL)
+  if (itm == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error createing new item from group\n", __func__);
+#endif
     return -1;
+  }
 
   itm->i_id = i2->i_id;
   itm->i_valid = i2->i_mode;
@@ -1120,14 +1124,14 @@ int convert_to_ig(void *so, void *data)
   switch (i2->i_mode){
     case SPEAD_DIRECTADDR:
 #ifdef PROCESS
-      fprintf(stderr, "%s: about to copy off %ld len %ld\n", __func__, i2->i_off, i2->i_len);
+      fprintf(stderr, "---\n%s: about to copy id[%d] off %ld len %ld\n", __func__, i2->i_id, i2->i_off, i2->i_len);
 #endif
       while (single_traverse_hash_table(ht, &copy_direct_spead_item, cp) > 0){}
       break;
 
     case SPEAD_IMMEDIATEADDR:
 #ifdef PROCESS
-      fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
+      fprintf(stderr, "+++\n%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
 #endif
       if (copy_to_spead_item(itm, &(i2->i_off), sizeof(int64_t)) < 0){
         destroy_spead_item2(i2);
@@ -1454,7 +1458,7 @@ int process_packet_hs(struct u_server *s, struct spead_pipeline *l, struct hash_
 
   if (p->is_stream_ctrl_term){
 #ifdef DEBUG
-    fprintf(stderr, "%s: GOT STREAM TERMINATOR\n", __func__);
+    fprintf(stderr, "%s: \033[33mGOT STREAM TERMINATOR\033[0m\n", __func__);
 #endif
 
     rtn = store_packet_hs(s, l, o);
