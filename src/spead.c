@@ -939,7 +939,6 @@ int coalesce_spead_items(void *data, struct spead_packet *p)
     fprintf(stderr, "%s: [GET ITEM] @@@ITEM[%d] mode[%d] id[%ld] 0x%lx\n", __func__, j, mode, id, iptr);
 #endif
     
-    /*TODO: remove this malloc use shared malloc*/
     itm = shared_malloc(sizeof(struct spead_api_item2));
     if (itm == NULL)
       return -1;
@@ -971,7 +970,7 @@ void destroy_spead_item2(void *data)
   }
 }
 
-void print_spead_item(void *so, void *data)
+void print_spead_item2(void *so, void *data)
 {
   struct spead_api_item2 *itm;
   itm = so;
@@ -1027,7 +1026,7 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
   struct hash_table *ht;
   struct spead_api_item *itm;
   
-  uint64_t cc;
+  uint64_t cc, mc;
 
   cp = data;
 
@@ -1039,11 +1038,17 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
   itm = cp->p_i;
   
   cc = 0;
+  mc = 0;
 
   if (cd == NULL || ht == NULL || itm == NULL)
     return -1;
 
-  cc = p->payload_len - cd->d_off;
+  cc = p->payload_len - cd->d_off; /*can copy*/
+  mc = cd->d_remaining;            /*must copy*/ 
+
+#ifdef PROCESS 
+  print_spead_item(itm);
+#endif
 
   if (cc > p->payload_len){
 #ifdef DEBUG
@@ -1053,13 +1058,34 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
   }
 
 #ifdef PROCESS
-  fprintf(stderr, "%s: CAN COPY [%ld]\n", __func__, cc);
+  fprintf(stderr, "%s: CAN COPY [%ld] still need [%ld] current itm <%d>\n", __func__, cc, cd->d_remaining, itm->i_id);
 #endif
 
-  if (itm->i_len < cc) {
+  if (mc > 0 && mc <= cc){
 
-    if (append_copy_to_spead_item(itm, p->payload + cd->d_off, itm->i_len) < 0)
+    if (append_copy_to_spead_item(itm, p->payload + cd->d_off, mc) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: failed to append copy [%ld]\n", __func__, itm->i_len);
+#endif
       return -1;
+    }
+
+    cd->d_off += mc;
+    cd->d_remaining = 0;
+
+#ifdef PROCESS
+    fprintf(stderr, "%s: ENDOF item <%ld> copied [%ld] stay in same packet\n", __func__, itm->i_id, mc);
+#endif
+
+    return 0;
+  } else if (itm->i_len < cc) {
+
+    if (append_copy_to_spead_item(itm, p->payload + cd->d_off, itm->i_len) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: (ilen < cc ) failed to append copy [%ld]\n", __func__, itm->i_len);
+#endif
+      return -1;
+    }
     
     cd->d_off += itm->i_len;
 
@@ -1070,13 +1096,18 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
     return 0;
   } else if (itm->i_len >= cc){
     
-    if (append_copy_to_spead_item(itm, p->payload + cd->d_off, cc) < 0)
+    if (append_copy_to_spead_item(itm, p->payload + cd->d_off, cc) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: (ilen >= cc) failed to append copy [%ld]\n", __func__, cc);
+#endif
       return -1;
+    }
 
     cd->d_off = 0;
+    cd->d_remaining = itm->i_len - cc;
 
 #ifdef PROCESS
-    fprintf(stderr, "%s: copied [%ld] advance to next packet start with off %ld still need to copy %ld\n", __func__, cc, cd->d_off, itm->i_len - cc);
+    fprintf(stderr, "%s: copied [%ld] advance to next packet start with off %ld still need to copy %ld\n", __func__, cc, cd->d_off, cd->d_remaining);
 #endif
 
     return 1;
@@ -1175,6 +1206,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
 
   cd.d_len = ht->t_data_count;
   cd.d_off = 0;
+  cd.d_remaining = 0;
 
   if (inorder_traverse_hash_table(ht, &coalesce_spead_items, &cd) < 0){
 #ifdef DEBUG
@@ -1200,7 +1232,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
   
 #if 0 
   def DEBUG
-  traverse_stack(cd.d_stack, &print_spead_item, NULL);
+  traverse_stack(cd.d_stack, &print_spead_item2, NULL);
   print_data(cd.d_data, cd.d_len);
 #endif
 

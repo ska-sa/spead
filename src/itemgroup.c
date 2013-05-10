@@ -389,3 +389,14 @@ int is_item_descriptor_item_group(struct spead_item_group *ig)
 {
   return (ig) ? ig->g_cd : 0;
 }
+
+void print_spead_item(struct spead_api_item *itm)
+{
+#ifdef DEBUG
+  if (itm){
+    
+    fprintf(stderr, "%s: \033[32mITEM <%d>\n\tv[%d] io_d<%p> io_len[%ld] i_len[%ld] i_data_len[%ld] i_data<%p>\033[0m\n", __func__, itm->i_id, itm->i_valid, itm->io_data, itm->io_size, itm->i_len, itm->i_data_len, itm->i_data);
+
+  }
+#endif
+} 
