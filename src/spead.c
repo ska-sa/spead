@@ -1060,7 +1060,7 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
 #ifdef PROCESS
   fprintf(stderr, "%s: CAN COPY [%ld] still need [%ld] current itm <%d>\n", __func__, cc, cd->d_remaining, itm->i_id);
 #endif
-
+#if 0
   if (mc > 0 && mc <= cc){
 
     if (append_copy_to_spead_item(itm, p->payload + cd->d_off, mc) < 0){
@@ -1078,7 +1078,9 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
 #endif
 
     return 0;
-  } else if (itm->i_len < cc) {
+  } else
+#endif
+  if (itm->i_len < cc) {
 
     if (append_copy_to_spead_item(itm, p->payload + cd->d_off, itm->i_len) < 0){
 #ifdef DEBUG

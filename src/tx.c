@@ -316,7 +316,7 @@ int worker_task_pattern_speadtx(void *data, struct spead_pipeline *l, int cfd)
 #ifdef DEBUG
   pid_t pid = getpid();
 #endif
-
+  int count;
   uint64_t hid, itemsize;
 
   tx = data;
@@ -324,6 +324,7 @@ int worker_task_pattern_speadtx(void *data, struct spead_pipeline *l, int cfd)
     return -1;
 
   hid = 0;
+  count=0;
 
   itemsize = (uint64_t) ceil(tx->t_chunk_size / (float) ITMS);
 
@@ -348,7 +349,13 @@ int worker_task_pattern_speadtx(void *data, struct spead_pipeline *l, int cfd)
 #endif
   
   while(run){
-    
+
+    if (count % 2){
+      set_item_data_ones(itm);
+    } else {
+      set_item_data_zeros(itm);
+    }
+
     hid = get_count_speadtx(tx);
 
     ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, hid);
@@ -379,11 +386,12 @@ int worker_task_pattern_speadtx(void *data, struct spead_pipeline *l, int cfd)
     }
 
     unlock_mutex(&(ht->t_m));
-
+    count++;
+    
     if (tx->t_delay > 0){
       usleep(tx->t_delay);
     }
-    
+
   }
   
   destroy_item_group(ig);
