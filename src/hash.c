@@ -461,6 +461,9 @@ int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, st
   int rtn;
 
   rtn = 0;
+#ifdef DEBUG
+  fprintf(stderr, "%s:++current state [%ld]\n", __func__, state);
+#endif
 
   if (ht == NULL || call == NULL) 
     return -1;
@@ -532,6 +535,9 @@ int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, st
       break;
   }
 
+#ifdef DEBUG
+  fprintf(stderr, "%s:--current state [%ld]\n", __func__, state);
+#endif
   return rtn;
 }
 

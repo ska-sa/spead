@@ -11,6 +11,7 @@
 #include <sysexits.h>
 #include <signal.h>
 #include <netdb.h>
+#include <math.h>
 
 #include <sys/mman.h>
 
@@ -307,7 +308,7 @@ def DATA
 
 int worker_task_pattern_speadtx(void *data, struct spead_pipeline *l, int cfd)
 {
-#define ITMS 4
+#define ITMS 1
   struct spead_item_group *ig;
   struct spead_api_item *itm;
   struct spead_tx *tx;
@@ -315,33 +316,46 @@ int worker_task_pattern_speadtx(void *data, struct spead_pipeline *l, int cfd)
 #ifdef DEBUG
   pid_t pid = getpid();
 #endif
-
-  uint64_t hid;
+  int count;
+  uint64_t hid, itemsize;
 
   tx = data;
   if (tx == NULL)
     return -1;
 
   hid = 0;
+  count=0;
 
-  ig = create_item_group(tx->t_chunk_size, ITMS);
+  itemsize = (uint64_t) ceil(tx->t_chunk_size / (float) ITMS);
+
+  ig = create_item_group(itemsize*ITMS, ITMS);
   if (ig == NULL)
     return -1;
 
-  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+  itm = new_item_from_group(ig, itemsize);
   set_item_data_ones(itm);
+  //itm = new_item_from_group(ig, itemsize);
+  //set_item_data_ramp(itm);
 
-  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+#if 0
+  itm = new_item_from_group(ig, itemsize);
   set_item_data_zeros(itm);
 
-  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+  itm = new_item_from_group(ig, itemsize);
   set_item_data_ramp(itm);
 
-  itm = new_item_from_group(ig, tx->t_chunk_size/ITMS);
+  itm = new_item_from_group(ig, itemsize);
   set_item_data_ones(itm);
-
+#endif
+  
   while(run){
-    
+
+    if (count % 2){
+      set_item_data_ones(itm);
+    } else {
+      set_item_data_zeros(itm);
+    }
+
     hid = get_count_speadtx(tx);
 
     ht = packetize_item_group(tx->t_hs, ig, tx->t_pkt_size, hid);
@@ -372,11 +386,12 @@ int worker_task_pattern_speadtx(void *data, struct spead_pipeline *l, int cfd)
     }
 
     unlock_mutex(&(ht->t_m));
-
+    count++;
+    
     if (tx->t_delay > 0){
       usleep(tx->t_delay);
     }
-    
+
   }
   
   destroy_item_group(ig);

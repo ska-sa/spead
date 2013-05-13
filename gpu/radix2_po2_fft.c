@@ -21,6 +21,7 @@ struct sapi_object {
   struct ocl_kernel *o_bit_setup;
   struct ocl_kernel *o_fft_setup;
   struct ocl_kernel *o_u2f;
+  struct ocl_kernel *o_power_phase;
 
   cl_mem            o_map;
   cl_mem            o_flip;
@@ -53,6 +54,7 @@ void destroy_sapi_object(void *data)
     destroy_ocl_kernel(so->o_u2f);
     destroy_ocl_kernel(so->o_fft_setup);
     destroy_ocl_kernel(so->o_bit_setup);
+    destroy_ocl_kernel(so->o_power_phase);
     
     destroy_ocl_ds(so->o_ds);
     
@@ -85,6 +87,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
   so->o_u2f         = NULL;
   so->o_fft_setup   = NULL;
   so->o_bit_setup   = NULL;
+  so->o_power_phase = NULL;
   
   /*mem regions*/
   so->o_in          = NULL;
@@ -131,6 +134,12 @@ void *spead_api_setup(struct spead_api_module_shared *s)
 
   so->o_bit_flip = create_ocl_kernel(so->o_ds, "radix2_bit_flip");
   if (so->o_bit_flip == NULL){
+    destroy_sapi_object(so);
+    return NULL;
+  }
+
+  so->o_power_phase = create_ocl_kernel(so->o_ds, "power_phase");
+  if (so->o_power_phase == NULL){
     destroy_sapi_object(so);
     return NULL;
   }
@@ -590,6 +599,76 @@ int run_radix2_bitflip(struct sapi_object *so, struct ocl_kernel *k)
   return 0;
 }
 
+int run_power_phase(struct sapi_object *so, struct ocl_kernel *k)
+{
+  size_t workGroupSize[1];
+  cl_int err;
+  cl_event evt;
+  struct ocl_ds     *ds;
+  
+  if (so == NULL || k == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: params\n", __func__);
+#endif
+    return -1;
+  }
+  
+  ds = so->o_ds;
+  if (ds == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: ds null\n", __func__);
+#endif
+    return -1;
+  }
+
+
+  workGroupSize[0] = so->o_N;
+  
+  err  = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_out));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  clFinish(ds->d_cq);
+
+  cl_ulong ev_start_time = (cl_ulong) 0;     
+  cl_ulong ev_end_time   = (cl_ulong) 0;   
+
+  err  = clWaitForEvents(1, &evt);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
+
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+#endif
+    clReleaseEvent(evt);
+    return -1;
+  }
+
+  float run_time = (float)(ev_end_time - ev_start_time)/1000;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+#endif
+
+  clReleaseEvent(evt);
+
+  return 0;
+}
+
+
 
 int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_group *ig, void *data)
 {
@@ -658,12 +737,20 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   /*run the bitflips*/
   if (run_radix2_bitflip(so, so->o_bit_flip) < 0){
 #ifdef DEBUG
-    fprintf(stderr, "%s: run fft fail\n", __func__);
+    fprintf(stderr, "%s: run bit flip fail\n", __func__);
 #endif
     return -1;
   }
 #endif
-  
+
+  /*run the power phase*/
+  if (run_power_phase(so, so->o_power_phase) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: run power phase fail\n", __func__);
+#endif
+    return -1;
+  }
+
 
 #endif
   /*copy data out*/
@@ -679,8 +766,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   fprintf(stdout, "set term x11 size 1200,720\nset style data line\nset style line 1 lt 1 lw 0.1 pt 0 lc rgb \"green\"\nplot \"-\" using 0:1 ls 1 title \"fft power\"\n");
   float2 *out = so->o_host;
   for (i=1; i<so->o_N; i++){
-    fprintf(stdout, "%f\n", hypotf(out[i].x, out[i].y));
-    //fprintf(stdout, "%f %f\n", out[i].x, out[i].y);
+    fprintf(stdout, "%f\n", out[i].x);
   }
   fprintf(stdout, "e\n\n");
 #endif
