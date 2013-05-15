@@ -496,7 +496,6 @@ int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, st
 
     }
   }
-  
 
   switch(state){
 
@@ -517,11 +516,22 @@ int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, st
 #endif
         return -1;
       }
-      
-      if (rtn == 1)
-        state = S_NEXT_PACKET;
-      
 
+      switch (rtn){  
+        case 1:
+          state = S_NEXT_PACKET;
+#ifdef DEBUG
+          fprintf(stderr, "%s: GOT 1 from callback!! s: next packet\n", __func__);
+#endif
+          break;
+        case 2:
+          state = S_GET_PACKET;
+#ifdef DEBUG
+          fprintf(stderr, "%s: GOT 2 from callback!! s: same packet\n", __func__);
+#endif
+          break;
+      }
+  
       break;
     
     case S_END:
@@ -538,6 +548,7 @@ int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, st
 #ifdef DEBUG
   fprintf(stderr, "%s:--current state [%ld]\n", __func__, state);
 #endif
+
   return rtn;
 }
 

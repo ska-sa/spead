@@ -26,6 +26,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 
   while ((itm = get_next_spead_item(ig, itm))){
     
+    print_spead_item(itm);
     print_data(itm->i_data, itm->i_data_len);
 
   }

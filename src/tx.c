@@ -308,7 +308,7 @@ def DATA
 
 int worker_task_pattern_speadtx(void *data, struct spead_pipeline *l, int cfd)
 {
-#define ITMS 1
+#define ITMS 2
   struct spead_item_group *ig;
   struct spead_api_item *itm;
   struct spead_tx *tx;
@@ -334,8 +334,8 @@ int worker_task_pattern_speadtx(void *data, struct spead_pipeline *l, int cfd)
 
   itm = new_item_from_group(ig, itemsize);
   set_item_data_ones(itm);
-  //itm = new_item_from_group(ig, itemsize);
-  //set_item_data_ramp(itm);
+  itm = new_item_from_group(ig, itemsize);
+  set_item_data_zeros(itm);
 
 #if 0
   itm = new_item_from_group(ig, itemsize);
@@ -350,11 +350,19 @@ int worker_task_pattern_speadtx(void *data, struct spead_pipeline *l, int cfd)
   
   while(run){
 
+#if 1
     if (count % 2){
+      itm = get_next_spead_item(ig, NULL);
       set_item_data_ones(itm);
-    } else {
+      itm = get_next_spead_item(ig, itm);
       set_item_data_zeros(itm);
+    } else {
+      itm = get_next_spead_item(ig, NULL);
+      set_item_data_zeros(itm);
+      itm = get_next_spead_item(ig, itm);
+      set_item_data_ones(itm);
     }
+#endif
 
     hid = get_count_speadtx(tx);
 

@@ -1058,17 +1058,20 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
   }
 
 #ifdef PROCESS
-  fprintf(stderr, "%s: CAN COPY [%ld] still need [%ld] current itm <%d>\n", __func__, cc, cd->d_remaining, itm->i_id);
+  fprintf(stderr, "%s: CAN COPY [%ld] still need [%ld] current itm <%d>\n", __func__, cc, mc, itm->i_id);
 #endif
-#if 0
+
+#if 1
   if (mc > 0 && mc <= cc){
 
+#if 1
     if (append_copy_to_spead_item(itm, p->payload + cd->d_off, mc) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: failed to append copy [%ld]\n", __func__, itm->i_len);
 #endif
       return -1;
     }
+#endif
 
     cd->d_off += mc;
     cd->d_remaining = 0;
@@ -1078,7 +1081,7 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
 #endif
 
     return 0;
-  } else
+  } else 
 #endif
   if (itm->i_len < cc) {
 
@@ -1112,7 +1115,7 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
     fprintf(stderr, "%s: copied [%ld] advance to next packet start with off %ld still need to copy %ld\n", __func__, cc, cd->d_off, cd->d_remaining);
 #endif
 
-    return 1;
+    return (cd->d_remaining == 0) ? 2 : 1;
   }
 
   return 0;
