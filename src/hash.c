@@ -451,102 +451,133 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
   return 0;
 }
 
+static int cstate       = S_GET_OBJECT;
+static int coi          = 0;
+static struct hash_o *co = NULL;
+
+void end_single_traverse_hash_table()
+{
+#ifdef PROCESS
+  fprintf(stderr, "%s: end reset\n", __func__);
+#endif
+  cstate = S_GET_OBJECT;
+  coi   = 0;
+  co    = NULL;
+}
+
 int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data)
 {
-  static struct hash_o *o = NULL;
-  static int state = S_GET_OBJECT, i=0;
+  //static struct hash_o *o = NULL;
+  //static int state = S_GET_OBJECT, i=0;
 
   struct spead_packet *p;
 
   int rtn;
 
   rtn = 0;
-#ifdef DEBUG
-  fprintf(stderr, "%s:++current state [%ld]\n", __func__, state);
+
+#ifdef PROCESS
+  fprintf(stderr, "%s:++current state [%d]\n", __func__, cstate);
 #endif
 
   if (ht == NULL || call == NULL) 
     return -1;
 
-  while (state != S_GET_PACKET && state != S_END) {
-    switch(state) {
+  while (cstate != S_GET_PACKET && cstate != S_END) {
+    switch(cstate) {
 
       case S_GET_OBJECT:
-        if (i < ht->t_len){
-          o = ht->t_os[i];
-          if (o == NULL){
-            i++;
-            state = S_GET_OBJECT;
+        if (coi < ht->t_len){
+          co = ht->t_os[coi];
+          if (co == NULL){
+            coi++;
+            cstate = S_GET_OBJECT;
             break;
           }
-          state = S_GET_PACKET;
+          cstate = S_GET_PACKET;
         } else 
-          state = S_END;
+          cstate = S_END;
         break;
 
       case S_NEXT_PACKET:
-        if (o->o_next != NULL){
-          o = o->o_next;
-          state = S_GET_PACKET;
+        if (co->o_next != NULL){
+          co = co->o_next;
+          cstate = S_GET_PACKET;
         } else {
-          i++;
-          state = S_GET_OBJECT;
+          coi++;
+          cstate = S_GET_OBJECT;
         }
         break;
 
     }
   }
 
-  switch(state){
+  switch(cstate){
 
     case S_GET_PACKET:
-      p = get_data_hash_o(o);
+      p = get_data_hash_o(co);
       if (p == NULL){
-        state = S_NEXT_PACKET;
+        cstate = S_NEXT_PACKET;
         break;
       }
 
-#ifdef DEBUG
-      fprintf(stderr, "%s: GOT PACKET [%d of %ld] (%p)\n", __func__, i, ht->t_len, p);
+#ifdef PROCESS
+      fprintf(stderr, "%s: GOT PACKET [%d of %ld] (%p)\n", __func__, coi, ht->t_len, p);
 #endif
 
       if ((rtn = (*call)(data, p)) < 0){
-#ifdef DEBUG
+#ifdef PROCESS 
         fprintf(stderr, "%s: callback err for packet (%p)\n", __func__, p);
 #endif
         return -1;
       }
 
       switch (rtn){  
+        case 0: 
+          cstate = S_NEXT_PACKET;
+#ifdef PROCESS
+          fprintf(stderr, "%s: GOT 0 from callback!! s: next packet next item\n", __func__);
+#endif
+          break;
+          /**TODO: start from here*/
         case 1:
-          state = S_NEXT_PACKET;
-#ifdef DEBUG
-          fprintf(stderr, "%s: GOT 1 from callback!! s: next packet\n", __func__);
+          cstate = S_NEXT_PACKET;
+#ifdef PROCESS 
+          fprintf(stderr, "%s: GOT 1 from callback!! s: next packet same item\n", __func__);
 #endif
           break;
         case 2:
-          state = S_GET_PACKET;
-#ifdef DEBUG
-          fprintf(stderr, "%s: GOT 2 from callback!! s: same packet\n", __func__);
+          cstate = S_GET_PACKET;
+#ifdef PROCESS
+          fprintf(stderr, "%s: GOT 2 from callback!! s: same packet next item\n", __func__);
 #endif
+          rtn   = 0;
           break;
+#if 1
+        case 3: /*reset*/
+          coi     = 0;
+          cstate = S_GET_OBJECT;
+          co     = NULL;
+          break;
+#endif
       }
-  
       break;
-    
+   #if 0 
     case S_END:
-#ifdef DEBUG
+#ifdef PROCESS
       fprintf(stderr, "%s: state end\n", __func__);
 #endif
 
-      i = 0;
-      state = S_GET_OBJECT;
-      o = NULL;
+      coi     = 0;
+      cstate = S_GET_OBJECT;
+      coi    = NULL;
+
       break;
+#endif
   }
 
-#ifdef DEBUG
-  fprintf(stderr, "%s:--current state [%ld]\n", __func__, state);
+#ifdef PROCESS
+  fprintf(stderr, "%s:--current state [%d]\n", __func__, cstate);
 #endif
 
   return rtn;
@@ -643,7 +674,7 @@ int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, s
 void *create_test()
 {
   char *obj;
-  obj = shared_malloc(sizeof(char)*8);
+  obj = shared_mallo(sizeof(char)*8);
   if (obj == NULL)
     return NULL;
 

@@ -1028,23 +1028,30 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
   
   uint64_t cc, mc;
 
-  cp = data;
+  cp  = data;
 
   if (cp == NULL || p == NULL)
     return -1;
   
-  cd = cp->p_c;
-  ht = cp->p_ht;
-  itm = cp->p_i;
+  cd  = cp->p_c;    /*coalesce parcel*/
+  ht  = cp->p_ht;   /*current hash table*/
+  itm = cp->p_i;    /*active item*/
   
-  cc = 0;
-  mc = 0;
+  cc  = 0;
+  mc  = 0;
 
   if (cd == NULL || ht == NULL || itm == NULL)
     return -1;
 
-  cc = p->payload_len - cd->d_off; /*can copy*/
-  mc = cd->d_remaining;            /*must copy*/ 
+  cc  = p->payload_len - cd->d_off;                                       /* can  copy */
+  mc  = (cd->d_remaining == 0) ? itm->i_len : cd->d_remaining;            /* must copy */ 
+
+  if (cc == 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: this is the zero state\n", __func__);
+#endif
+    return 3;
+  }
 
 #ifdef PROCESS 
   print_spead_item(itm);
@@ -1061,63 +1068,58 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
   fprintf(stderr, "%s: CAN COPY [%ld] still need [%ld] current itm <%d>\n", __func__, cc, mc, itm->i_id);
 #endif
 
-#if 1
-  if (mc > 0 && mc <= cc){
-
-#if 1
+  if (mc < cc){
+    
     if (append_copy_to_spead_item(itm, p->payload + cd->d_off, mc) < 0){
 #ifdef DEBUG
-      fprintf(stderr, "%s: failed to append copy [%ld]\n", __func__, itm->i_len);
+      fprintf(stderr, "%s: mc < cc failed to append copy [%ld]\n", __func__, itm->i_len);
 #endif
       return -1;
     }
-#endif
 
-    cd->d_off += mc;
-    cd->d_remaining = 0;
-
-#ifdef PROCESS
-    fprintf(stderr, "%s: ENDOF item <%ld> copied [%ld] stay in same packet\n", __func__, itm->i_id, mc);
-#endif
-
-    return 0;
-  } else 
-#endif
-  if (itm->i_len < cc) {
-
-    if (append_copy_to_spead_item(itm, p->payload + cd->d_off, itm->i_len) < 0){
-#ifdef DEBUG
-      fprintf(stderr, "%s: (ilen < cc ) failed to append copy [%ld]\n", __func__, itm->i_len);
-#endif
-      return -1;
-    }
-    
-    cd->d_off += itm->i_len;
+    cd->d_off       += mc;
+    cd->d_remaining  = 0;
 
 #ifdef PROCESS
-    fprintf(stderr, "%s: copied [%ld] say in same packet start with off %ld\n", __func__, itm->i_len, cd->d_off);
+    fprintf(stderr, "%s: copied [%ld] say in same packet start with off %ld\n", __func__, mc, cd->d_off);
 #endif
 
-    return 0;
-  } else if (itm->i_len >= cc){
+    return 2;
+  } else if (mc > cc) {
     
     if (append_copy_to_spead_item(itm, p->payload + cd->d_off, cc) < 0){
 #ifdef DEBUG
-      fprintf(stderr, "%s: (ilen >= cc) failed to append copy [%ld]\n", __func__, cc);
+      fprintf(stderr, "%s: (mc > cc) failed to append copy [%ld]\n", __func__, itm->i_len);
 #endif
       return -1;
     }
 
-    cd->d_off = 0;
-    cd->d_remaining = itm->i_len - cc;
+    cd->d_off        += cc;
+    cd->d_remaining  += cc;
 
 #ifdef PROCESS
-    fprintf(stderr, "%s: copied [%ld] advance to next packet start with off %ld still need to copy %ld\n", __func__, cc, cd->d_off, cd->d_remaining);
+    fprintf(stderr, "%s: copied [%ld] iadvance packet start with off %ld\n", __func__, cc, cd->d_off);
 #endif
 
-    return (cd->d_remaining == 0) ? 2 : 1;
-  }
+    return 1;
+  } else {
 
+    if (append_copy_to_spead_item(itm, p->payload + cd->d_off, cc) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: (ilen == cc) failed to append copy [%ld]\n", __func__, itm->i_len);
+#endif
+      return -1;
+    }
+  
+    cd->d_off = 0;
+    cd->d_remaining = 0;
+
+#ifdef PROCESS
+    fprintf(stderr, "%s: exact copy\n", __func__);
+#endif
+    
+  }
+    
   return 0;
 } 
 
@@ -1162,7 +1164,9 @@ int convert_to_ig(void *so, void *data)
 #ifdef PROCESS
       fprintf(stderr, "---\n%s: about to copy id[%d] off %ld len %ld\n", __func__, i2->i_id, i2->i_off, i2->i_len);
 #endif
-      while (single_traverse_hash_table(ht, &copy_direct_spead_item, cp) > 0){}
+      while (single_traverse_hash_table(ht, &copy_direct_spead_item, cp) > 0){
+        sleep(10);
+      }
       break;
 
     case SPEAD_IMMEDIATEADDR:
@@ -1203,6 +1207,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
 #ifdef PROCESS 
   fprintf(stderr, "--PROCESS-[%d]-BEGIN---\n",getpid());
 #endif
+  end_single_traverse_hash_table();
 
   cd.d_imm = 0;
   
@@ -1260,6 +1265,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
 #ifdef DEBUG
     fprintf(stderr, "%s: convert to item group FAILED\n", __func__);
 #endif
+
     destroy_item_group(ig);
     empty_stack(cd.d_stack, &destroy_spead_item2);
     empty_stack(temp, &destroy_spead_item2);
@@ -1273,6 +1279,8 @@ struct spead_item_group *process_items(struct hash_table *ht)
 #ifdef PROCESS
   fprintf(stderr, "--PROCESS-[%d]-END-----\n", getpid());
 #endif
+
+  end_single_traverse_hash_table();
 
   return ig;
 }
