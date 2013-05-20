@@ -301,6 +301,10 @@ int append_copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len)
   }
 
   if (len + itm->i_data_len <= itm->i_len){
+    /*add randomness here! like a baws*/
+#ifdef PROCESS
+    fprintf(stderr, "%s: abt to memcpy [%ld] bytes from <%p> into item @ [%ld] from\n", __func__, len, itm->i_data, itm->i_data_len); 
+#endif
     memcpy(itm->i_data + itm->i_data_len, src, len);
     itm->i_data_len += len;
     return len;

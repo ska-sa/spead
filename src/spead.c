@@ -1165,7 +1165,11 @@ int convert_to_ig(void *so, void *data)
       fprintf(stderr, "---\n%s: about to copy id[%d] off %ld len %ld\n", __func__, i2->i_id, i2->i_off, i2->i_len);
 #endif
       while (single_traverse_hash_table(ht, &copy_direct_spead_item, cp) > 0){
-        sleep(10);
+        cd->s_off++;
+#ifdef PROCESS
+        fprintf(stderr, "%s: s_off [%ld]\n", __func__, cd->s_off);
+#endif
+        sleep(1);
       }
       break;
 
@@ -1256,6 +1260,7 @@ struct spead_item_group *process_items(struct hash_table *ht)
 
   cd.d_ig = ig;
   cd.d_off = 0;
+  cd.s_off = 0;
 
   cp.p_c = &cd;
   cp.p_ht = ht;

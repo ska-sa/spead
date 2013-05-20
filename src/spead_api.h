@@ -95,6 +95,7 @@ struct coalesce_spead_data {
   int      d_imm;
   uint64_t d_len;
   uint64_t d_off;
+  uint64_t s_off;
   uint64_t d_remaining;
 };
 

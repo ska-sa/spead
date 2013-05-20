@@ -451,8 +451,8 @@ int push_hash_o(struct hash_o_list *l, struct hash_o *o)
   return 0;
 }
 
-static int cstate       = S_GET_OBJECT;
-static int coi          = 0;
+static int cstate        = S_GET_OBJECT;
+static int coi           = 0;
 static struct hash_o *co = NULL;
 
 void end_single_traverse_hash_table()
@@ -539,7 +539,6 @@ int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, st
           fprintf(stderr, "%s: GOT 0 from callback!! s: next packet next item\n", __func__);
 #endif
           break;
-          /**TODO: start from here*/
         case 1:
           cstate = S_NEXT_PACKET;
 #ifdef PROCESS 
@@ -554,7 +553,7 @@ int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, st
           rtn   = 0;
           break;
 #if 1
-        case 3: /*reset*/
+        case 3:
           coi     = 0;
           cstate = S_GET_OBJECT;
           co     = NULL;
@@ -562,7 +561,8 @@ int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, st
 #endif
       }
       break;
-   #if 0 
+
+#if 0 
     case S_END:
 #ifdef PROCESS
       fprintf(stderr, "%s: state end\n", __func__);
