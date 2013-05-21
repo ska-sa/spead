@@ -546,7 +546,7 @@ int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, st
 #endif
           break;
         case 2:
-          cstate = S_GET_PACKET;
+          cstate = S_GET_OBJECT;
 #ifdef PROCESS
           fprintf(stderr, "%s: GOT 2 from callback!! s: same packet next item\n", __func__);
 #endif

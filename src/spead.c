@@ -1004,7 +1004,6 @@ int calculate_lengths(void *so, void *data)
     } else {
       itm->i_len = 0;
     }
-
 #ifdef PROCESS 
     fprintf(stderr, "%s: DIRECT item [%d] length [%ld]\n", __func__, itm->i_id, itm->i_len);
 #endif
@@ -1044,7 +1043,8 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
     return -1;
 
   cc  = p->payload_len - cd->d_off;                                       /* can  copy */
-  mc  = (cd->d_remaining == 0) ? itm->i_len : cd->d_remaining;            /* must copy */ 
+  cd->d_remaining  = (cd->d_remaining == 0) ? itm->i_len : cd->d_remaining;            /* must copy */ 
+  mc = (p->payload_len <= cd->d_remaining) ? cc : cd->d_remaining;
 
   if (cc == 0){
 #ifdef DEBUG
@@ -1094,8 +1094,8 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
       return -1;
     }
 
-    cd->d_off        += cc;
-    cd->d_remaining  += cc;
+    cd->d_off        = 0;
+    cd->d_remaining  -= cc;
 
 #ifdef PROCESS
     fprintf(stderr, "%s: copied [%ld] iadvance packet start with off %ld\n", __func__, cc, cd->d_off);
@@ -1111,7 +1111,7 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
       return -1;
     }
   
-    cd->d_off = 0;
+    cd->d_off       = 0;
     cd->d_remaining = 0;
 
 #ifdef PROCESS
@@ -1165,11 +1165,10 @@ int convert_to_ig(void *so, void *data)
       fprintf(stderr, "---\n%s: about to copy id[%d] off %ld len %ld\n", __func__, i2->i_id, i2->i_off, i2->i_len);
 #endif
       while (single_traverse_hash_table(ht, &copy_direct_spead_item, cp) > 0){
-        cd->s_off++;
-#ifdef PROCESS
+#if 0
+        def PROCESS
         fprintf(stderr, "%s: s_off [%ld]\n", __func__, cd->s_off);
 #endif
-        sleep(1);
       }
       break;
 
