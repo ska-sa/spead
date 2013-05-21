@@ -1085,7 +1085,7 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
 #endif
 
     return 2;
-  } else if (mc > cc) {
+  } else /*if (mc > cc)*/ {
     
     if (append_copy_to_spead_item(itm, p->payload + cd->d_off, cc) < 0){
 #ifdef DEBUG
@@ -1101,8 +1101,10 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
     fprintf(stderr, "%s: copied [%ld] iadvance packet start with off %ld\n", __func__, cc, cd->d_off);
 #endif
 
-    return 1;
-  } else {
+    return (cd->d_remaining == 0) ? 0 : 1;
+  }
+  #if 0 
+  else {
 
     if (append_copy_to_spead_item(itm, p->payload + cd->d_off, cc) < 0){
 #ifdef DEBUG
@@ -1112,14 +1114,15 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
     }
   
     cd->d_off       = 0;
-    cd->d_remaining = 0;
+    cd->d_remaining -= 0;
 
 #ifdef PROCESS
     fprintf(stderr, "%s: exact copy\n", __func__);
 #endif
     
   }
-    
+#endif  
+
   return 0;
 } 
 
