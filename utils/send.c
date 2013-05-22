@@ -74,8 +74,8 @@ int main(int argc, char *argv[])
   //ip->check  = csum((unsigned short*)buf, sizeof(struct iphdr) + sizeof(struct udphdr));
 
 
-  //fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_UDP);
-  fd = socket(AF_INET, SOCK_RAW, IPPROTO_UDP);
+  fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_UDP);
+  //fd = socket(AF_INET, SOCK_RAW, IPPROTO_UDP);
   if (fd < 0){
     fprintf(stderr,"%s: error socket (%s)\n", __func__, strerror(errno));
     return -1;
