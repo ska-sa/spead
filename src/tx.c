@@ -137,6 +137,7 @@ int worker_task_data_file_speadtx(void *data, struct spead_pipeline *l, int cfd)
 
   void *ptr;
   uint64_t hid, got, off;
+  
 
   //size_t size;
   char   *name;
@@ -144,6 +145,8 @@ int worker_task_data_file_speadtx(void *data, struct spead_pipeline *l, int cfd)
   tx = data;
   if (tx == NULL)
     return -1;
+
+  char buf[tx->t_chunk_size];
 
 #ifdef DEBUG
   pid = getpid();
@@ -154,6 +157,9 @@ int worker_task_data_file_speadtx(void *data, struct spead_pipeline *l, int cfd)
   //size = get_data_file_size(tx->t_f);
   name = get_data_file_name(tx->t_f);
 
+  if (strncmp(name, "-", 1) == 0){
+    ptr = buf;
+  }
 
 #ifdef DEBUG
   fprintf(stderr, "%s: SPEADTX worker [%d] cfd[%d]\n", __func__, pid, cfd);

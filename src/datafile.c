@@ -320,7 +320,6 @@ int64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, ui
   switch (f->f_state){
 
     case DF_FILE:
-
       lock_mutex(&(f->f_m));
 
       if ((*ptr = get_data_file_ptr_at_off(f, f->f_off)) == NULL){
@@ -343,11 +342,9 @@ int64_t request_chunk_datafile(struct data_file *f, uint64_t len, void **ptr, ui
 def DEBUG
       fprintf(stderr, "%s: pid [%d] got [%ld] bytes @ (%p) which is off [%ld]\n", __func__, getpid(), rtn, *ptr, *chunk_off_rtn);
 #endif
-
       break;
 
     case DF_STREAM:
-              
       sr = len;
       pos = 0;
       rb = 0;
@@ -383,7 +380,6 @@ def DEBUG
       rtn = len;
 
       unlock_mutex(&(f->f_m));
-
       break;
 
   }

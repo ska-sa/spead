@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
     return -1;
   }
 
+  /**write output to stdout*/
   df = write_raw_data_file("-");
   if (df == NULL){
 #ifdef DEBUG
