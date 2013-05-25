@@ -333,7 +333,9 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     return -1;
   }
 
-  *command_queue = clCreateCommandQueue(*context, devices[0], CL_QUEUE_PROFILING_ENABLE, &err);
+  int devid = 1;
+
+  *command_queue = clCreateCommandQueue(*context, devices[devid], CL_QUEUE_PROFILING_ENABLE, &err);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clCreateCommandQueue returns %s\n", oclErrorString(err));
@@ -364,15 +366,15 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     fprintf(stderr, "clBuildProgram returns %s\n", oclErrorString(err));
 #endif
 
-    err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status, NULL);
+    err = clGetProgramBuildInfo(*program, devices[devid], CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status, NULL);
 #ifdef DEBUG
     fprintf(stderr, "clGetProgramBuildInfo BUILD STATUS %d\n", build_status);
 #endif
 
-    err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
+    err = clGetProgramBuildInfo(*program, devices[devid], CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
 
     char build_log[ret_val_size+1];
-    err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL);
+    err = clGetProgramBuildInfo(*program, devices[devid], CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL);
 
 #ifdef DEBUG
     fprintf(stderr, "clGetProgramBuildInfo returns BUILD LOG\n\n%s\n", build_log);
