@@ -322,7 +322,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
 
 
 
-  *context = clCreateContext(0, numDevices, devices, NULL, NULL, &err);
+  *context = clCreateContext(NULL, numDevices, devices, NULL, NULL, &err);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clCreateContext returns %s\n", oclErrorString(err));
@@ -333,7 +333,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     return -1;
   }
 
-  int devid = 1;
+  int devid = 0;
 
   *command_queue = clCreateCommandQueue(*context, devices[devid], CL_QUEUE_PROFILING_ENABLE, &err);
   if (err != CL_SUCCESS){
@@ -359,7 +359,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   }
 
 
-  err = clBuildProgram(*program, 0, NULL, "-I /usr/local/cuda/include -I /opt/AMDAPP/include"
+  err = clBuildProgram(*program, numDevices, devices, "-I /usr/local/cuda/include -I /opt/AMDAPP/include"
      "-cl-fast-relaxed-math -cl-single-precision-constant -cl-denorms-are-zero -cl-mad-enable -cl-no-signed-zeros ", NULL, NULL);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
