@@ -1,0 +1,6 @@
+*.o
+*.lo
+*.so
+src/speadrx
+src/speadtx
+utils/pipespead
