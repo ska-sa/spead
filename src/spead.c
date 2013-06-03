@@ -1103,7 +1103,7 @@ int copy_direct_spead_item(void *data, struct spead_packet *p)
 
     return (cd->d_remaining == 0) ? 0 : 1;
   }
-  #if 0 
+#if 0 
   else {
 
     if (append_copy_to_spead_item(itm, p->payload + cd->d_off, cc) < 0){

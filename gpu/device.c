@@ -4,7 +4,7 @@
 
 #define KERNELS_FILE  "/kernels.cl"
 #define KERNELDIR     "./"
-#define LEN 1024
+#define LEN 1
 
 int main(int argc, char *argv[])
 {
@@ -35,6 +35,8 @@ int main(int argc, char *argv[])
     goto free_mem_out;
   }
 
+  //bzero(o_out, len*sizeof(cl_int4));
+
   o_k = create_ocl_kernel(o_ds, "ocl_layout");
   if (o_k == NULL){
     goto free_kernel;
@@ -60,6 +62,19 @@ int main(int argc, char *argv[])
 
   clReleaseEvent(evt);
   clFinish(o_ds->d_cq);
+#endif
+
+  fprintf(stderr, "%s: pointers s:[%ld] p:<%p>\n", __func__, sizeof(cl_mem), o_in);
+  fprintf(stderr, "%s: pointers s:[%ld] p:<%p>\n", __func__, sizeof(int), &len);
+
+#if 0
+  if (run_1d_ocl_kernel(o_ds, o_k, workGroupSize, 2, sizeof(cl_mem), &o_in, sizeof(int), &len) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error in run kernel\n", __func__);
+#endif
+    goto clean_up;
+  }
+#endif
 
   if (xfer_from_ocl_mem(o_ds, o_in, sizeof(cl_int4) * len, o_out) < 0){
 #ifdef DEBUG
@@ -75,7 +90,6 @@ int main(int argc, char *argv[])
   }
 #endif
 
-#endif
 
 clean_up:
 

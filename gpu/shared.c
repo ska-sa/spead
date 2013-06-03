@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <stdarg.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -564,7 +565,7 @@ cl_mem create_ocl_mem(struct ocl_ds *ds, size_t size)
     return NULL;
   }
 
-  m = clCreateBuffer(ds->d_ctx, CL_MEM_READ_WRITE, size, NULL, &err);
+  m = clCreateBuffer(ds->d_ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, size, NULL, &err);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "%s: error creating cl read/write buffer\n", __func__);
@@ -683,44 +684,76 @@ void destroy_ocl_mem(cl_mem m)
   }
 }
 
-#if 0
-int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, cl_mem mem_in, cl_mem mem_out)
+#if 1
+int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, int arg_count, ...)
 {
   size_t workGroupSize[1];
   cl_int err;
   cl_event evt;
+  int i;
+  va_list ap;
+  void *ptr;
+  size_t size;
   
-  if (ds == NULL || k == NULL || mem_in == NULL || mem_out == NULL)
+  if (ds == NULL || k == NULL)
     return -1;
 
   workGroupSize[0] = work_group_size;
-  
-  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(mem_in));
+
+  err = CL_SUCCESS;
+
+  va_start(ap, arg_count);
+  for (i=0; i<arg_count; i++){
+    size = va_arg(ap, size_t);
+    ptr = va_arg(ap, void *);
+    err |= clSetKernelArg(k->k_kernel, i, size, ptr);
+#ifdef DEBUG
+    fprintf(stderr, "%s: loaded arg[%d] size[%ld] ptr<%p>\n", __func__, i, size, ptr);
+#endif
+  }
+  va_end(ap);
+
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+    fprintf(stderr, "error clSetKernelArg: %s\n", oclErrorString(err));
 #endif
     return -1;
   }
 
-  err = clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(mem_out));
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
-#endif
-    return -1;
-  }
-
+#if 1
   err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+    fprintf(stderr, "error clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
 #endif
     return -1;
   }
+#endif
+  clFinish(ds->d_cq);
+
+  cl_ulong ev_start_time = (cl_ulong) 0;     
+  cl_ulong ev_end_time   = (cl_ulong) 0;   
+
+  err  = clWaitForEvents(1, &evt);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
+
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+#endif
+    clReleaseEvent(evt);
+    return -1;
+  }
+
+  float run_time = (float)(ev_end_time - ev_start_time)/1000;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+#endif
+
 
   clReleaseEvent(evt);
-  clFinish(ds->d_cq);
 
   return 0;
 }
