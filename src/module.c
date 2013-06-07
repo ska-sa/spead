@@ -92,13 +92,6 @@ struct spead_api_module *load_api_user_module(char *mod)
   s->s_data       = NULL;
   s->s_data_size  = 0;
 
-#if 0
-  m->m_data    = (*setup)();
-  if (m->m_data == NULL){
-    unload_api_user_module(m);
-    return NULL;
-  }
-#endif
 
 #ifdef DEBUG
   fprintf(stderr, "\tDATA sink:\t%s\n", mod);
@@ -107,9 +100,6 @@ struct spead_api_module *load_api_user_module(char *mod)
   return m;
 }
 
-#if 0
-void unload_api_user_module(struct spead_api_module *m)
-#endif
 void unload_api_user_module(void *data)
 {
   struct spead_api_module *m;
@@ -118,11 +108,6 @@ void unload_api_user_module(void *data)
   m = data;
 
   if (m){
-#if 0   
-    if (m->m_destroy){
-      (*m->m_destroy)(m->m_data);
-    }
-#endif
     if (m->m_handle){
       dlclose(m->m_handle);
       if((err = dlerror()) != NULL){

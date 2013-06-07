@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <stdarg.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -314,7 +315,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     fprintf(stderr, "Max work item sizes: ");
 
     for (j=0; j<units;j++)
-      fprintf(stderr, "%d ", wid[j]);
+      fprintf(stderr, "%ld ", wid[j]);
     fprintf(stderr, "\n");
 #endif
 #endif
@@ -322,7 +323,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
 
 
 
-  *context = clCreateContext(0, numDevices, devices, NULL, NULL, &err);
+  *context = clCreateContext(NULL, numDevices, devices, NULL, NULL, &err);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clCreateContext returns %s\n", oclErrorString(err));
@@ -333,7 +334,9 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     return -1;
   }
 
-  *command_queue = clCreateCommandQueue(*context, devices[0], CL_QUEUE_PROFILING_ENABLE, &err);
+  int devid = 0;
+
+  *command_queue = clCreateCommandQueue(*context, devices[devid], CL_QUEUE_PROFILING_ENABLE, &err);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clCreateCommandQueue returns %s\n", oclErrorString(err));
@@ -357,22 +360,22 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
   }
 
 
-  err = clBuildProgram(*program, 0, NULL, "-I /usr/local/cuda/include -I /opt/AMDAPP/include"
+  err = clBuildProgram(*program, numDevices, devices, "-I /usr/local/cuda/include -I /opt/AMDAPP/include"
      "-cl-fast-relaxed-math -cl-single-precision-constant -cl-denorms-are-zero -cl-mad-enable -cl-no-signed-zeros ", NULL, NULL);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "clBuildProgram returns %s\n", oclErrorString(err));
 #endif
 
-    err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status, NULL);
+    err = clGetProgramBuildInfo(*program, devices[devid], CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), &build_status, NULL);
 #ifdef DEBUG
     fprintf(stderr, "clGetProgramBuildInfo BUILD STATUS %d\n", build_status);
 #endif
 
-    err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
+    err = clGetProgramBuildInfo(*program, devices[devid], CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
 
     char build_log[ret_val_size+1];
-    err = clGetProgramBuildInfo(*program, devices[0], CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL);
+    err = clGetProgramBuildInfo(*program, devices[devid], CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL);
 
 #ifdef DEBUG
     fprintf(stderr, "clGetProgramBuildInfo returns BUILD LOG\n\n%s\n", build_log);
@@ -562,7 +565,7 @@ cl_mem create_ocl_mem(struct ocl_ds *ds, size_t size)
     return NULL;
   }
 
-  m = clCreateBuffer(ds->d_ctx, CL_MEM_READ_WRITE, size, NULL, &err);
+  m = clCreateBuffer(ds->d_ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, size, NULL, &err);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "%s: error creating cl read/write buffer\n", __func__);
@@ -589,7 +592,7 @@ int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst)
   err = clEnqueueWriteBuffer(ds->d_cq, dst, CL_TRUE, 0, size, src, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clEnqueueWriteBuffer returns %s\n", __func__, oclErrorString(err));
 #endif
     clReleaseEvent(evt);
     return -1;
@@ -606,7 +609,7 @@ int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst)
 
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: cl profiling returns %s\n", __func__, oclErrorString(err));
 #endif
     clReleaseEvent(evt);
     return -1;
@@ -631,7 +634,7 @@ int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
 
   if (ds == NULL || src == NULL || dst == NULL || size <= 0){
 #ifdef DEBUG 
-    fprintf(stderr, "%s: param error\n", __func__);
+    fprintf(stderr, "%s: param error ds(%p) src(%p) dst(%p) size[%ld]\n", __func__, ds, src, dst, size);
 #endif
     return -1;
   }
@@ -640,7 +643,7 @@ int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
   err = clEnqueueReadBuffer(ds->d_cq, src, CL_TRUE, 0, size, dst, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueReadBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clEnqueueReadBuffer returns %s\n", __func__, oclErrorString(err));
 #endif
     return -1;
   }
@@ -656,7 +659,7 @@ int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
 
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: profiling returns %s\n", __func__, oclErrorString(err));
 #endif
     clReleaseEvent(evt);
     return -1;
@@ -681,53 +684,134 @@ void destroy_ocl_mem(cl_mem m)
   }
 }
 
-#if 0
-int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, cl_mem mem_in, cl_mem mem_out)
+int load_kernel_parameters(struct ocl_kernel *k, va_list ap_list)
 {
-  size_t workGroupSize[1];
+  void *ptr;
+  size_t size;
+  int i;
+
+  cl_int err;
+
+  size = 0;
+  ptr  = NULL;
+  i    = 0;
+
+  if (k == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: need a kernel to load parameters too!\n", __func__);
+#endif
+    return -1;
+  }
+  
+  do {
+
+    ptr = va_arg(ap_list, void *);
+    if (!ptr)
+      break;
+
+    size = va_arg(ap_list, size_t);
+    if (!size){
+#ifdef DEBUG
+      fprintf(stderr, "%s: need parameter size > 0\n", __func__);
+#endif
+      return -1;
+    }
+
+    err = clSetKernelArg(k->k_kernel, i, size, ptr);
+    if (err != CL_SUCCESS){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error clSetKernelArg [%d]: %s\n", __func__, i, oclErrorString(err));
+#endif
+      return -1;
+    }
+
+#ifdef DEBUG
+    fprintf(stderr, "%s: loaded arg[%d] size[%ld] ptr<%p>\n", __func__, i, size, ptr);
+#endif
+
+    i++;
+  } while(size && ptr);
+
+  return 0;
+}
+
+#if 1
+int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, ...)
+{
+  size_t globalz[1];
+  size_t localz[1];
   cl_int err;
   cl_event evt;
-  
-  if (ds == NULL || k == NULL || mem_in == NULL || mem_out == NULL)
+  va_list ap;
+
+  if (ds == NULL || k == NULL)
     return -1;
 
-  workGroupSize[0] = work_group_size;
-  
-  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(mem_in));
+  localz[0]  = 16;
+  globalz[0] = work_group_size;
+
+  va_start(ap, work_group_size);
+  if (load_kernel_parameters(k, ap) < 0){
+    va_end(ap);
+    return -1;
+  }
+  va_end(ap);
+
+
+
+#if 1
+  err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, globalz, localz, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+    fprintf(stderr, "error clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
 #endif
     return -1;
   }
+  clFinish(ds->d_cq);
 
-  err = clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(mem_out));
+  cl_ulong ev_start_time = (cl_ulong) 0;     
+  cl_ulong ev_end_time   = (cl_ulong) 0;   
+
+  err  = clWaitForEvents(1, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+    fprintf(stderr, "clWaitForEvents %s\n", oclErrorString(err));
 #endif
+    clReleaseEvent(evt);
     return -1;
   }
 
-  err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
+  err  = clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+    fprintf(stderr, "clGetEventProfiling %s\n", oclErrorString(err));
 #endif
+    clReleaseEvent(evt);
     return -1;
   }
+
+  float run_time = (float)(ev_end_time - ev_start_time)/1000;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+#endif
 
   clReleaseEvent(evt);
-  clFinish(ds->d_cq);
+#endif
 
   return 0;
 }
 #endif
 
+
+
 int is_power_of_2(int x)
 {
   return (x != 0) ? ((x & (x-1)) == 0 ? 0 : -1) : -1;
 }
+
+
 
 int power_of_2(int x)
 {

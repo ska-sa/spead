@@ -5,7 +5,7 @@ INSTALL=install
 #CFLAGS += -DDEBUG=2
 #CFLAGS += -DPROCESS
 #CFLAGS += -DPROCESSDESC
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 CFLAGS += -DIKATCP
 #CFLAGS += -DDISCARD
 CFLAGS += -DDATA
@@ -16,7 +16,7 @@ CFLAGS += -Wall
 #CFLAGS += -m32
 CC = gcc -ggdb
 
-LIB = -lspead -L.
+LIB = -lspead -L. -lm
 
 ifeq (,$(findstring -DIKATCP,$(CFLAGS)))
 	LIB += -lkatcp
@@ -70,10 +70,10 @@ $(TXEXE): $(TXOBJ) $(DLIB)
 	$(CC) -o $@ $< $(LIB)
 
 $(RXEXE)-static: $(RXOBJ) $(SLIB)
-	$(CC) -o $@ $^ -ldl
+	$(CC) -o $@ $^ -ldl -lm
 
 $(TXEXE)-static: $(TXOBJ) $(SLIB)
-	$(CC) -o $@ $^ -ldl
+	$(CC) -o $@ $^ -ldl -lm
 
 %.o: %.c $(HDR)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC)

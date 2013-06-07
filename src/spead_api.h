@@ -95,6 +95,8 @@ struct coalesce_spead_data {
   int      d_imm;
   uint64_t d_len;
   uint64_t d_off;
+  uint64_t s_off;
+  uint64_t d_remaining;
 };
 
 struct coalesce_parcel {
@@ -227,6 +229,9 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
 struct hash_table *packetize_item_group(struct spead_heap_store *hs, struct spead_item_group *ig, int pkt_size, uint64_t hid);
 int inorder_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data);
 int single_traverse_hash_table(struct hash_table *ht, int (*call)(void *data, struct spead_packet *p), void *data);
+void end_single_traverse_hash_table();
+
+void print_spead_item(struct spead_api_item *itm);
 
 #if 0
 int grow_spead_item_group(struct spead_item_group *ig, uint64_t extradata, uint64_t extranitems);
