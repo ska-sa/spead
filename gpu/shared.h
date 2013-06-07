@@ -3,6 +3,8 @@
 
 #include <CL/opencl.h>
 
+#define OCL_PARAM(a) ((void*)(&(a))), (sizeof(a))
+
 #if 1 
 struct float2 {
   float x;
@@ -54,8 +56,11 @@ void destroy_ocl_mem(cl_mem m);
 
 int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst);
 int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst);
-//int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, cl_mem mem_in, cl_mem mem_out);
-int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, int arg_count, ...);
+#if 0
+int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, cl_mem mem_in, cl_mem mem_out);
+#endif
+int load_kernel_parameters(struct ocl_kernel *k, va_list ap_list);
+int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, ...);
 
 
 int is_power_of_2(int x);

@@ -12,6 +12,7 @@
 #define KERNELS_FILE  "/radix2_po2_kernel.cl"
 
 #define SPEAD_DATA_ID    0xb001
+#define LOZ 16
 
 struct sapi_object {
   struct ocl_ds     *o_ds;
@@ -108,36 +109,43 @@ void *spead_api_setup(struct spead_api_module_shared *s)
     return NULL;
   }
 
+
+  /*2d*/
   so->o_fft = create_ocl_kernel(so->o_ds, "radix2_power_2_inplace_fft");
   if (so->o_fft == NULL){
     destroy_sapi_object(so);
     return NULL;
   }
 
+  /*2d*/
   so->o_u2f = create_ocl_kernel(so->o_ds, "uint8_re_to_float2");
   if (so->o_fft == NULL){
     destroy_sapi_object(so);
     return NULL;
   }
 
+  /*2d*/
   so->o_fft_setup = create_ocl_kernel(so->o_ds, "radix2_fft_setup");
   if (so->o_fft_setup == NULL){
     destroy_sapi_object(so);
     return NULL;
   }
 
+  /*1d*/
   so->o_bit_setup = create_ocl_kernel(so->o_ds, "radix2_bit_flip_setup");
   if (so->o_bit_setup == NULL){
     destroy_sapi_object(so);
     return NULL;
   }
 
+  /*2d*/
   so->o_bit_flip = create_ocl_kernel(so->o_ds, "radix2_bit_flip");
   if (so->o_bit_flip == NULL){
     destroy_sapi_object(so);
     return NULL;
   }
-
+  
+  /*2d*/
   so->o_power_phase = create_ocl_kernel(so->o_ds, "power_phase");
   if (so->o_power_phase == NULL){
     destroy_sapi_object(so);
@@ -154,7 +162,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
 
 int create_fft_map(struct sapi_object *so, struct ocl_kernel *k, int64_t len)
 {
-  size_t workGroupSize[1];
+  size_t workGroupSize[2], *localz;//, localz[2];
   cl_int err;
   cl_event evt;
   struct ocl_ds     *ds;
@@ -207,30 +215,62 @@ int create_fft_map(struct sapi_object *so, struct ocl_kernel *k, int64_t len)
     return -1;
   }
 
-
   workGroupSize[0] = so->o_threads;
+#if 0
+  workGroupSize[0] = (int) ceil(sqrt(so->o_threads));
+  workGroupSize[1] = (int) ceil(sqrt(so->o_threads));
+#endif
+#if 0
+  localz[0] = LOZ;
+  localz[1] = LOZ;
+#endif
+  localz = NULL;
   
   err  = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_map));
   err |= clSetKernelArg(k->k_kernel, 1, sizeof(int), (void *) &(so->o_passes));
+  err |= clSetKernelArg(k->k_kernel, 2, sizeof(int), (void *) &(so->o_threads));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clSetKernelArg return %s\n", __func__, oclErrorString(err));
 #endif
     destroy_ocl_mem(so->o_map);
     return -1;
   }
 
-  err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
+  //err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 2, NULL, workGroupSize, localz, 0, NULL, &evt);
+  err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, localz, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clEnqueueNDRangeKernel: %s\n", __func__, oclErrorString(err));
 #endif
     destroy_ocl_mem(so->o_map);
     return -1;
   }
+
+  clFinish(ds->d_cq);
+
+  cl_ulong ev_start_time = (cl_ulong) 0;     
+  cl_ulong ev_end_time   = (cl_ulong) 0;   
+
+  err  = clWaitForEvents(1, &evt);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
+
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cl profiling returns %s\n", __func__, oclErrorString(err));
+#endif
+    clReleaseEvent(evt);
+    return -1;
+  }
+
+  float run_time = (float)(ev_end_time - ev_start_time)/1000;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+#endif
 
   clReleaseEvent(evt);
-  clFinish(ds->d_cq);
 
   return 0;
 }
@@ -270,7 +310,7 @@ int create_bit_flip_map(struct sapi_object *so, struct ocl_kernel *k)
   err |= clSetKernelArg(k->k_kernel, 3, sizeof(int), (void *) &(so->o_passes));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clSetKernelArg return %s\n", __func__, oclErrorString(err));
 #endif
     destroy_ocl_mem(so->o_flip);
     return -1;
@@ -279,14 +319,36 @@ int create_bit_flip_map(struct sapi_object *so, struct ocl_kernel *k)
   err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clEnqueueNDRangeKernel: %s\n", __func__, oclErrorString(err));
 #endif
     destroy_ocl_mem(so->o_flip);
     return -1;
   }
 
-  clReleaseEvent(evt);
   clFinish(ds->d_cq);
+
+  cl_ulong ev_start_time = (cl_ulong) 0;     
+  cl_ulong ev_end_time   = (cl_ulong) 0;   
+
+  err  = clWaitForEvents(1, &evt);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
+
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cl profiling returns %s\n", __func__, oclErrorString(err));
+#endif
+    clReleaseEvent(evt);
+    return -1;
+  }
+
+  float run_time = (float)(ev_end_time - ev_start_time)/1000;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+#endif
+
+  clReleaseEvent(evt);
 
   return 0;
 }
@@ -300,7 +362,6 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
     return -1;
   }
 
-
 #if 1
   if (create_fft_map(so, so->o_fft_setup, len) < 0){
 #ifdef DEBUG
@@ -308,7 +369,6 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
 #endif
     return -1;
   }
-#endif
 
   if (create_bit_flip_map(so, so->o_bit_setup) < 0){
 #ifdef DEBUG
@@ -317,6 +377,7 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
     destroy_ocl_mem(so->o_map);
     return -1;
   }
+#endif
 
 #if 0
   so->o_host = malloc(sizeof(struct fft_map) * so->o_threads * so->o_passes);
@@ -384,7 +445,7 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
 
 int convert_real_to_float2(struct sapi_object *so, struct ocl_kernel *k)
 {
-  size_t workGroupSize[1];
+  size_t workGroupSize[2], localz[2];
   cl_int err;
   cl_event evt;
   struct ocl_ds     *ds;
@@ -405,20 +466,28 @@ int convert_real_to_float2(struct sapi_object *so, struct ocl_kernel *k)
   }
    
   workGroupSize[0] = so->o_N;
+#if 0
+  workGroupSize[0] = (int) ceil(sqrt(so->o_N));
+  workGroupSize[1] = (int) ceil(sqrt(so->o_N));
+#endif
+  localz[0] = LOZ;
+  localz[1] = LOZ;
   
   err  = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_in));
   err |= clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(so->o_out));
+  err |= clSetKernelArg(k->k_kernel, 2, sizeof(int), (void *) &(so->o_N));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clSetKernelArg return %s\n", __func__, oclErrorString(err));
 #endif
     return -1;
   }
 
+  //err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 2, NULL, workGroupSize, localz, 0, NULL, &evt);
   err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clEnqueueNDRangeKernel: %s\n", __func__, oclErrorString(err));
 #endif
     return -1;
   }
@@ -434,7 +503,7 @@ int convert_real_to_float2(struct sapi_object *so, struct ocl_kernel *k)
 
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: cl profiling returns %s\n", __func__, oclErrorString(err));
 #endif
     clReleaseEvent(evt);
     return -1;
@@ -455,7 +524,7 @@ int convert_real_to_float2(struct sapi_object *so, struct ocl_kernel *k)
 
 int run_radix2_fft(struct sapi_object *so, struct ocl_kernel *k)
 {
-  size_t workGroupSize[1];
+  size_t workGroupSize[2], localz[2];
   cl_int err;
   cl_event evt;
   struct ocl_ds     *ds;
@@ -476,22 +545,31 @@ int run_radix2_fft(struct sapi_object *so, struct ocl_kernel *k)
   }
    
   workGroupSize[0] = so->o_threads;
+#if 0
+  workGroupSize[0] = (int) ceil(sqrt(so->o_threads));
+  workGroupSize[1] = (int) ceil(sqrt(so->o_threads));
+  localz[0] = LOZ;
+  localz[1] = LOZ;
+#endif
+
   
   err  = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_map));
   err |= clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(so->o_out));
   err |= clSetKernelArg(k->k_kernel, 2, sizeof(const int), (void *) &(so->o_N));
   err |= clSetKernelArg(k->k_kernel, 3, sizeof(const int), (void *) &(so->o_passes));
+  err |= clSetKernelArg(k->k_kernel, 4, sizeof(const int), (void *) &(so->o_threads));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clSetKernelArg return %s\n", __func__, oclErrorString(err));
 #endif
     return -1;
   }
 
+  //err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 2, NULL, workGroupSize, localz, 0, NULL, &evt);
   err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clEnqueueNDRangeKernel: %s\n", __func__, oclErrorString(err));
 #endif
     return -1;
   }
@@ -507,7 +585,7 @@ int run_radix2_fft(struct sapi_object *so, struct ocl_kernel *k)
 
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: cl profiling returns %s\n", __func__, oclErrorString(err));
 #endif
     clReleaseEvent(evt);
     return -1;
@@ -527,7 +605,7 @@ int run_radix2_fft(struct sapi_object *so, struct ocl_kernel *k)
 
 int run_radix2_bitflip(struct sapi_object *so, struct ocl_kernel *k)
 {
-  size_t workGroupSize[1];
+  size_t workGroupSize[2], localz[2];
   cl_int err;
   cl_event evt;
   struct ocl_ds     *ds;
@@ -547,16 +625,23 @@ int run_radix2_bitflip(struct sapi_object *so, struct ocl_kernel *k)
     return -1;
   }
 
+  /*beware here this is a weird number*/
 
-  workGroupSize[0] = so->o_flips;
-  
+#if 0    
+  workGroupSize[0] = (int) ceil(sqrt(so->o_flips));
+  workGroupSize[1] = (int) ceil(sqrt(so->o_flips));
+
+  localz[0] = LOZ;
+  localz[1] = LOZ;
+#endif
+
   err  = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_flip));
   err |= clSetKernelArg(k->k_kernel, 1, sizeof(cl_mem), (void *) &(so->o_out));
   err |= clSetKernelArg(k->k_kernel, 2, sizeof(const int), (void *) &(so->o_flips));
 
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clSetKernelArg return %s\n", __func__, oclErrorString(err));
 #endif
     return -1;
   }
@@ -564,7 +649,7 @@ int run_radix2_bitflip(struct sapi_object *so, struct ocl_kernel *k)
   err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clEnqueueNDRangeKernel: %s\n", __func__, oclErrorString(err));
 #endif
     return -1;
   }
@@ -580,7 +665,7 @@ int run_radix2_bitflip(struct sapi_object *so, struct ocl_kernel *k)
 
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: cl profiling returns %s\n", __func__, oclErrorString(err));
 #endif
     clReleaseEvent(evt);
     return -1;
@@ -601,7 +686,7 @@ int run_radix2_bitflip(struct sapi_object *so, struct ocl_kernel *k)
 
 int run_power_phase(struct sapi_object *so, struct ocl_kernel *k)
 {
-  size_t workGroupSize[1];
+  size_t workGroupSize[2], localz[2];
   cl_int err;
   cl_event evt;
   struct ocl_ds     *ds;
@@ -621,21 +706,27 @@ int run_power_phase(struct sapi_object *so, struct ocl_kernel *k)
     return -1;
   }
 
+#if 0
+  workGroupSize[0] = (int) ceil(sqrt(so->o_N));
+  workGroupSize[1] = (int) ceil(sqrt(so->o_N));
+  localz[0] = LOZ;
+  localz[1] = LOZ;
+#endif
 
-  workGroupSize[0] = so->o_N;
-  
   err  = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_out));
+  err |= clSetKernelArg(k->k_kernel, 1, sizeof(int), (void *) &(so->o_N));
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clSetKernelArg return %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clSetKernelArg return %s\n", __func__, oclErrorString(err));
 #endif
     return -1;
   }
 
+  //err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 2, NULL, workGroupSize, localz, 0, NULL, &evt);
   err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clEnqueueNDRangeKernel: %s\n", __func__, oclErrorString(err));
 #endif
     return -1;
   }
@@ -651,7 +742,7 @@ int run_power_phase(struct sapi_object *so, struct ocl_kernel *k)
 
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: cl profiling returns %s\n", __func__, oclErrorString(err));
 #endif
     clReleaseEvent(evt);
     return -1;
@@ -706,7 +797,6 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   }
 
 
-#if 1
   /*copy in uint8*/
   if (xfer_to_ocl_mem(so->o_ds, itm->i_data, sizeof(unsigned char) * itm->i_data_len, so->o_in) < 0){
 #ifdef DEBUG
@@ -716,6 +806,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   }
 
   
+#if 1
   /*convert to float2*/
   if (convert_real_to_float2(so, so->o_u2f) < 0){
 #ifdef DEBUG

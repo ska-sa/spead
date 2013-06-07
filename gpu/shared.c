@@ -315,7 +315,7 @@ int setup_ocl(char *kf, cl_context *context, cl_command_queue *command_queue, cl
     fprintf(stderr, "Max work item sizes: ");
 
     for (j=0; j<units;j++)
-      fprintf(stderr, "%d ", wid[j]);
+      fprintf(stderr, "%ld ", wid[j]);
     fprintf(stderr, "\n");
 #endif
 #endif
@@ -592,7 +592,7 @@ int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst)
   err = clEnqueueWriteBuffer(ds->d_cq, dst, CL_TRUE, 0, size, src, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clEnqueueWriteBuffer returns %s\n", __func__, oclErrorString(err));
 #endif
     clReleaseEvent(evt);
     return -1;
@@ -609,7 +609,7 @@ int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst)
 
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: cl profiling returns %s\n", __func__, oclErrorString(err));
 #endif
     clReleaseEvent(evt);
     return -1;
@@ -634,7 +634,7 @@ int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
 
   if (ds == NULL || src == NULL || dst == NULL || size <= 0){
 #ifdef DEBUG 
-    fprintf(stderr, "%s: param error\n", __func__);
+    fprintf(stderr, "%s: param error ds(%p) src(%p) dst(%p) size[%ld]\n", __func__, ds, src, dst, size);
 #endif
     return -1;
   }
@@ -643,7 +643,7 @@ int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
   err = clEnqueueReadBuffer(ds->d_cq, src, CL_TRUE, 0, size, dst, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueReadBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: clEnqueueReadBuffer returns %s\n", __func__, oclErrorString(err));
 #endif
     return -1;
   }
@@ -659,7 +659,7 @@ int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
 
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "%s: profiling returns %s\n", __func__, oclErrorString(err));
 #endif
     clReleaseEvent(evt);
     return -1;
@@ -684,63 +684,108 @@ void destroy_ocl_mem(cl_mem m)
   }
 }
 
-#if 1
-int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, int arg_count, ...)
+int load_kernel_parameters(struct ocl_kernel *k, va_list ap_list)
 {
-  size_t workGroupSize[1];
-  cl_int err;
-  cl_event evt;
-  int i;
-  va_list ap;
   void *ptr;
   size_t size;
-  
-  if (ds == NULL || k == NULL)
+  int i;
+
+  cl_int err;
+
+  size = 0;
+  ptr  = NULL;
+  i    = 0;
+
+  if (k == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: need a kernel to load parameters too!\n", __func__);
+#endif
     return -1;
+  }
+  
+  do {
 
-  workGroupSize[0] = work_group_size;
+    ptr = va_arg(ap_list, void *);
+    if (!ptr)
+      break;
 
-  err = CL_SUCCESS;
+    size = va_arg(ap_list, size_t);
+    if (!size){
+#ifdef DEBUG
+      fprintf(stderr, "%s: need parameter size > 0\n", __func__);
+#endif
+      return -1;
+    }
 
-  va_start(ap, arg_count);
-  for (i=0; i<arg_count; i++){
-    size = va_arg(ap, size_t);
-    ptr = va_arg(ap, void *);
-    err |= clSetKernelArg(k->k_kernel, i, size, ptr);
+    err = clSetKernelArg(k->k_kernel, i, size, ptr);
+    if (err != CL_SUCCESS){
+#ifdef DEBUG
+      fprintf(stderr, "%s: error clSetKernelArg [%d]: %s\n", __func__, i, oclErrorString(err));
+#endif
+      return -1;
+    }
+
 #ifdef DEBUG
     fprintf(stderr, "%s: loaded arg[%d] size[%ld] ptr<%p>\n", __func__, i, size, ptr);
 #endif
+
+    i++;
+  } while(size && ptr);
+
+  return 0;
+}
+
+#if 1
+int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group_size, ...)
+{
+  size_t globalz[1];
+  size_t localz[1];
+  cl_int err;
+  cl_event evt;
+  va_list ap;
+
+  if (ds == NULL || k == NULL)
+    return -1;
+
+  localz[0]  = 16;
+  globalz[0] = work_group_size;
+
+  va_start(ap, work_group_size);
+  if (load_kernel_parameters(k, ap) < 0){
+    va_end(ap);
+    return -1;
   }
   va_end(ap);
 
-  if (err != CL_SUCCESS){
-#ifdef DEBUG
-    fprintf(stderr, "error clSetKernelArg: %s\n", oclErrorString(err));
-#endif
-    return -1;
-  }
+
 
 #if 1
-  err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
+  err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, globalz, localz, 0, NULL, &evt);
   if (err != CL_SUCCESS){
 #ifdef DEBUG
     fprintf(stderr, "error clEnqueueNDRangeKernel: %s\n", oclErrorString(err));
 #endif
     return -1;
   }
-#endif
   clFinish(ds->d_cq);
 
   cl_ulong ev_start_time = (cl_ulong) 0;     
   cl_ulong ev_end_time   = (cl_ulong) 0;   
 
   err  = clWaitForEvents(1, &evt);
-  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
-  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
-
   if (err != CL_SUCCESS){
 #ifdef DEBUG
-    fprintf(stderr, "clEnqueueWriteBuffer returns %s\n", oclErrorString(err));
+    fprintf(stderr, "clWaitForEvents %s\n", oclErrorString(err));
+#endif
+    clReleaseEvent(evt);
+    return -1;
+  }
+
+  err  = clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "clGetEventProfiling %s\n", oclErrorString(err));
 #endif
     clReleaseEvent(evt);
     return -1;
@@ -752,17 +797,21 @@ int run_1d_ocl_kernel(struct ocl_ds *ds, struct ocl_kernel *k, size_t work_group
   fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
 #endif
 
-
   clReleaseEvent(evt);
+#endif
 
   return 0;
 }
 #endif
 
+
+
 int is_power_of_2(int x)
 {
   return (x != 0) ? ((x & (x-1)) == 0 ? 0 : -1) : -1;
 }
+
+
 
 int power_of_2(int x)
 {

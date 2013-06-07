@@ -2,6 +2,8 @@
 
 //#pragma OPENCL EXTENSION cl_khr_fp64: enable
 
+#define THREAD get_global_id(1)*get_global_size(0)+get_global_id(0)
+
 struct fft_map {
   int A;
   int B;
@@ -13,18 +15,18 @@ struct bit_flip_map {
   int B;
 };
 
-__kernel void radix2_fft_setup(__global struct fft_map *map, const int passes)
+/*2d*/
+__kernel void radix2_fft_setup(__global struct fft_map *map, const int passes, const int threads)
 {
-  int t, p, m, threads, groups, idx;
+  int t, p, m, groups, idx;
 
-  t = get_global_id(0);
-  //t = get_global_id(1)*get_global_size(0)+get_global_id(0);
-  threads = get_global_size(0);
+  //t = get_global_id(0);
+  t = THREAD; 
 
   m = threads; 
   groups = threads / m;
 
-  for (p=0; p<passes; p++){
+  for (p=0; p < passes && t < threads; p++){
       
     idx = t * passes + p;
 
@@ -72,9 +74,9 @@ void radix2_dif_butterfly(const float2 A, const float2 B, const int k, const int
 }
 #endif
 
-__kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __global float2 *in, const int N, const int passes)
+__kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __global float2 *in, const int N, const int passes, const int threads)
 {
-  int a, b, k, p, t, m, threads, groups, idx;
+  int a, b, k, p, t, m, groups, idx;
   float2 x, y, z, w;
 
   idx = 0;
@@ -82,13 +84,13 @@ __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __g
   b = 0;
   k = 0;
 
-  t = get_global_id(0);
-  threads = get_global_size(0);
+  //t = get_global_id(0);
+  t = THREAD;
   m = threads;
   groups = threads / m;
 
   #pragma unroll
-  for (p=0; p<passes; p++){
+  for (p=0; p<passes && t < threads; p++){
     
     idx = t * passes + p;
 
@@ -128,8 +130,8 @@ __kernel void radix2_power_2_inplace_fft(__global const struct fft_map *map, __g
     in[b].x = z.x;
     in[b].y = z.y;
 
-    barrier(CLK_LOCAL_MEM_FENCE);
-    //barrier(CLK_GLOBAL_MEM_FENCE);
+    //barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
     //mem_fence(CLK_GLOBAL_MEM_FENCE);
 
     m = m >> 1;  
@@ -172,12 +174,14 @@ __kernel void radix2_bit_flip_setup(__global struct bit_flip_map *flip, const in
 
 }
 
+/*2d*/
 __kernel void radix2_bit_flip(__global const struct bit_flip_map *flip, __global const float2 *in, const int flips)
 {
   int i;
   float2 temp;
 
-  i = get_global_id(0);
+  //i = get_global_id(0);
+  i = THREAD;
   
 #if 0
   temp = in[flip[i].A];
@@ -186,38 +190,45 @@ __kernel void radix2_bit_flip(__global const struct bit_flip_map *flip, __global
 #endif
 
 #if 1
-  temp.x = in[flip[i].A].x;
-  temp.y = in[flip[i].A].y;
+  if (i < flips){
+    temp.x = in[flip[i].A].x;
+    temp.y = in[flip[i].A].y;
 
-  in[flip[i].A].x = in[flip[i].B].x;
-  in[flip[i].A].y = in[flip[i].B].y;
+    in[flip[i].A].x = in[flip[i].B].x;
+    in[flip[i].A].y = in[flip[i].B].y;
 
-  in[flip[i].B].x = temp.x;
-  in[flip[i].B].y = temp.y;
+    in[flip[i].B].x = temp.x;
+    in[flip[i].B].y = temp.y;
+  }
 #endif
 }
 
-__kernel void uint8_re_to_float2(__global const unsigned char *in, __global const float2 *out)
+__kernel void uint8_re_to_float2(__global const unsigned char *in, __global const float2 *out, const int m)
 {
   int i;
 
-  i = get_global_id(0);
+  i = THREAD; 
 
-  out[i].x = (float) in[i];
-  out[i].y = 0.0;
+  if (i < m){
+    out[i].x = (float) in[i];
+    out[i].y = 0.0;
+  }
 
 }
 
-__kernel void power_phase(__global const float2 *in)
+__kernel void power_phase(__global const float2 *in, const int m)
 {
-  int i = get_global_id(0);
+  int i = THREAD; 
   float2 temp;
 
-  temp.x = hypot(in[i].x, in[i].y);
-  temp.y = atan2(in[i].y, in[i].x);
+  if (i < m) {
+    temp.x = hypot(in[i].x, in[i].y);
+    temp.y = atan2(in[i].y, in[i].x);
 
-  in[i].x = temp.x;
-  in[i].y = temp.y;
+    in[i].x = temp.x;
+    in[i].y = temp.y;
+  }
+
 }
 
 #if 0
