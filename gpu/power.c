@@ -93,6 +93,8 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
     return -1;
   }
 
+  bzero(so->o_host, sizeof(float2)*len);
+
   so->o_in = create_ocl_mem(so->o_ds, sizeof(float2)*len);
   if (so->o_in == NULL){
     free(so->o_host);
@@ -180,7 +182,6 @@ int run_power_phase(struct sapi_object *so, struct ocl_kernel *k)
 
   return 0;
 }
-
 
 
 int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_group *ig, void *data)

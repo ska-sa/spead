@@ -223,7 +223,7 @@ __kernel void power_phase(__global const float2 *in, const int m)
 
   if (i < m) {
     temp.x = hypot(in[i].x, in[i].y);
-    temp.y = atan2(in[i].y, in[i].x);
+    temp.y = 0.0;//atan2(in[i].y, in[i].x);
 
     in[i].x = temp.x;
     in[i].y = temp.y;
