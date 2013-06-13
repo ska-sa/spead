@@ -1,9 +1,14 @@
 #include <stdio.h>
 #include <math.h>
 
-int is_power_of_2(int x)
+int is_power_of_4(int x)
 {
-  return (x != 0) ? ((x & (x-1)) == 0 ? 0 : -1) : -1;
+  //int a = (x == 0) ? -1 : ((x & 0x55555555) & 0x00000001 == 0 ? 0 : -1);
+  int a = (x & 0x55555555) & 0x00000001;
+
+  fprintf(stderr,"a=%d\n", a);
+
+  return a;
 }
 
 int power_of_2(int x)
@@ -19,8 +24,7 @@ int power_of_2(int x)
 
 int main(int argc, char *argv[])
 {
-  int t, p, a, b, groups, m, w;
-  int N = atoi(argv[1]);
+  int t, p, a, b, groups, m, w, N;
   
   int passes, threads;
   
@@ -29,8 +33,10 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  if (is_power_of_2(N) < 0){
-    fprintf(stderr, "%d not a power of two\n", N);
+  N = atoi(argv[1]);
+
+  if (is_power_of_4(N) < 0){
+    fprintf(stderr, "%d not a power of four\n", N);
     return 1;
   }
    
