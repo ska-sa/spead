@@ -98,12 +98,27 @@ void *spead_api_setup(struct spead_api_module_shared *s)
   so->o_flip        = NULL;
   
   /*vars*/
+#if 0
+  float2            *o_host;
+#endif
   so->o_N           = 0;
   so->o_passes      = 0;
   so->o_threads     = 0;
+#if 0
+  float2            *o_host;
+#endif
   so->o_flips       = 0;
   
   so->o_ds = create_ocl_ds(KERNELDIR KERNELS_FILE);
+#if 0
+  float2            *o_host;
+#endif
+#if 0
+  float2            *o_host;
+#endif
+#if 0
+  float2            *o_host;
+#endif
   if (so->o_ds == NULL){
     destroy_sapi_object(so);
     return NULL;

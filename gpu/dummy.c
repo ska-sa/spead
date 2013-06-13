@@ -9,7 +9,7 @@
 #define CHAN    64
 #define SAMP    128
 
-#define IN_DATA_SET(val) ((val) == 0x08 || (val) == 0x09 || (val) == 0x0)
+#define IN_DATA_SET(val) ((val) == 0x08 || (val) == 0x09 || (val) == 0x0 || (val) == 0xb001)
 
 void spead_api_destroy(struct spead_api_module_shared *s, void *data)
 {
