@@ -8,7 +8,7 @@
 
 #include "shared.h"
 
-#define COUNT           250
+#define COUNT           500
 #define SPEAD_DATA_ID   0xb001
 
 #define IN_DATA_SET(val) ((val) == 0x08 || (val) == 0x09 || (val) == 0x0 || (val) == 0xb001)
