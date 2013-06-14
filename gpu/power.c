@@ -13,7 +13,8 @@
 
 #define SPEAD_DATA_ID    0xb001
 
-#define FOLD_WINDOW      1000
+#define FOLD_WINDOW      500
+#define FOLD_DEPTH       100
 
 struct sapi_object {
   struct ocl_ds     *o_ds;
@@ -23,9 +24,9 @@ struct sapi_object {
   cl_mem            o_in;
   cl_mem            o_fold_map;
   int               o_fold_id;
+  int               o_fold_did;
   void              *o_host;
   int               o_N;
-
 };
 
 void destroy_sapi_object(void *data)
@@ -70,6 +71,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
   so->o_in          = NULL;
   so->o_fold_map    = NULL;
   so->o_fold_id     = 0;
+  so->o_fold_did    = 0;
   
   so->o_ds = create_ocl_ds(KERNELDIR KERNELS_FILE);
   if (so->o_ds == NULL){
@@ -109,7 +111,7 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
 
   so->o_N = len;
 
-  so->o_host = malloc(sizeof(float2)*len);
+  so->o_host = malloc(sizeof(float2)*len*FOLD_WINDOW);
   if (so->o_host == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: host memory creation failed\n", __func__);
@@ -131,13 +133,12 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
   so->o_fold_map = create_ocl_mem(so->o_ds, sizeof(float2)*len*FOLD_WINDOW);
   if (so->o_in == NULL){
     free(so->o_host);
-
+    destroy_ocl_mem(so->o_in);
 #ifdef DEBUG
     fprintf(stderr, "%s: device mem in creation failed\n", __func__);
 #endif
     return -1;
   }
-
 
   return 0;
 }
@@ -361,6 +362,7 @@ int run_folder(struct sapi_object *so, struct ocl_kernel *k)
 
   clReleaseEvent(evt);
 
+
   return 0;
 }
 
@@ -433,24 +435,56 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 #endif
     return -1;
   }
+  
+  so->o_fold_id++;
 
+  if (so->o_fold_id == FOLD_WINDOW){
+    
+    so->o_fold_id == 0;
+    so->o_fold_did++;
+
+    if (so->o_fold_did == FOLD_DEPTH){
+      
+      so->o_fold_did = 0;
 #if 1
- /*copy data out*/
-  if (xfer_from_ocl_mem(so->o_ds, so->o_in, sizeof(float2) * so->o_N, so->o_host) < 0){
+      /*copy data out*/
+      if (xfer_from_ocl_mem(so->o_ds, so->o_fold_map, sizeof(float2) * so->o_N * FOLD_WINDOW, so->o_host) < 0){
 #ifdef DEBUG
-    fprintf(stderr, "%s: xfer from ocl error\n", __func__);
+        fprintf(stderr, "%s: xfer from ocl error\n", __func__);
 #endif
-    return -1;
-  }
+        return -1;
+      }
+
+      if (set_spead_item_io_data(itm, so->o_host, so->o_N) < 0){
+        //if (set_spead_item_io_data(itm, so->o_in, so->o_N) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "err: storeing cufft output\n");
+#endif
+        return -1;
+      }
 #endif
 
-  if (set_spead_item_io_data(itm, so->o_host, so->o_N) < 0){
-  //if (set_spead_item_io_data(itm, so->o_in, so->o_N) < 0){
-#ifdef DEBUG
-    fprintf(stderr, "err: storeing cufft output\n");
-#endif
-    return -1;
+    }
+    
   }
+  
+#if 0
+      /*copy data out*/
+      if (xfer_from_ocl_mem(so->o_ds, so->o_in, sizeof(float2) * so->o_N, so->o_host) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "%s: xfer from ocl error\n", __func__);
+#endif
+        return -1;
+      }
+
+      if (set_spead_item_io_data(itm, so->o_host, so->o_N) < 0){
+        //if (set_spead_item_io_data(itm, so->o_in, so->o_N) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "err: storeing cufft output\n");
+#endif
+        return -1;
+      }
+#endif
 
 
   return 0;
