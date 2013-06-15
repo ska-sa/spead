@@ -13,8 +13,8 @@
 
 #define SPEAD_DATA_ID    0xb001
 
-#define FOLD_WINDOW      500
-#define FOLD_DEPTH       100
+#define FOLD_WINDOW      50
+#define FOLD_DEPTH       10
 
 struct sapi_object {
   struct ocl_ds     *o_ds;
@@ -372,6 +372,8 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   struct spead_api_item *itm;
   struct sapi_object *so;
   
+  float2 *pow;
+
   itm = NULL;
 
   so = data;
@@ -429,18 +431,22 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   }
  
   /*fold*/
-  if (run_folder(so, so->o_fold) < 0){
+  if (run_folder(so, so->o_folder) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: run power phase fail\n", __func__);
 #endif
     return -1;
   }
-  
+
+#ifdef DEBUG 
+  fprintf(stderr, "%s fold_id: %d fold_did: %d\n", __func__, so->o_fold_id, so->o_fold_did);
+#endif
+
   so->o_fold_id++;
 
   if (so->o_fold_id == FOLD_WINDOW){
     
-    so->o_fold_id == 0;
+    so->o_fold_id = 0;
     so->o_fold_did++;
 
     if (so->o_fold_did == FOLD_DEPTH){
@@ -455,19 +461,34 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
         return -1;
       }
 
-      if (set_spead_item_io_data(itm, so->o_host, so->o_N) < 0){
-        //if (set_spead_item_io_data(itm, so->o_in, so->o_N) < 0){
-#ifdef DEBUG
-        fprintf(stderr, "err: storeing cufft output\n");
-#endif
-        return -1;
+      fprintf(stdout, "set term x11 size 1280,720\nset view map\nsplot '-' matrix with image\n");
+
+      int i,j;
+
+      for (j=0; j<FOLD_WINDOW; j++){
+        pow = (float2*) (so->o_host + sizeof(float2) * j * so->o_N);
+        for (i=so->o_N/2; i<so->o_N; i++){
+          fprintf(stdout,"%0.11f ",pow[i].x);
+        }
+        fprintf(stdout, "\n");
       }
+
+      fprintf(stdout, "e\ne\n");
+
+
 #endif
 
     }
     
   }
   
+  if (set_spead_item_io_data(itm, NULL, 0) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "err: resetting io ptr\n");
+#endif
+    return -1;
+  }
+
 #if 0
       /*copy data out*/
       if (xfer_from_ocl_mem(so->o_ds, so->o_in, sizeof(float2) * so->o_N, so->o_host) < 0){
