@@ -273,6 +273,13 @@ __kernel void folder(__global const float2 *in, __global const float2 *fold_map,
   fold_map[n].y += in[i].y; 
 }
 
+__kernel void clmemset(__global const float2 *in)
+{
+  int n = THREAD;
+  in[n].x = 0.0;
+  in[n].y = 0.0;
+}
+
 #if 0
 __kernel void uint8_cmplx_to_float2(__global const uint8_t *in, __global const float2 *out)
 {

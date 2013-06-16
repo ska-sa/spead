@@ -13,14 +13,16 @@
 
 #define SPEAD_DATA_ID    0xb001
 
-#define FOLD_WINDOW      50
-#define FOLD_DEPTH       10
+#define FOLD_WINDOW      500
+#define FOLD_DEPTH       50
+
 
 struct sapi_object {
   struct ocl_ds     *o_ds;
   struct ocl_kernel *o_power_phase;
   struct ocl_kernel *o_chd;
   struct ocl_kernel *o_folder;
+  struct ocl_kernel *o_memset;
   cl_mem            o_in;
   cl_mem            o_fold_map;
   int               o_fold_id;
@@ -28,6 +30,8 @@ struct sapi_object {
   void              *o_host;
   int               o_N;
 };
+
+int run_clmemset(struct sapi_object *so, struct ocl_kernel *k);
 
 void destroy_sapi_object(void *data)
 {
@@ -40,6 +44,7 @@ void destroy_sapi_object(void *data)
     destroy_ocl_kernel(so->o_power_phase);
     destroy_ocl_kernel(so->o_chd);
     destroy_ocl_kernel(so->o_folder);
+    destroy_ocl_kernel(so->o_memset);
 
     destroy_ocl_ds(so->o_ds);
     
@@ -97,6 +102,12 @@ void *spead_api_setup(struct spead_api_module_shared *s)
     return NULL;
   }
 
+  so->o_memset = create_ocl_kernel(so->o_ds, "clmemset");
+  if (so->o_folder == NULL){
+    destroy_sapi_object(so);
+    return NULL;
+  }
+
   return so;
 }
 
@@ -139,6 +150,14 @@ int setup_cl_mem_buffers(struct sapi_object *so, int64_t len)
 #endif
     return -1;
   }
+
+  if (run_clmemset(so, so->o_memset) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: run memset fail\n", __func__);
+#endif
+    return -1;
+  }
+
 
   return 0;
 }
@@ -366,6 +385,81 @@ int run_folder(struct sapi_object *so, struct ocl_kernel *k)
   return 0;
 }
 
+int run_clmemset(struct sapi_object *so, struct ocl_kernel *k)
+{
+  size_t workGroupSize[2], localz[2];
+  cl_int err;
+  cl_event evt;
+  struct ocl_ds     *ds;
+  
+  if (so == NULL || k == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: params\n", __func__);
+#endif
+    return -1;
+  }
+  
+  ds = so->o_ds;
+  if (ds == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: ds null\n", __func__);
+#endif
+    return -1;
+  }
+
+#if 0
+  workGroupSize[0] = (int) ceil(sqrt(so->o_N));
+  workGroupSize[1] = (int) ceil(sqrt(so->o_N));
+  localz[0] = LOZ;
+  localz[1] = LOZ;
+#endif
+  workGroupSize[0] = so->o_N*FOLD_WINDOW;
+
+  err = clSetKernelArg(k->k_kernel, 0, sizeof(cl_mem), (void *) &(so->o_fold_map));
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "%s: clSetKernelArg return %s\n", __func__, oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  //err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 2, NULL, workGroupSize, localz, 0, NULL, &evt);
+  err = clEnqueueNDRangeKernel(ds->d_cq, k->k_kernel, 1, NULL, workGroupSize, NULL, 0, NULL, &evt);
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "%s: clEnqueueNDRangeKernel: %s\n", __func__, oclErrorString(err));
+#endif
+    return -1;
+  }
+
+  clFinish(ds->d_cq);
+
+  cl_ulong ev_start_time = (cl_ulong) 0;     
+  cl_ulong ev_end_time   = (cl_ulong) 0;   
+
+  err  = clWaitForEvents(1, &evt);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &ev_start_time, NULL);
+  err |= clGetEventProfilingInfo(evt, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &ev_end_time, NULL);
+
+  if (err != CL_SUCCESS){
+#ifdef DEBUG
+    fprintf(stderr, "%s: cl profiling returns %s\n", __func__, oclErrorString(err));
+#endif
+    clReleaseEvent(evt);
+    return -1;
+  }
+
+  float run_time = (float)(ev_end_time - ev_start_time)/1000;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[32m%f usec\033[0m\n", __func__, run_time);
+#endif
+
+  clReleaseEvent(evt);
+
+  return 0;
+}
+
 
 int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_group *ig, void *data)
 {
@@ -475,8 +569,15 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 
       fprintf(stdout, "e\ne\n");
 
-
 #endif
+
+      if (run_clmemset(so, so->o_memset) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "%s: run memset fail\n", __func__);
+#endif
+        return -1;
+      }
+
 
     }
     
