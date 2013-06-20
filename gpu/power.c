@@ -199,6 +199,7 @@ int run_chd(struct sapi_object *so, struct ocl_kernel *k)
 #ifdef DEBUG
     fprintf(stderr, "%s: clEnqueueNDRangeKernel: %s\n", __func__, oclErrorString(err));
 #endif
+
     return -1;
   }
 
