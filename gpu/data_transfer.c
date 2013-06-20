@@ -113,7 +113,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 #ifdef DEBUG
     fprintf(stderr, "%s: buffers about to be created\n", __func__);
 #endif
-    if (setup_cl_mem_buffers(so, itm->io_size) < 0){
+    if (setup_cl_mem_buffers(so, itm->i_data_len) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: buffer setup failed\n", __func__);
 #endif
@@ -121,7 +121,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
     }
   }
 
-  if (xfer_to_ocl_mem(so->o_ds, itm->io_data, itm->io_size, so->o_in) < 0){
+  if (xfer_to_ocl_mem(so->o_ds, itm->i_data, so->o_N, so->o_in) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: xfer to ocl error\n", __func__);
 #endif
