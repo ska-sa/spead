@@ -221,14 +221,63 @@ __kernel void power_phase(__global const float2 *in, const int m)
   int i = THREAD; 
   float2 temp;
 
+  float x,y;
+
   if (i < m) {
-    temp.x = hypot(in[i].x, in[i].y);
-    temp.y = atan2(in[i].y, in[i].x);
+
+    x = in[i].x;
+    y = in[i].y;
+
+    //temp.x = hypot(in[i].x, in[i].y);
+    temp.x = sqrt(x * x + y * y);
+    temp.y = 0.0;//atan2(in[i].y, in[i].x);
 
     in[i].x = temp.x;
     in[i].y = temp.y;
   }
 
+}
+
+#define D        (4148.808)
+#define DM       67
+#define CF       1.5e9
+
+__kernel void coherent_dedisperse(__global const float2 *in)
+{
+  int n = THREAD; 
+  
+  float freq = (float) n;
+  float x,y;
+
+  x = in[n].x;
+  y = in[n].y;
+
+  //const float p =  (2.0 * M_PI_F * DM * (freq * freq)) / ((freq+CF)*(CF*CF)) * D;
+  const float p = 1.0 / ((freq+CF)*sqrt(CF)) * 2.0 * M_PI_F * DM * sqrt(freq) * D; 
+
+  const float2 chirp = { 
+    native_cos(p), 
+    (-1) * native_sin(p) 
+  };
+
+  x = (float) (x * chirp.x) - (y * chirp.y);
+  y = (float) (x * chirp.y) + (y * chirp.x);
+}
+
+__kernel void folder(__global const float2 *in, __global const float2 *fold_map, const int fold_id, const int N)
+{
+  int i = THREAD;
+  int n = THREAD + N * fold_id;
+   
+  fold_map[n].x += in[i].x; 
+  fold_map[n].y += in[i].y; 
+}
+
+__kernel void clmemset(__global const float2 *in)
+{
+  int n = THREAD;
+  in[n].x = 0.0;
+  in[n].y = 0.0;
 }
 
 #if 0

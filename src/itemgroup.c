@@ -247,7 +247,7 @@ int set_spead_item_io_data(struct spead_api_item *itm, void *ptr, size_t size)
   if (itm){
 
     if (ptr == itm->io_data){
-#ifdef DEBUG
+#if DEBUG>2
       fprintf(stderr, "%s: io_data pointer match\n", __func__);
 #endif
       return 0;
