@@ -54,6 +54,7 @@ int main(int argc, char *argv[])
   //dst.sin_port = htons(atoi(argv[2]));
 
   dst.sin_addr.s_addr = inet_addr(argv[1]);
+  dst.sin_family = AF_UNSPEC;
 
   ip->ihl     = 5;
   ip->version = 4;
@@ -71,11 +72,8 @@ int main(int argc, char *argv[])
   udp->len    = htons(SIZE - (off + sizeof(struct udphdr)));
   udp->check  = 0;
 
-  //ip->check  = csum((unsigned short*)buf, sizeof(struct iphdr) + sizeof(struct udphdr));
-
-
-  fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_UDP);
-  //fd = socket(AF_INET, SOCK_RAW, IPPROTO_UDP);
+  //fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_UDP);
+  fd = socket(AF_INET, SOCK_RAW, IPPROTO_UDP);
   if (fd < 0){
     fprintf(stderr,"%s: error socket (%s)\n", __func__, strerror(errno));
     return -1;
@@ -83,13 +81,13 @@ int main(int argc, char *argv[])
 
   reuse_addr   = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr)) < 0){
-    fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
+    fprintf(stderr,"%s: error setsockopt 1: %s\n", __func__, strerror(errno));
     return -1;
   }
 
   reuse_addr   = 1;
   if (setsockopt(fd, IPPROTO_IP, IP_HDRINCL, &reuse_addr, sizeof(reuse_addr)) < 0){
-    fprintf(stderr,"%s: error setsockopt: %s\n", __func__, strerror(errno));
+    fprintf(stderr,"%s: error setsockopt 2: %s\n", __func__, strerror(errno));
     return -1;
   }
 
@@ -116,7 +114,7 @@ int main(int argc, char *argv[])
       i++;
 
     if(sendto(fd, buf, SIZE, 0, (struct sockaddr *)&dst, sizeof(dst)) < 0){
-      fprintf(stderr, "error sendto");
+      fprintf(stderr, "error sendto <%s>\n", strerror(errno));
       exit(-1);
     } else {
       //fprintf(stderr, "sent packet\n");
