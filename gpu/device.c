@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     goto free_kernel;
   }
 
-#if 1
+#if 0
   err  = clSetKernelArg(o_k->k_kernel, 0, sizeof(cl_mem), (void *) &o_in);
   err |= clSetKernelArg(o_k->k_kernel, 1, sizeof(int), (void *) &len);
   if (err != CL_SUCCESS){
