@@ -615,15 +615,15 @@ int xfer_to_ocl_mem(struct ocl_ds *ds, void *src, size_t size, cl_mem dst)
     return -1;
   }
 
+  float run_time = (float)(ev_end_time - ev_start_time);
+  float bit_rate = size / (float) run_time * (1953125.0/2097152.0)*8;
 #if 0
-  float run_time = (float)(ev_end_time - ev_start_time)/1000;
-  float bit_rate = size / (float) run_time * 10e-3;
-#endif
   float run_time = (float)(ev_end_time - ev_start_time);
   float bit_rate = size / (float) run_time;
+#endif
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: \033[32m%ld bytes in %f nsec bitrate %f B/ns\033[0m\n", __func__, size, run_time, bit_rate);
+  fprintf(stderr, "%s: \033[32m%ld bytes in %f nsec bitrate %f gbits/s\033[0m\n", __func__, size, run_time, bit_rate);
 #endif
 
   clReleaseEvent(evt);
@@ -669,16 +669,16 @@ int xfer_from_ocl_mem(struct ocl_ds *ds, cl_mem src, size_t size, void *dst)
     return -1;
   }
 
-#if 0
-  float run_time = (float)(ev_end_time - ev_start_time)/1000;
-  float bit_rate = size / (float) run_time * 10e-3;
-#endif
+  float run_time = (float)(ev_end_time - ev_start_time);
+  float bit_rate = size / (float) run_time *(1953125.0/2097152.0)*8;
 
+#if 0
   float run_time = (float)(ev_end_time - ev_start_time);
   float bit_rate = size / (float) run_time;
+#endif
 
 #ifdef DEBUG
-  fprintf(stderr, "%s: \033[32m%ld bytes in %f nsec bitrate %f B/ns\033[0m\n", __func__, size, run_time, bit_rate);
+  fprintf(stderr, "%s: \033[32m%ld bytes in %f nsec bitrate %f gbits/s\033[0m\n", __func__, size, run_time, bit_rate);
 #endif
 
   clReleaseEvent(evt);
