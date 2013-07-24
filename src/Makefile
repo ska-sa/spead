@@ -13,9 +13,10 @@ CFLAGS += -DDATA
 CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
+#CFLAGS += -m32
 CC = gcc -ggdb
 
-LIB = -lspead -L.
+LIB = -lspead -L. -lm
 
 ifeq (,$(findstring -DIKATCP,$(CFLAGS)))
 	LIB += -lkatcp
@@ -40,7 +41,9 @@ SHDR = avltree.h mutex.h hash.h spead_api.h spead_packet.h stack.h
 HDR  = $(SHDR) server.h tx.h
 
 SSRC = avltree.c itemgroup.c spead.c spead_packet.c mutex.c sharedmem.c hash.c module.c datafile.c net.c subprocess.c stack.c pipeline.c
-SLIB = libspead.so
+DLIB = libspead.so
+SLIB = libspead.a
+
 
 SOBJ = $(patsubst %.c,%.lo,$(SSRC))
 
@@ -49,19 +52,28 @@ RXOBJ  = $(patsubst %.c,%.o,$(RXSRC))
 
 
 all: $(RXEXE) $(TXEXE)
+static: $(RXEXE)-static $(TXEXE)-static
 
+$(DLIB): $(SOBJ)
+	$(CC) -o $@ $^ -shared -Wl,-x -ldl 
 
 $(SLIB): $(SOBJ)
-	$(CC) -o $@ $^ -shared -Wl,-x -ldl 
+	$(AR) rcs $@ $^
 
 %.lo: %.c $(SHDR)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC) -fPIC
 
-$(RXEXE): $(RXOBJ) $(SLIB)
+$(RXEXE): $(RXOBJ) $(DLIB)
 	$(CC) -o $@ $< $(LIB)
 
-$(TXEXE): $(TXOBJ) $(SLIB)
+$(TXEXE): $(TXOBJ) $(DLIB)
 	$(CC) -o $@ $< $(LIB)
+
+$(RXEXE)-static: $(RXOBJ) $(SLIB)
+	$(CC) -o $@ $^ -ldl -lm
+
+$(TXEXE)-static: $(TXOBJ) $(SLIB)
+	$(CC) -o $@ $^ -ldl -lm
 
 %.o: %.c $(HDR)
 	$(CC) $(CFLAGS) -c $< -o $@ $(INC)
@@ -69,14 +81,14 @@ $(TXEXE): $(TXOBJ) $(SLIB)
 
 
 install: all
-#	ln -s $(PWD)/$(SLIB) $(PREFIX)/lib/$(SLIB)
+#	ln -s $(PWD)/$(DLIB) $(PREFIX)/lib/$(DLIB)
 	$(INSTALL) $(RXEXE) $(PREFIX)/sbin
 	$(INSTALL) $(TXEXE) $(PREFIX)/sbin
-	$(INSTALL) $(SLIB) $(PREFIX)/lib
+	$(INSTALL) $(DLIB) $(PREFIX)/lib
 	/sbin/ldconfig  
 
 clean: 
-	$(RM) $(TXEXE) $(RXEXE) $(SLIB) *.o *.lo core vgcore* test-*
+	$(RM) $(TXEXE) $(RXEXE) $(SLIB) $(RXEXE)-static $(TXEXE)-static $(DLIB) *.o *.lo core vgcore* test-*
 
 fresh: 
 	make clean && make

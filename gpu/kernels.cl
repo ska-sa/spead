@@ -53,3 +53,18 @@ __kernel void power_uint8_to_float(__global const char *in, __global float *out)
   out[i+1]  = (float) atan2(y, x);
 }
 
+__kernel void ocl_layout(__global int4 *in, const int n)
+{
+  int idx = get_global_id(1) * get_global_size(0) + get_global_id(0) + get_global_id(2)*get_global_size(1)*get_global_size(0);
+
+  int wgs  = get_global_id(0);
+  int wgid = get_global_id(1);
+
+  int wis  = get_local_id(0);
+  //int wiid = get_global_size(1);
+
+  in[idx].w = idx;
+  in[idx].x = wgs;
+  in[idx].y = wgid;
+  in[idx].z = wis;
+}

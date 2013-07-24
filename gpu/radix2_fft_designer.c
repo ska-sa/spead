@@ -9,11 +9,11 @@ int is_power_of_2(int x)
 int power_of_2(int x)
 {
   int p=0;
-  do {
+  while (x > 1) {
     x = x >> 1;
     p++;
-  } while(x > 0);
-  return (p-1);
+  }
+  return p;
 }
 
 int main(int argc, char *argv[])
@@ -29,13 +29,19 @@ int main(int argc, char *argv[])
   }
    
   passes = power_of_2(N);
+
+  if (passes == 0){
+    fprintf(stderr, "need a minimum of 2 data points\n");
+    return 1;
+  }
+
   threads = N >> 1;
   m = threads;
   groups = threads / m;
 
-  fprintf(stderr, "%d passes needed\n", passes);
+  fprintf(stderr, "%d passes needed by %d threads\n", passes, threads);
   
-
+#if 1
   for (p=0; p<passes; p++){
     for (t=0; t<threads; t++){
       
@@ -55,7 +61,9 @@ int main(int argc, char *argv[])
     fprintf(stderr, "----------------\n");
 
   }
-
+#endif
+  int need = 0, same = 0;
+#if 1
   for (t=0; t < N; t++){
     
     int r = t, in=0;
@@ -68,10 +76,41 @@ int main(int argc, char *argv[])
       r = r >> 1;
     }
 
-    fprintf(stderr, "bit-reversal of [%d] is [%d]\n", t, in);
-  
+#if 1
+    fprintf(stderr, "bit-reversal of [%d] is [%d]", t, in);
+    if (t < in){
+      fprintf(stderr, "\tdo swap use %d", need);
+      need++;
+    } else if (t == in) {
+      fprintf(stderr, "\t====");
+      same++;
+    } else {
+      fprintf(stderr, "\t😸  ");
+    }
+
+    fprintf(stderr, "\n");
+#endif
+#if 0
+    if (t < in){
+      fprintf(stderr, "%d\t%d-%d\n", need, t, in);
+      need++;
+    }
+#endif
   }
 
+  fprintf(stderr, "need count %d\n", need);
+#endif
+
+  int diff  = (passes % 2) ? /*odd*/ ((passes+1) >> 1) - 1 : /*even*/ (passes >> 1) - 1;
+  int flips = ((N >> 1) - (1 << diff));
   
+  fprintf(stderr, "calculated flips needed: diff %d flips %d same %d\n", diff, flips, same);
+#if 0
+  for (t=0; t<flips; t++)
+  {
+    
+  }
+#endif
+
   return 0;
 }

@@ -106,7 +106,7 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   ig->g_off += item_size;
   ig->g_items++;
 
-#if DEBUG>2
+#ifdef DEBUG
   fprintf(stderr, "GROUP map (%p): size %ld offset: %ld data: %p\n", ig->g_map, ig->g_size, ig->g_off, itm->i_data);
 #endif
 
@@ -117,8 +117,8 @@ struct spead_api_item *new_item_from_group(struct spead_item_group *ig, uint64_t
   itm->i_len      = size;
   itm->i_data_len = 0;
 
-#ifdef DEUBG
-  fprintf(stderr, "%s: item with size [%ld] from group\n", __func__, size)
+#ifdef DEBUG
+  fprintf(stderr, "%s: \033[33mitem with size [%ld] from group\033[0m\n", __func__, size);
 #endif
 
   return itm;
@@ -247,7 +247,7 @@ int set_spead_item_io_data(struct spead_api_item *itm, void *ptr, size_t size)
   if (itm){
 
     if (ptr == itm->io_data){
-#ifdef DEBUG
+#if DEBUG>2
       fprintf(stderr, "%s: io_data pointer match\n", __func__);
 #endif
       return 0;
@@ -301,6 +301,10 @@ int append_copy_to_spead_item(struct spead_api_item *itm, void *src, size_t len)
   }
 
   if (len + itm->i_data_len <= itm->i_len){
+    /*add randomness here! like a baws*/
+#ifdef PROCESS
+    fprintf(stderr, "%s: abt to memcpy [%ld] bytes from <%p> into item @ [%ld] from\n", __func__, len, itm->i_data, itm->i_data_len); 
+#endif
     memcpy(itm->i_data + itm->i_data_len, src, len);
     itm->i_data_len += len;
     return len;
@@ -389,3 +393,14 @@ int is_item_descriptor_item_group(struct spead_item_group *ig)
 {
   return (ig) ? ig->g_cd : 0;
 }
+
+void print_spead_item(struct spead_api_item *itm)
+{
+#ifdef DEBUG
+  if (itm){
+    
+    fprintf(stderr, "%s: \033[32mITEM <%d>\n\tv[%d] io_d<%p> io_len[%ld] i_len[%ld] i_data_len[%ld] i_data<%p>\033[0m\n", __func__, itm->i_id, itm->i_valid, itm->io_data, itm->io_size, itm->i_len, itm->i_data_len, itm->i_data);
+
+  }
+#endif
+} 
