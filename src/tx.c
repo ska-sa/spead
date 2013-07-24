@@ -94,16 +94,17 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
     destroy_speadtx(tx);
     return NULL;
   }
-  
-  if (connect_spead_socket(tx->t_x) < 0){
-    destroy_speadtx(tx);
-    return NULL;
-  }
 
   if (bcast){
     set_broadcast_opt_spead_socket(tx->t_x);
   }
 
+  if (connect_spead_socket(tx->t_x) < 0){
+    destroy_speadtx(tx);
+    return NULL;
+  }
+
+  
 #ifdef DEBUG
   fprintf(stderr, "%s: pktsize: %d\n", __func__, pkt_size);
 #endif

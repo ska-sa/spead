@@ -169,10 +169,7 @@ int startup_server_us(struct u_server *s, char *port, int broadcast)
 #endif
     return -1;
   }
-  
-  if (bind_spead_socket(s->s_x) < 0)
-    return -1;
-  
+
   if (broadcast){
     if (set_broadcast_opt_spead_socket(s->s_x) < 0){
 #ifdef DEBUG
@@ -181,6 +178,9 @@ int startup_server_us(struct u_server *s, char *port, int broadcast)
     }
   }
 
+  if (bind_spead_socket(s->s_x) < 0)
+    return -1;
+  
   s->s_fd = get_fd_spead_socket(s->s_x);
 
 #ifdef DEBUG
