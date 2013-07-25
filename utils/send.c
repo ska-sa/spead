@@ -13,6 +13,13 @@
  
 #define SIZE 1130
 
+int raise(char *phrase, int len)
+{
+
+
+  
+  return 0;
+}
 
 unsigned short csum(unsigned short *buf, int nwords)
 {
