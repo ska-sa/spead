@@ -281,6 +281,7 @@ char *itoa(int64_t i, char b[]);
 /*spead socket api*/
 void destroy_spead_socket(struct spead_socket *x);
 struct spead_socket *create_spead_socket(char *host, char *port);
+struct spead_socket *create_raw_ip_spead_socket(char *host);
 int bind_spead_socket(struct spead_socket *x);
 int connect_spead_socket(struct spead_socket *x);
 int set_broadcast_opt_spead_socket(struct spead_socket *x);
@@ -289,7 +290,6 @@ struct addrinfo *get_addr_spead_socket(struct spead_socket *x);
 int send_packet_spead_socket(void *data, struct spead_packet *p); // data should be a spead_tx data structure
 int send_raw_data_spead_socket(void *obj, void *data, uint64_t len); //obj should be a spead_tx
 int send_spead_stream_terminator(struct spead_tx *tx);
-
 
 /*spead workers subprocess api*/
 void destroy_child_sp(void *data);

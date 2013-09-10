@@ -3,23 +3,24 @@ CFLAGS += -Wall
 CFLAGS += -ggdb
 CFLAGS += -O3
 
-#LIB= -lspead
-#LDIR= -L../src
-#IDIR= -I../src
+LIB= -lspead
+LDIR= -L../src
+IDIR= -I../src
 
 
-UTILS = pipespead.c
+UTILS = pipespead.c send.c raw_spead.c
+EXE = $(patsubst %.c,%.elf,$(UTILS))
 
-EXE = $(patsubst %.c,%,$(UTILS))
 OBJ = $(patsubst %.c,%.o,$(UTILS))
 
 all: $(EXE)
 
-$(EXE): $(OBJ) 
-	$(CC)  $< -o $@
-
 %.o: %.c
-	$(CC) $(CFLAGS) -c $^ -o $@
+	$(CC) $(CFLAGS) $(IDIR) -c $^ -o $@
+
+%.elf: %.o 
+	$(CC) $< -o $@ $(LDIR) $(LIB)
+	mv $@ $(patsubst %.elf,%,$@)  
 
 
 clean:
