@@ -11,25 +11,30 @@
 #include <math.h>
 
 #include <sys/mman.h>
+    
+#include <sys/types.h>
+#include <sys/socket.h>
 
+    
 #include "spead_api.h"
 
-#define HOST "127.0.0.1"
-/*#define PORT 5656
-*/
+#define BUFSIZE 1400
 
 static volatile int run = 1;
+#if 0
 static volatile int child = 0;
+#endif
 
 void handle_us(int signum) 
 {
   run = 0;
 }
+#if 0
 void child_us(int signum)
 {
   child = 1;
 }
-
+#endif
 
 int register_signals_us()
 {
@@ -44,11 +49,12 @@ int register_signals_us()
 
   if (sigaction(SIGTERM, &sa, NULL) < 0)
     return -1;
-
+#if 0
   sa.sa_handler   = child_us;
 
   if (sigaction(SIGCHLD, &sa, NULL) < 0)
     return -1;
+#endif
 
   return 0;
 }
@@ -63,6 +69,87 @@ int usage(char **argv)
   return EX_USAGE;
 }
 
+int run_raw_sender(struct spead_socket *x)
+{
+  int rb;
+  unsigned char buffer[BUFSIZE];
+
+  struct data_file *df;
+
+  if (x == NULL)
+    return -1;
+  
+  df = load_raw_data_file("-");
+  if (df == NULL)
+    return -1;
+
+  while (run){
+    rb = request_chunk_datafile(df, BUFSIZE, (void *) &buffer,  NULL);
+    if (rb <= 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: unable to get chunk\n", __func__);
+#endif
+      continue;
+    }     
+
+    if (send(x->x_fd, buffer, rb, MSG_CONFIRM) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: send error (%s)\n", __func__, strerror(errno));
+#endif
+    }
+  }
+
+  destroy_raw_data_file(df);
+
+  return 0;
+}
+
+int run_raw_receiver(struct spead_socket *x)
+{
+  int rb;
+  unsigned char buffer[BUFSIZE];
+  struct sockaddr_storage peer_addr;
+  socklen_t peer_addr_len;
+
+  struct data_file *df;
+
+  if (x == NULL)
+    return -1;
+
+  df = write_raw_data_file("-");
+  if (df == NULL)
+    return -1;
+  
+  bzero(buffer, BUFSIZE);
+  
+  while (run){
+    
+    rb = recvfrom(x->x_fd, buffer, BUFSIZE, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
+    if (rb < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: unable to recvfrom: %s\n", __func__, strerror(errno));
+#endif
+      continue;
+    } else if (rb == 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: peer shutdown detected\n", __func__);
+#endif
+      run = 0;
+      continue;
+    }
+
+    if (write_chunk_raw_data_file(df, 0, buffer, rb) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: cannot write to stream\n", __func__);
+#endif
+    }
+    
+  }
+
+  destroy_raw_data_file(df);
+  
+  return 0;
+}
 
 int main(int argc, char *argv[])
 {
@@ -136,13 +223,18 @@ int main(int argc, char *argv[])
   if (x == NULL){
     return EX_SOFTWARE;
   }
-  
 
   switch (flag){
     
     case 0: /*sender*/
       if (connect_spead_socket(x) < 0){
         goto cleanup;
+      }
+      
+      if (run_raw_sender(x) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "%s: run sender fail\n", __func__);
+#endif
       }
 
       break;
@@ -152,13 +244,15 @@ int main(int argc, char *argv[])
         goto cleanup;
       }
 
+      if (run_raw_receiver(x) < 0){
+#ifdef DEBUG
+        fprintf(stderr, "%s: run receiver fail\n", __func__);
+#endif
+      }
+
       break;
-  
   }
 
-
-
-    
 cleanup:  
   destroy_spead_socket(x);
   

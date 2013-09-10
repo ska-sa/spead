@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
     else
       i++;
 
-    if(sendto(fd, buf, SIZE, 0, (struct sockaddr *)&dst, sizeof(dst)) < 0){
+    if(sendto(fd, buf, SIZE, MSG_CONFIRM, (struct sockaddr *)&dst, sizeof(dst)) < 0){
       fprintf(stderr, "error sendto <%s>\n", strerror(errno));
       exit(-1);
     } else {
