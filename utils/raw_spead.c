@@ -129,6 +129,7 @@ int run_raw_sender(struct spead_socket *x)
       fprintf(stderr, "%s: EOF\n", __func__);
 #endif
       run = 0;
+      break;
     }
     
 #ifdef DEBUG
@@ -139,6 +140,7 @@ int run_raw_sender(struct spead_socket *x)
 #ifdef DEBUG
       fprintf(stderr, "%s: send error (%s)\n", __func__, strerror(errno));
 #endif
+
     }
   }
 
@@ -151,7 +153,7 @@ int run_raw_sender(struct spead_socket *x)
 int run_raw_receiver(struct spead_socket *x)
 {
   int rb;
-  unsigned char buffer[BUFSIZE];
+  unsigned char buffer[BUFSIZE+20];
 #if 0
   struct sockaddr_storage peer_addr;
   socklen_t peer_addr_len;
@@ -166,12 +168,12 @@ int run_raw_receiver(struct spead_socket *x)
   if (df == NULL)
     return -1;
   
-  bzero(buffer, BUFSIZE);
+  bzero(buffer, BUFSIZE+20);
   
   while (run){
     
     //rb = recvfrom(x->x_fd, buffer, BUFSIZE, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
-    rb = recv(x->x_fd, buffer, BUFSIZE, 0);
+    rb = recv(x->x_fd, buffer, BUFSIZE+20, 0);
     if (rb < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: unable to recvfrom: %s\n", __func__, strerror(errno));
@@ -185,7 +187,11 @@ int run_raw_receiver(struct spead_socket *x)
       continue;
     }
 
-    if (write_next_chunk_raw_data_file(df, buffer, rb) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: received %d bytes\n", __func__, rb);
+#endif
+
+    if (write_next_chunk_raw_data_file(df, buffer+20, rb-20) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: cannot write to stream\n", __func__);
 #endif

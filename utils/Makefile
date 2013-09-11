@@ -1,4 +1,5 @@
 CFLAGS += -DDEBUG
+CFLAGS += -DIKATCP
 CFLAGS += -Wall
 CFLAGS += -ggdb
 CFLAGS += -O3
