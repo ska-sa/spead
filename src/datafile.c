@@ -53,6 +53,9 @@ struct data_file *write_raw_data_file(char *fname)
     return NULL;
 
   if (strncmp(fname, "-", 1) == 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: using stdout\n", __func__);
+#endif   
     f->f_fd = STDOUT_FILENO;
 
     flags = fcntl(f->f_fd, F_GETFD, 0);
@@ -95,7 +98,9 @@ struct data_file *load_raw_data_file(char *fname)
     return NULL;
 
   if (strncmp(fname, "-", 1) == 0){
-    
+#ifdef DEBUG
+    fprintf(stderr, "%s: using stdin\n", __func__);
+#endif   
     f->f_fd = STDIN_FILENO;
 
     flags = fcntl(f->f_fd, F_GETFD, 0);

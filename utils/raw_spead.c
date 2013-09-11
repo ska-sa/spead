@@ -71,26 +71,69 @@ int usage(char **argv)
 
 int run_raw_sender(struct spead_socket *x)
 {
-  int rb;
+  int rb, fd;
   unsigned char buffer[BUFSIZE];
+  long flags=0;
 
+#if 0
   struct data_file *df;
+#endif
+
+  fd = STDIN_FILENO;
 
   if (x == NULL)
     return -1;
-  
+
+  /*unset nonblocking i.e. blocking*/
+  flags = fcntl(fd, F_GETFD, 0);
+  flags &= ~O_NONBLOCK;
+  if (fcntl(fd, F_SETFD, flags) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error unsetting fcntl o_nonblock\n", __func__);
+#endif
+    return -1;
+  }
+
+#if 0
   df = load_raw_data_file("-");
   if (df == NULL)
     return -1;
+#endif
 
   while (run){
+#if 0
     rb = request_chunk_datafile(df, BUFSIZE, (void *) &buffer,  NULL);
     if (rb <= 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: unable to get chunk\n", __func__);
 #endif
       continue;
-    }     
+    }
+#endif
+    rb = read(fd, buffer, BUFSIZE);
+    if (rb <0){
+      switch(errno){
+        case EINTR:
+        case EAGAIN:
+          continue;
+        case ESPIPE:
+        default:
+#ifdef DEBUG
+          fprintf(stderr, "%s: stream write error (%s)\n", __func__, strerror(errno));
+#endif
+          return -1;
+      }
+    }
+    if (rb == 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: EOF\n", __func__);
+#endif
+      run = 0;
+    }
+    
+#ifdef DEBUG
+    fprintf(stderr, "%s: about to send %d bytes\n", __func__, rb);
+#endif
 
     if (send(x->x_fd, buffer, rb, MSG_CONFIRM) < 0){
 #ifdef DEBUG
@@ -99,8 +142,9 @@ int run_raw_sender(struct spead_socket *x)
     }
   }
 
+#if 0
   destroy_raw_data_file(df);
-
+#endif
   return 0;
 }
 
@@ -108,8 +152,10 @@ int run_raw_receiver(struct spead_socket *x)
 {
   int rb;
   unsigned char buffer[BUFSIZE];
+#if 0
   struct sockaddr_storage peer_addr;
   socklen_t peer_addr_len;
+#endif
 
   struct data_file *df;
 
@@ -124,7 +170,8 @@ int run_raw_receiver(struct spead_socket *x)
   
   while (run){
     
-    rb = recvfrom(x->x_fd, buffer, BUFSIZE, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
+    //rb = recvfrom(x->x_fd, buffer, BUFSIZE, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
+    rb = recv(x->x_fd, buffer, BUFSIZE, 0);
     if (rb < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: unable to recvfrom: %s\n", __func__, strerror(errno));
@@ -138,7 +185,7 @@ int run_raw_receiver(struct spead_socket *x)
       continue;
     }
 
-    if (write_chunk_raw_data_file(df, 0, buffer, rb) < 0){
+    if (write_next_chunk_raw_data_file(df, buffer, rb) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: cannot write to stream\n", __func__);
 #endif
@@ -156,7 +203,7 @@ int main(int argc, char *argv[])
   int i=1,j=1,k=0;
   char c, flag = 0, *host = NULL;
 
-  struct spead_socket *x;
+  struct spead_socket *x=NULL;
 
   if (argc < 3)
     return usage(argv);
@@ -227,6 +274,9 @@ int main(int argc, char *argv[])
   switch (flag){
     
     case 0: /*sender*/
+#ifdef DEBUG
+      fprintf(stderr, "%s: running sender\n", __func__);
+#endif
       if (connect_spead_socket(x) < 0){
         goto cleanup;
       }
@@ -240,6 +290,10 @@ int main(int argc, char *argv[])
       break;
 
     case 1: /*receiver*/
+#ifdef DEBUG
+      fprintf(stderr, "%s: running receiver\n", __func__);
+#endif
+
       if (bind_spead_socket(x) < 0){
         goto cleanup;
       }
@@ -256,6 +310,7 @@ int main(int argc, char *argv[])
 cleanup:  
   destroy_spead_socket(x);
   
+  destroy_shared_mem();
 #ifdef DEBUG
   fprintf(stderr,"%s: done\n", __func__);
 #endif
