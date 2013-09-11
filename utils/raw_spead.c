@@ -71,7 +71,7 @@ int usage(char **argv)
 
 int run_raw_sender(struct spead_socket *x)
 {
-  int rb, fd;
+  int rb, fd, i=0;
   unsigned char buffer[BUFSIZE];
   long flags=0;
 
@@ -133,15 +133,16 @@ int run_raw_sender(struct spead_socket *x)
     }
     
 #ifdef DEBUG
-    fprintf(stderr, "%s: about to send %d bytes\n", __func__, rb);
+    fprintf(stderr, "%s: [%d] about to send %d bytes\n", __func__, i++, rb);
 #endif
 
     if (send(x->x_fd, buffer, rb, MSG_CONFIRM) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: send error (%s)\n", __func__, strerror(errno));
 #endif
-
     }
+    
+    usleep(5000);
   }
 
 #if 0
@@ -152,7 +153,7 @@ int run_raw_sender(struct spead_socket *x)
 
 int run_raw_receiver(struct spead_socket *x)
 {
-  int rb;
+  int rb,i=0;
   unsigned char buffer[BUFSIZE+20];
 #if 0
   struct sockaddr_storage peer_addr;
@@ -188,7 +189,7 @@ int run_raw_receiver(struct spead_socket *x)
     }
 
 #ifdef DEBUG
-    fprintf(stderr, "%s: received %d bytes\n", __func__, rb);
+    fprintf(stderr, "%s: [%d] received %d bytes\n", __func__, i++, rb);
 #endif
 
     if (write_next_chunk_raw_data_file(df, buffer+20, rb-20) < 0){
