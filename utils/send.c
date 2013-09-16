@@ -17,6 +17,16 @@
 
 static unsigned char buf[SIZE] = {
   S S S S S 
+  S S S S S 
+  S S S S S 
+  S S S S S 
+  S S S S S 
+  S S S S S 
+  S S S S S 
+  S S S S S 
+  S S S S S 
+  S S S S S 
+  S S S S S 
 };
 
 
