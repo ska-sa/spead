@@ -12,7 +12,21 @@
 
  
 #define SIZE 1130
+#define S "cellc_LTE_cape_town"
 
+
+static unsigned char buf[SIZE] = {
+  S S S S S 
+};
+
+
+int raise(char *phrase, int len)
+{
+
+
+  
+  return 0;
+}
 
 unsigned short csum(unsigned short *buf, int nwords)
 {
@@ -31,7 +45,6 @@ int main(int argc, char *argv[])
 {
   int reuse_addr, off, fd, i;
   
-  unsigned char buf[SIZE];
   
   struct sockaddr_in dst;
 
@@ -43,8 +56,6 @@ int main(int argc, char *argv[])
     fprintf(stderr, "usage %s <DEST IP>\n", argv[0]);
     return -1;
   }
-  
-  memset(buf, 0, SIZE);
 
   ip = (struct iphdr*)buf;
   off = sizeof(struct iphdr);
@@ -113,7 +124,7 @@ int main(int argc, char *argv[])
     else
       i++;
 
-    if(sendto(fd, buf, SIZE, 0, (struct sockaddr *)&dst, sizeof(dst)) < 0){
+    if(sendto(fd, buf, SIZE, MSG_CONFIRM, (struct sockaddr *)&dst, sizeof(dst)) < 0){
       fprintf(stderr, "error sendto <%s>\n", strerror(errno));
       exit(-1);
     } else {

@@ -97,6 +97,74 @@ struct spead_socket *create_spead_socket(char *host, char *port)
   return x;
 }
 
+struct spead_socket *create_raw_ip_spead_socket(char *host)
+{
+  struct spead_socket *x;
+
+  struct addrinfo hints;
+  uint64_t reuse_addr;
+
+
+  x = malloc(sizeof(struct spead_socket));
+  if (x == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: logic cannot malloc\n", __func__);
+#endif
+    return NULL;
+  }
+
+  x->x_host   = host;
+  x->x_port   = NULL;
+  x->x_res    = NULL;
+  x->x_active = NULL;
+  x->x_fd     = 0;
+  x->x_mode   = XSOCK_NONE;
+
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_family     = AF_UNSPEC;
+  hints.ai_socktype   = SOCK_RAW;
+  hints.ai_flags      = AI_PASSIVE;
+  hints.ai_protocol   = 137;
+  hints.ai_canonname  = NULL;
+  hints.ai_addr       = NULL;
+  hints.ai_next       = NULL;
+
+  if ((reuse_addr = getaddrinfo(host, NULL, &hints, &(x->x_res))) != 0) {
+#ifdef DEBUG
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(reuse_addr));
+#endif
+    destroy_spead_socket(x);
+    return NULL;
+  }
+
+  for (x->x_active = x->x_res; x->x_active != NULL; x->x_active = x->x_active->ai_next) {
+#if DEBUG>1
+    fprintf(stderr, "%s: res (%p) with: %d\n", __func__, x->x_active, x->x_active->ai_protocol);
+#endif
+    if (x->x_active->ai_family == AF_INET6)
+      break;
+  }
+
+  x->x_active = (x->x_active == NULL) ? x->x_res : x->x_active;
+
+  x->x_fd = socket(x->x_active->ai_family, x->x_active->ai_socktype, x->x_active->ai_protocol);
+  if (x->x_fd < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error socket (%s)\n", __func__, strerror(errno));
+#endif
+    destroy_spead_socket(x);
+    return NULL;
+  }
+  
+  
+  reuse_addr   = 1;
+  setsockopt(x->x_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
+
+
+  
+  return x;
+}
+
 
 int bind_spead_socket(struct spead_socket *x)
 {
