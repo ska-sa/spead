@@ -118,7 +118,7 @@ int run_raw_sender(struct spead_socket *x)
           continue;
         case ESPIPE:
         default:
-#ifdef DEBUG
+#ifdef DEBUG 
           fprintf(stderr, "%s: stream write error (%s)\n", __func__, strerror(errno));
 #endif
           return -1;
@@ -142,7 +142,7 @@ int run_raw_sender(struct spead_socket *x)
 #endif
     }
     
-    usleep(5000);
+    usleep(100000);
   }
 
 #if 0
@@ -155,8 +155,8 @@ int run_raw_receiver(struct spead_socket *x)
 {
   int rb,i=0;
   unsigned char buffer[BUFSIZE+20];
-#if 0
-  struct sockaddr_storage peer_addr;
+#if 1
+  struct sockaddr_in peer_addr;
   socklen_t peer_addr_len;
 #endif
 
@@ -173,8 +173,8 @@ int run_raw_receiver(struct spead_socket *x)
   
   while (run){
     
-    //rb = recvfrom(x->x_fd, buffer, BUFSIZE, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
-    rb = recv(x->x_fd, buffer, BUFSIZE+20, 0);
+    rb = recvfrom(x->x_fd, buffer, BUFSIZE, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
+    //rb = recv(x->x_fd, buffer, BUFSIZE+20, 0);
     if (rb < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: unable to recvfrom: %s\n", __func__, strerror(errno));
@@ -189,7 +189,7 @@ int run_raw_receiver(struct spead_socket *x)
     }
 
 #ifdef DEBUG
-    fprintf(stderr, "%s: [%d] received %d bytes\n", __func__, i++, rb);
+    fprintf(stderr, "%s: [%d] received %d bytes from: %s:%d\n", __func__, i++, rb, inet_ntoa(peer_addr.sin_addr), ntohs(peer_addr.sin_port));
 #endif
 
     if (write_next_chunk_raw_data_file(df, buffer+20, rb-20) < 0){
