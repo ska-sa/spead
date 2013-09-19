@@ -72,7 +72,7 @@ int usage(char **argv)
 int run_raw_sender(struct spead_socket *x)
 {
   int rb, fd, i=0;
-  unsigned char buffer[BUFSIZE];
+  unsigned char buffer[BUFSIZE+20];
   long flags=0;
 
 #if 0
@@ -141,8 +141,27 @@ int run_raw_sender(struct spead_socket *x)
       fprintf(stderr, "%s: send error (%s)\n", __func__, strerror(errno));
 #endif
     }
+
+    //rb = recvfrom(x->x_fd, buffer, BUFSIZE, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
+    rb = recv(x->x_fd, buffer, BUFSIZE+20, 0);
+    if (rb < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: unable to recvfrom: %s\n", __func__, strerror(errno));
+#endif
+      continue;
+    } else if (rb == 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: peer shutdown detected\n", __func__);
+#endif
+      run = 0;
+      continue;
+    }
+#ifdef DEBUG
+    fprintf(stderr, "%s: [%d] received %d bytes\n", __func__, i++, rb);
+#endif
+
     
-    usleep(100000);
+    //usleep(100000);
   }
 
 #if 0
@@ -195,6 +214,13 @@ int run_raw_receiver(struct spead_socket *x)
     if (write_next_chunk_raw_data_file(df, buffer+20, rb-20) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: cannot write to stream\n", __func__);
+#endif
+    }
+
+    /*echo reply*/
+    if (sendto(x->x_fd, buffer+20, rb-20, MSG_CONFIRM, (struct sockaddr *) &peer_addr, peer_addr_len) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: sendto error (%s)\n", __func__, strerror(errno));
 #endif
     }
     
