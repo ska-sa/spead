@@ -12,7 +12,7 @@ struct queue {
   struct queue_o *q_front;
   struct queue_o *q_back;
   uint64_t q_size;
-}
+};
 
 struct queue *create_queue();
 void destroy_queue(struct queue *q, void (*call)(void *data));

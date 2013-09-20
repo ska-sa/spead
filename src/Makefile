@@ -2,15 +2,15 @@
 PREFIX=/usr/local
 INSTALL=install
 
-CFLAGS += -DDEBUG=2
 #CFLAGS += -DPROCESS
 #CFLAGS += -DPROCESSDESC
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG=2
 CFLAGS += -DIKATCP
 #CFLAGS += -DDISCARD
 CFLAGS += -DDATA
 #CFLAGS += -ggdb
-CFLAGS += -O3
+#CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
 #CFLAGS += -m32
@@ -102,4 +102,6 @@ test-sm: sharedmem.c avltree.c stack.c mutex.c
 test-mutex: mutex.c
 	$(CC) $(CFLAGS) $(INC) -DTEST_MUTEX -o $@ $^
 
+test-queue: queue.c queue.h $(DLIB)
+	$(CC) $(CFLAGS) $(INC) -DTEST_QUEUE -o $@ $^ -lspead
 

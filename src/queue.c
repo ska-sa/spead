@@ -24,6 +24,7 @@ struct queue *create_queue()
   return q;
 }
 
+
 void destroy_queue(struct queue *q, void (*call)(void *data))
 {
   void *d;
@@ -35,6 +36,7 @@ void destroy_queue(struct queue *q, void (*call)(void *data))
     }
   }
 }
+
 
 int enqueue(struct queue *q, void *o)
 {
@@ -52,23 +54,28 @@ int enqueue(struct queue *q, void *o)
     return -1;
   
   if (q->q_back == NULL){
-    q->q_back = qo;
+    q->q_front = qo;
   }
 
   qo->data    = o;
-
-  qo->o_xor   = (uintptr_t) (void *) q->q_front ^ (uintptr_t) (void *) qo;
-  q->q_front  = qo;
-
+  qo->o_xor   = (uintptr_t) (void *) q->q_back ^ (uintptr_t) (void *) qo;
+  q->q_back   = qo;
 
   q->q_size++;
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: size[%ld] qf %p qb %p oxor %p\n", __func__, q->q_size, q->q_front, q->q_back, qo->o_xor);
+#endif
 
   return 0;
 }
 
+
+
 int dequeue(struct queue *q, void **o)
 {
-  
+  struct queue_o *qo;
+
   if (q == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: error param\n", __func__);
@@ -79,12 +86,50 @@ int dequeue(struct queue *q, void **o)
   if (q->q_back == NULL)
     return -1;
   
-  q->q_back = (void *) ((uintptr_t) (void *) q->q_back ^ o->o_xor);
 
-  *o = q->q_back;
+  if (q->q_size == 1){
+    q->q_back = NULL;
+  }
+
+  qo = q->q_front;
+
+  q->q_front = (void *)(qo->o_xor ^ (uintptr_t) (void *) q->q_front);
   
+  *o = qo->data;
+  q->q_size--;
 
+  shared_free(qo, sizeof(struct queue_o));
 
   return 0;
 }
+
+
+#ifdef TEST_QUEUE
+#include <string.h>
+
+int main(int argc, char *argv[])
+{
+  struct queue *q;
+  int i;
+
+  q = create_queue();
+
+  for (i=0; i< 10; i++){
+    
+    int *data = malloc(sizeof(int));
+  
+    memcpy(data, &i, sizeof(int));
+
+    enqueue(q, data);
+
+  }
+
+  destroy_queue(q, &free);
+  
+  destroy_shared_mem();
+  
+  return 0; 
+}
+#endif
+
 
