@@ -9,7 +9,7 @@ LDIR= -L../src
 IDIR= -I../src
 
 
-UTILS = pipespead.c send.c raw_spead.c
+UTILS = udp_io.c send.c raw_spead.c pipespead.c
 EXE = $(patsubst %.c,%.elf,$(UTILS))
 
 OBJ = $(patsubst %.c,%.o,$(UTILS))

@@ -93,6 +93,9 @@ struct spead_socket *create_spead_socket(char *host, char *port)
   reuse_addr   = 1;
   setsockopt(x->x_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
 
+#ifdef DEBUG
+  fprintf(stderr, "%s: socket at %s:%s\n", __func__, host, port);
+#endif
   
   return x;
 }

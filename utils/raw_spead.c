@@ -142,6 +142,7 @@ int run_raw_sender(struct spead_socket *x)
 #endif
     }
 
+#if 0
     //rb = recvfrom(x->x_fd, buffer, BUFSIZE, 0, (struct sockaddr *) &peer_addr, &peer_addr_len);
     rb = recv(x->x_fd, buffer, BUFSIZE+20, 0);
     if (rb < 0){
@@ -159,7 +160,7 @@ int run_raw_sender(struct spead_socket *x)
 #ifdef DEBUG
     fprintf(stderr, "%s: [%d] received %d bytes\n", __func__, i++, rb);
 #endif
-
+#endif
     
     //usleep(100000);
   }
@@ -217,13 +218,15 @@ int run_raw_receiver(struct spead_socket *x)
 #endif
     }
 
+#if 0
     /*echo reply*/
     if (sendto(x->x_fd, buffer+20, rb-20, MSG_CONFIRM, (struct sockaddr *) &peer_addr, peer_addr_len) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: sendto error (%s)\n", __func__, strerror(errno));
 #endif
     }
-    
+#endif
+
   }
 
   destroy_raw_data_file(df);

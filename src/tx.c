@@ -188,7 +188,7 @@ int worker_task_data_file_speadtx(void *data, struct spead_pipeline *l, int cfd)
   /*filename*/
   itm = new_item_from_group(ig, strlen(name) + 1);
   if (itm == NULL){
-#ifdef DEBUG
+#ifdef DEBUG_
     fprintf(stderr, "%s: cannot create item\n", __func__);
 #endif
   } else {
