@@ -103,6 +103,27 @@ int dequeue(struct queue *q, void **o)
   return 0;
 }
 
+int traverse_queue(struct queue_o *qo)
+{
+  int i;
+
+  if (qo == NULL)
+    return -1;
+  
+  i = 0;
+
+  do{
+
+    fprintf(stderr, "%s: item val %d\n", __func__, *((int *) qo->data));
+    qo = (void *)(qo->o_xor ^ (uintptr_t)(void *) qo);
+
+
+  } while (qo->o_xor != (uintptr_t)(void *) qo);
+  //while (i++ < 10);//  
+  
+  return 0;
+}
+
 
 #ifdef TEST_QUEUE
 #include <string.h>
@@ -115,18 +136,16 @@ int main(int argc, char *argv[])
   q = create_queue();
 
   for (i=0; i< 10; i++){
-    
     int *data = malloc(sizeof(int));
-  
     memcpy(data, &i, sizeof(int));
-
     enqueue(q, data);
-
   }
 
-  destroy_queue(q, &free);
+  traverse_queue(q->q_back);
+
+  //destroy_queue(q, &free);
   
-  destroy_shared_mem();
+  //destroy_shared_mem();
   
   return 0; 
 }
