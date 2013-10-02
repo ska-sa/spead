@@ -38,42 +38,55 @@ void destroy_queue(struct queue *q, void (*call)(void *data))
 }
 
 
+struct queue_o *new_node_xll(struct queue_o *prev, struct queue_o *cur, void *data)
+{
+  struct queue_o *next;
+
+  next = shared_malloc(sizeof(struct queue_o));
+  if (next == NULL)
+    return NULL;
+
+  next->data = data;
+  next->o_xor = cur;
+
+  if (cur == NULL)
+    return next;
+  else if (prev == NULL) {
+    cur->o_xor = next;
+    next->o_xor = cur;
+  } else {
+    cur->o_xor = (struct queue_o*)((intptr_t)prev ^ (intptr_t)next);
+  }
+
+  return next;
+}
+
 int enqueue(struct queue *q, void *o)
 {
-  struct queue_o *qo;
-  
   if (q == NULL){
 #ifdef DEBUG
     fprintf(stderr, "%s: error param\n", __func__);
 #endif
     return -1;
   }
-
-  qo = shared_malloc(sizeof(struct queue_o));
-  if (qo == NULL)
-    return -1;
   
-  if (q->q_back == NULL){
-    q->q_front = qo;
-  }
+  if (q->q_front == NULL)
+    q->q_front = q->q_back = new_node_xll(NULL, NULL, o);
+  else
+    q->q_back = new_node_xll((q->q_back ? q->q_back->o_xor : NULL) , q->q_back, o);
 
-  qo->data    = o;
-  qo->o_xor   = (uintptr_t) (void *) q->q_back ^ (uintptr_t) (void *) qo;
-  q->q_back   = qo;
-
-  q->q_size++;
-
-#ifdef DEBUG
-  fprintf(stderr, "%s: size[%ld] qf %p qb %p oxor %p\n", __func__, q->q_size, q->q_front, q->q_back, qo->o_xor);
+#if 0 
+def DEBUG
+  fprintf(stderr, "%s: size[%ld] qf %p qb %p oxor %p\n", __func__, q->q_size, q->q_front, q->q_back, q->q_back->o_xor);
 #endif
 
   return 0;
 }
 
 
-
 int dequeue(struct queue *q, void **o)
 {
+#if 0
   struct queue_o *qo;
 
   if (q == NULL){
@@ -91,36 +104,40 @@ int dequeue(struct queue *q, void **o)
     q->q_back = NULL;
   }
 
-  qo = q->q_front;
 
   q->q_front = (void *)(qo->o_xor ^ (uintptr_t) (void *) q->q_front);
   
+  qo = q->q_front;
   *o = qo->data;
   q->q_size--;
 
   shared_free(qo, sizeof(struct queue_o));
 
+#endif
   return 0;
 }
 
-int traverse_queue(struct queue_o *qo)
+int traverse_queue(struct queue_o *start)
 {
-  int i;
-
-  if (qo == NULL)
+  struct queue_o *prev, *cur, *save;
+  
+  if (start == NULL)
     return -1;
-  
-  i = 0;
 
-  do{
+  cur = prev = start;
+  while(cur){
+    fprintf(stderr, "%s: value [%d]\n", __func__, *((int*)(cur->data)));
+    if (cur->o_xor == cur)
+      break;
+    if (cur == prev)
+      cur = cur->o_xor;
+    else {
+      save = cur;
+      cur = (struct queue_o*)((intptr_t)prev ^ (intptr_t)cur->o_xor);
+      prev = save;
+    }
+  }
 
-    fprintf(stderr, "%s: item val %d\n", __func__, *((int *) qo->data));
-    qo = (void *)(qo->o_xor ^ (uintptr_t)(void *) qo);
-
-
-  } while (qo->o_xor != (uintptr_t)(void *) qo);
-  //while (i++ < 10);//  
-  
   return 0;
 }
 
@@ -141,7 +158,10 @@ int main(int argc, char *argv[])
     enqueue(q, data);
   }
 
+  
+
   traverse_queue(q->q_back);
+  //traverse_queue(q->q_front);
 
   //destroy_queue(q, &free);
   

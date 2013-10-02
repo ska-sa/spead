@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 struct queue_o {
-  uintptr_t o_xor;
+  intptr_t o_xor;
   void *data;
 };
 
