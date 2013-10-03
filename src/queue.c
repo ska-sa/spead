@@ -19,7 +19,6 @@ struct queue *create_queue()
 
   q->q_front = NULL;
   q->q_back  = NULL;
-  q->q_size  = 0;
   
   return q;
 }
@@ -70,14 +69,15 @@ int enqueue(struct queue *q, void *o)
     return -1;
   }
   
-  if (q->q_front == NULL)
-    q->q_front = q->q_back = new_node_xll(NULL, NULL, o);
+  if (q->q_front == NULL){
+    q->q_front = new_node_xll(NULL, NULL, o);
+    q->q_back = q->q_front;
+  }
   else
     q->q_back = new_node_xll((q->q_back ? q->q_back->o_xor : NULL) , q->q_back, o);
 
-#if 0 
-def DEBUG
-  fprintf(stderr, "%s: size[%ld] qf %p qb %p oxor %p\n", __func__, q->q_size, q->q_front, q->q_back, q->q_back->o_xor);
+#ifdef DEBUG
+  fprintf(stderr, "%s: qf %p qb %p\n", __func__, q->q_front, q->q_back);
 #endif
 
   return 0;
@@ -86,34 +86,36 @@ def DEBUG
 
 int dequeue(struct queue *q, void **o)
 {
-#if 0
-  struct queue_o *qo;
-
-  if (q == NULL){
-#ifdef DEBUG
-    fprintf(stderr, "%s: error param\n", __func__);
-#endif
+  struct queue_o *qo, *prev, *cur;
+  
+  if (q == NULL)
     return -1;
-  }
-  
-  if (q->q_back == NULL)
-    return -1;
-  
 
-  if (q->q_size == 1){
-    q->q_back = NULL;
-  }
-
-
-  q->q_front = (void *)(qo->o_xor ^ (uintptr_t) (void *) q->q_front);
-  
   qo = q->q_front;
-  *o = qo->data;
-  q->q_size--;
+  if (qo == NULL)
+    return -1;
 
-  shared_free(qo, sizeof(struct queue_o));
+  *o = qo->data; 
+  cur = qo->o_xor;
+  q->q_front = cur;
 
+  if (cur == NULL){
+    q->q_back = NULL;
+    return 0;
+  }
+
+  prev = (struct queue_o *) (cur->o_xor ^ (intptr_t)qo);
+  cur->o_xor = (intptr_t)prev; 
+
+  q->q_front = cur;
+
+#if 0 
+def DEBUG
+  fprintf(stderr, "%s: from back cur %p cxor %p prev %p pxor %p\n", __func__, cur, cur->o_xor, prev, prev->o_xor);
 #endif
+
+  //shared_free(qo, sizeof(struct queue_o));
+
   return 0;
 }
 
@@ -124,9 +126,10 @@ int traverse_queue(struct queue_o *start)
   if (start == NULL)
     return -1;
 
-  cur = prev = start;
+  cur   = start;
+  prev  = start;
   while(cur){
-    fprintf(stderr, "%s: value [%d]\n", __func__, *((int*)(cur->data)));
+    fprintf(stderr, "%s: <%p> value [%d] oxor %p\n", __func__, cur, *((int*)(cur->data)), cur->o_xor);
     if (cur->o_xor == cur)
       break;
     if (cur == prev)
@@ -148,7 +151,8 @@ int traverse_queue(struct queue_o *start)
 int main(int argc, char *argv[])
 {
   struct queue *q;
-  int i;
+  int i, *o;
+
 
   q = create_queue();
 
@@ -160,10 +164,39 @@ int main(int argc, char *argv[])
 
   
 
+  traverse_queue(q->q_front);
+  fprintf(stderr, "----\n");
   traverse_queue(q->q_back);
-  //traverse_queue(q->q_front);
 
-  //destroy_queue(q, &free);
+
+  for (i=0; i<7; i++){
+    if (dequeue(q, &o) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: err dequeue\n", __func__);
+#endif
+    }
+
+    fprintf(stderr, "got [%d]\n", *o);
+
+    free(o);
+
+  }
+  
+  for (i=0; i< 10; i++){
+    int *data = malloc(sizeof(int));
+    memcpy(data, &i, sizeof(int));
+    enqueue(q, data);
+  }
+
+  
+  traverse_queue(q->q_front);
+
+  fprintf(stderr, "----\n");
+
+  traverse_queue(q->q_back);
+
+
+  destroy_queue(q, &free);
   
   //destroy_shared_mem();
   

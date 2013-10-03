@@ -11,7 +11,6 @@ struct queue_o {
 struct queue {
   struct queue_o *q_front;
   struct queue_o *q_back;
-  uint64_t q_size;
 };
 
 struct queue *create_queue();
