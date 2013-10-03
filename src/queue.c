@@ -33,7 +33,113 @@ void destroy_queue(struct queue *q, void (*call)(void *data))
         (*call)(d);
       }
     }
+    shared_free(q, sizeof(struct queue));
   }
+}
+
+int compare_priority_queues(const void *v1, const void *v2)
+{
+  if (*(int64_t*)v1 < *(int64_t*)v2)
+    return -1;
+  else if (*(int64_t*)v1 > *(int64_t*)v2)
+    return 1;
+  return 0;
+}
+
+struct priority_queue *create_priority_queue()
+{
+  struct priority_queue *pq;
+
+  pq = shared_malloc(sizeof(struct priority_queue));
+  if (pq == NULL)
+    return NULL;
+#if 0
+  pq->pq_priorities = create_queue();
+  if (pq->pq_priorities == NULL){
+    shared_free(pq, sizeof(struct priority_queue));
+    return NULL;
+  }
+#endif
+  
+  pq->pq_tree = create_avltree(&compare_priority_queues);
+  if (pq->pq_tree == NULL){
+#if 0
+    destroy_queue(pq->pq_priorities, NULL);
+#endif
+    shared_free(pq, sizeof(struct priority_queue));
+    return NULL;
+  }
+    
+  return pq;
+}
+
+void destroy_priority_queue(struct priority_queue *pq, void (*call)(void *data))
+{
+  void *d;
+  if (pq){
+#if 0
+    destroy_queue(pq->pq_priorities, NULL); /*Address this*/
+#endif
+    destroy_avltree(pq->pq_tree, call);
+    shared_free(pq, sizeof(struct priority_queue));
+  }
+}
+
+int insert_with_priority_queue(struct priority_queue *pq, int64_t priority, void *data)
+{
+  struct queue *q;
+
+  if (pq == NULL)
+    return -1;
+    
+  q = find_name_node_avltree(pq->pq_tree, &priority);
+  if (q == NULL){
+    
+    q = create_queue();
+    if(q == NULL){
+      return -1;
+    }
+    
+    if (store_named_node_avltree(pq->pq_tree, &priority, q) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: unable to store named node\n", __func__);
+#endif
+      destroy_queue(q, NULL);
+      return -1;
+    }
+
+    if (enqueue(q, data) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: unable to store named node\n", __func__);
+#endif
+      destroy_queue(q, NULL);
+      return -1;
+    }
+
+    return 0;
+  }
+
+  if (enqueue(q, data) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: unable to store named node\n", __func__);
+#endif
+    destroy_queue(q, NULL);
+    return -1;
+  }
+  
+  return 0;
+}
+
+
+int pull_highest_priority(struct priority_queue *pq, void **data)
+{
+  if (pq == NULL)
+    return -1;
+  
+
+
+  
+  return 0;
 }
 
 
@@ -198,10 +304,34 @@ int main(int argc, char *argv[])
 
   destroy_queue(q, &free);
   
-  //destroy_shared_mem();
+  destroy_shared_mem();
   
   return 0; 
 }
 #endif
 
+#ifdef TEST_PQUEUE
+#include <string.h>
 
+int main(int argc, char *argv[])
+{
+  struct priority_queue *pq;
+
+  pq = create_priority_queue();
+
+  insert_with_priority_queue(pq, 1, 100);
+  insert_with_priority_queue(pq, 1, 102);
+  insert_with_priority_queue(pq, 1, 103);
+  insert_with_priority_queue(pq, 1, 104);
+  insert_with_priority_queue(pq, 3, 107);
+  insert_with_priority_queue(pq, 3, 108);
+  insert_with_priority_queue(pq, 3, 109);
+
+  destroy_priority_queue(pq, NULL);
+
+  destroy_shared_mem();
+
+  return 0;
+}
+
+#endif
