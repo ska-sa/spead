@@ -5,7 +5,7 @@ INSTALL=install
 #CFLAGS += -DPROCESS
 #CFLAGS += -DPROCESSDESC
 CFLAGS += -DDEBUG
-#CFLAGS += -DDEBUG=2
+#CFLAGS += -DDEBUG=3
 CFLAGS += -DIKATCP
 #CFLAGS += -DDISCARD
 CFLAGS += -DDATA
@@ -93,6 +93,9 @@ clean:
 fresh: 
 	make clean && make
 
+test-avl: avltree.c avltree.h $(DLIB)
+	$(CC) $(CFLAGS) -DUNIT_TEST_AVL -o $@ $^ -lspead
+
 test-hash: sharedmem.c hash.c
 	$(CC) $(CFLAGS) -DTEST_HASH -o $@ $^
 
@@ -101,6 +104,9 @@ test-sm: sharedmem.c avltree.c stack.c mutex.c
 
 test-mutex: mutex.c
 	$(CC) $(CFLAGS) $(INC) -DTEST_MUTEX -o $@ $^
+
+test-queue: queue.c queue.h $(DLIB)
+	$(CC) $(CFLAGS) $(INC) -DTEST_QUEUE -o $@ $^ -lspead
 
 test-pqueue: queue.c queue.h $(DLIB)
 	$(CC) $(CFLAGS) $(INC) -DTEST_PQUEUE -o $@ $^ -lspead

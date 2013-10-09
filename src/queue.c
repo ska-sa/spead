@@ -9,7 +9,7 @@
 #include "queue.h"
 #include "spead_api.h"
 
-struct queue *create_queue()
+struct queue *create_queue(int pid)
 {
   struct queue *q;
 
@@ -19,6 +19,7 @@ struct queue *create_queue()
 
   q->q_front = NULL;
   q->q_back  = NULL;
+  q->q_id    = pid;
   
   return q;
 }
@@ -39,9 +40,9 @@ void destroy_queue(struct queue *q, void (*call)(void *data))
 
 int compare_priority_queues(const void *v1, const void *v2)
 {
-  if (*(int64_t*)v1 < *(int64_t*)v2)
+  if (*(int*)v1 < *(int*)v2)
     return -1;
-  else if (*(int64_t*)v1 > *(int64_t*)v2)
+  else if (*(int*)v1 > *(int*)v2)
     return 1;
   return 0;
 }
@@ -85,28 +86,35 @@ void destroy_priority_queue(struct priority_queue *pq, void (*call)(void *data))
   }
 }
 
-int insert_with_priority_queue(struct priority_queue *pq, int64_t priority, void *data)
+int insert_with_priority_queue(struct priority_queue *pq, int priority, void *data)
 {
   struct queue *q;
 
   if (pq == NULL)
     return -1;
     
-  q = find_name_node_avltree(pq->pq_tree, &priority);
+  q = find_name_node_avltree(pq->pq_tree, priority);
   if (q == NULL){
     
-    q = create_queue();
+    if (priority == NULL)
+      return -1;
+
+    q = create_queue(priority);
     if(q == NULL){
       return -1;
     }
     
-    if (store_named_node_avltree(pq->pq_tree, &priority, q) < 0){
+    if (store_named_node_avltree(pq->pq_tree, &(q->q_id), q) < 0){
 #ifdef DEBUG
       fprintf(stderr, "%s: unable to store named node\n", __func__);
 #endif
       destroy_queue(q, NULL);
       return -1;
     }
+
+#ifdef DEBUG
+    fprintf(stderr, "%s: ENQUEUE into new pq[%ld]\n", __func__, priority);
+#endif
 
     if (enqueue(q, data) < 0){
 #ifdef DEBUG
@@ -118,6 +126,10 @@ int insert_with_priority_queue(struct priority_queue *pq, int64_t priority, void
 
     return 0;
   }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: ENQUEUE into existing pq[%ld]\n", __func__, priority);
+#endif
 
   if (enqueue(q, data) < 0){
 #ifdef DEBUG
@@ -260,7 +272,7 @@ int main(int argc, char *argv[])
   int i, *o;
 
 
-  q = create_queue();
+  q = create_queue(0);
 
   for (i=0; i< 10; i++){
     int *data = malloc(sizeof(int));
@@ -268,12 +280,9 @@ int main(int argc, char *argv[])
     enqueue(q, data);
   }
 
-  
-
   traverse_queue(q->q_front);
   fprintf(stderr, "----\n");
   traverse_queue(q->q_back);
-
 
   for (i=0; i<7; i++){
     if (dequeue(q, &o) < 0){
@@ -294,16 +303,11 @@ int main(int argc, char *argv[])
     enqueue(q, data);
   }
 
-  
   traverse_queue(q->q_front);
-
   fprintf(stderr, "----\n");
-
   traverse_queue(q->q_back);
 
-
   destroy_queue(q, &free);
-  
   destroy_shared_mem();
   
   return 0; 
@@ -313,21 +317,50 @@ int main(int argc, char *argv[])
 #ifdef TEST_PQUEUE
 #include <string.h>
 
+int walk_callback_priority_queue(void *data, void *node_data)
+{
+  struct queue *pq=NULL;
+
+  pq = node_data;
+
+  if (pq == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: null data\n", __func__);
+#endif
+    return -1;
+  }
+
+  traverse_queue(pq->q_front);
+
+  return 0;
+}
+
 int main(int argc, char *argv[])
 {
   struct priority_queue *pq;
 
   pq = create_priority_queue();
 
-  insert_with_priority_queue(pq, 1, 100);
-  insert_with_priority_queue(pq, 1, 102);
-  insert_with_priority_queue(pq, 1, 103);
-  insert_with_priority_queue(pq, 1, 104);
-  insert_with_priority_queue(pq, 3, 107);
-  insert_with_priority_queue(pq, 3, 108);
-  insert_with_priority_queue(pq, 3, 109);
+  int p1 = 2, p2 = 1;
 
-  destroy_priority_queue(pq, NULL);
+
+  insert_with_priority_queue(pq, p1, NULL);
+  insert_with_priority_queue(pq, p1, NULL);
+
+  insert_with_priority_queue(pq, p2, NULL);
+  insert_with_priority_queue(pq, p2, NULL);
+  
+#if 0
+  while (walk_inorder_avltree(pq->pq_tree, &walk_callback_priority_queue, NULL) < 0){
+
+#ifdef DEBUG
+    fprintf(stderr, "%s: walk\n", __func__);
+#endif
+    
+  }
+#endif
+
+  //destroy_priority_queue(pq, NULL);
 
   destroy_shared_mem();
 

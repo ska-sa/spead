@@ -4,6 +4,8 @@
 #ifndef _AVTREE_H_
 #define _AVTREE_H_
 
+#include <stdint.h>
+
 #define AVL_LEFT        0x2 
 #define AVL_RIGHT       0x1
 #define AVL_MASK        0xF
