@@ -1027,6 +1027,43 @@ int del_node_avltree(struct avl_tree *t, struct avl_node *n, void (*d_free)(void
   return 0;
 }
 
+struct avl_node *get_max_node_avltree(struct avl_tree *t)
+{
+  struct avl_node *c;
+  int run;
+
+  if (t == NULL)
+    return NULL;
+  
+  c = t->t_root;
+
+  run = 1;
+  while(run){
+    if (c == NULL) {
+      run =0;
+    } else {
+      if (c->n_right != NULL)
+        c = c->n_right;
+      else
+        return c;
+    }
+  }
+
+  return NULL;
+}
+
+void *get_max_data_avltree(struct avl_tree *t)
+{
+  struct avl_node *n;
+
+  n = get_max_node_avltree(t);
+  if (n == NULL)
+    return NULL;
+
+  return get_node_data_avltree(n);
+}
+
+
 struct avl_node *find_name_node_avltree(struct avl_tree *t, const void *key)
 {
   struct avl_node *c;
@@ -1048,7 +1085,7 @@ struct avl_node *find_name_node_avltree(struct avl_tree *t, const void *key)
 
       if (cmp == 0){
 #if DEBUG > 1
-        fprintf(stderr,"avl_tree: FOUND <%p> (%p)\n",c->n_key, c);
+        fprintf(stderr,"avl_tree: FOUND <%p> (%p)\n", c->n_key, c);
 #endif
         return c;
       } else if (cmp < 0) {

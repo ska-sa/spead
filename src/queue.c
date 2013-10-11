@@ -54,14 +54,9 @@ struct priority_queue *create_priority_queue()
   pq = shared_malloc(sizeof(struct priority_queue));
   if (pq == NULL)
     return NULL;
-#if 0
-  pq->pq_priorities = create_queue();
-  if (pq->pq_priorities == NULL){
-    shared_free(pq, sizeof(struct priority_queue));
-    return NULL;
-  }
-#endif
-  
+    
+  pq->pq_highest;
+
   pq->pq_tree = create_avltree(&compare_priority_queues);
   if (pq->pq_tree == NULL){
 #if 0
@@ -93,7 +88,7 @@ int insert_with_priority_queue(struct priority_queue *pq, int priority, void *da
   if (pq == NULL)
     return -1;
     
-  q = find_name_node_avltree(pq->pq_tree, priority);
+  q = find_data_avltree(pq->pq_tree, &priority);
   if (q == NULL){
     
     if (priority == NULL)
@@ -103,6 +98,16 @@ int insert_with_priority_queue(struct priority_queue *pq, int priority, void *da
     if(q == NULL){
       return -1;
     }
+  
+    if (pq->pq_highest == NULL){
+      pq->pq_highest = q;
+    } else if (q->q_id > pq->pq_highest->q_id){
+      pq->pq_highest = q;
+#ifdef DEBUG
+      fprintf(stderr, "%s: new highest priority queue [%d]\n", __func__, q->q_id);
+#endif
+    }
+
     
     if (store_named_node_avltree(pq->pq_tree, &(q->q_id), q) < 0){
 #ifdef DEBUG
@@ -147,10 +152,59 @@ int pull_highest_priority(struct priority_queue *pq, void **data)
 {
   if (pq == NULL)
     return -1;
-  
+
+  if (pq->pq_highest == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s cannot access highest priority queue\n", __func__);
+#endif
+    return -1;
+  }
+/*
+
+  TODO: steps dequeue from highest 
+              if dequeue fails remove highest from tree (deletion)
+              search for new max in tree set to highest
+              try dequeue if fail repeat else return data
 
 
+  */
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: trying dequeue from queue [%d]\n", __func__, pq->pq_highest->q_id);
+#endif
+
+  if (dequeue(pq->pq_highest, data) < 0){
+    
+    if (del_name_node_avltree(pq->pq_tree, &(pq->pq_highest->q_id), NULL) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: failed 0\n", __func__);
+#endif
+      return -1;
+    }
+
+    destroy_queue(pq->pq_highest, NULL);
+    pq->pq_highest = NULL;
+    
+    pq->pq_highest = get_max_data_avltree(pq->pq_tree);
+    if (pq->pq_highest == NULL){
+#ifdef DEBUG
+      fprintf(stderr, "%s: get max fail DONE pq\n", __func__);
+#endif
+      return -2;
+    }
+
+    if (dequeue(pq->pq_highest, data) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: failed 2\n", __func__);
+#endif
+      return -1;
+    }
+    
+  }
   
+#ifdef DEBUG
+  fprintf(stderr, "%s: pull highest done <%p>\n", __func__, data);
+#endif
   return 0;
 }
 
@@ -247,7 +301,8 @@ int traverse_queue(struct queue_o *start)
   cur   = start;
   prev  = start;
   while(cur){
-    fprintf(stderr, "%s: <%p> value [%d] oxor %p\n", __func__, cur, *((int*)(cur->data)), cur->o_xor);
+    //fprintf(stderr, "%s: <%p> value [%d] oxor %p\n", __func__, cur, *((int*)(cur->data)), cur->o_xor);
+    fprintf(stderr, "%s: <%p> oxor %p\n", __func__, cur, cur->o_xor);
     if (cur->o_xor == cur)
       break;
     if (cur == prev)
@@ -330,6 +385,7 @@ int walk_callback_priority_queue(void *data, void *node_data)
     return -1;
   }
 
+  fprintf(stderr, "%s: trav\n", __func__);
   traverse_queue(pq->q_front);
 
   return 0;
@@ -338,28 +394,70 @@ int walk_callback_priority_queue(void *data, void *node_data)
 int main(int argc, char *argv[])
 {
   struct priority_queue *pq;
+  struct queue *q;
+  
+  int id = 555, id2 = 6666;
 
   pq = create_priority_queue();
 
-  int p1 = 2, p2 = 1;
+  insert_with_priority_queue(pq, 1, &id);
+  insert_with_priority_queue(pq, 1, &id);
+  insert_with_priority_queue(pq, 1, &id);
+  //q = get_max_data_avltree(pq->pq_tree);
+  //fprintf(stderr, "MAX: %d\n", q->q_id);
+  insert_with_priority_queue(pq, 2, &id);
+  insert_with_priority_queue(pq, 2, &id);
+  insert_with_priority_queue(pq, 2, &id);
+  insert_with_priority_queue(pq, 1, &id2);
+  insert_with_priority_queue(pq, 1, &id2);
+  insert_with_priority_queue(pq, 1, &id2);
+  //q = get_max_data_avltree(pq->pq_tree);
+  //fprintf(stderr, "MAX: %d\n", q->q_id);
+  insert_with_priority_queue(pq, 3, &id);
+  insert_with_priority_queue(pq, 3, &id2);
+  insert_with_priority_queue(pq, 3, &id);
 
+  //q = get_max_data_avltree(pq->pq_tree);
+  //fprintf(stderr, "MAX: %d\n", q->q_id);
+ 
+  int *data;
 
-  insert_with_priority_queue(pq, p1, NULL);
-  insert_with_priority_queue(pq, p1, NULL);
-
-  insert_with_priority_queue(pq, p2, NULL);
-  insert_with_priority_queue(pq, p2, NULL);
-  
-#if 0
-  while (walk_inorder_avltree(pq->pq_tree, &walk_callback_priority_queue, NULL) < 0){
-
-#ifdef DEBUG
-    fprintf(stderr, "%s: walk\n", __func__);
-#endif
-    
-  }
-#endif
-
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
+  if (pull_highest_priority(pq, &data) == 0)
+    fprintf(stderr, "%s: data %d\n", __func__, *data);
   //destroy_priority_queue(pq, NULL);
 
   destroy_shared_mem();

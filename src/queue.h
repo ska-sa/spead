@@ -22,6 +22,7 @@ int dequeue(struct queue *q, void **o);
 
 struct priority_queue{
   struct avl_tree *pq_tree; 
+  struct queue    *pq_highest;
 };
 
 struct priority_queue *create_priority_queue();
