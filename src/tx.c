@@ -66,7 +66,7 @@ void destroy_speadtx(struct spead_tx *tx)
   }
 }
 
-struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size, int chunk_size, int delay)
+struct spead_tx *create_speadtx(char *host, char *port, char bcast, char *mcast, int pkt_size, int chunk_size, int delay)
 {
   struct spead_tx *tx; 
 
@@ -89,21 +89,37 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, int pkt_size
   tx->t_pc        = 0;
   tx->t_delay     = delay;
 
-  tx->t_x = create_spead_socket(host, port);
-  if (tx->t_x == NULL){
-    destroy_speadtx(tx);
-    return NULL;
-  }
 
-  if (bcast){
-    set_broadcast_opt_spead_socket(tx->t_x);
-  }
+  if (mcast){
 
-  if (connect_spead_socket(tx->t_x) < 0){
-    destroy_speadtx(tx);
-    return NULL;
-  }
+    tx->t_x = create_spead_socket(mcast, port);
+    if (tx->t_x == NULL){
+      destroy_speadtx(tx);
+      return NULL;
+    }
 
+    if (set_multicast_opt_spead_socket(tx->t_x, host) < 0){
+      destroy_speadtx(tx);
+      return NULL;
+    }
+    
+  } else {
+
+    tx->t_x = create_spead_socket(host, port);
+    if (tx->t_x == NULL){
+      destroy_speadtx(tx);
+      return NULL;
+    }
+
+    if (bcast){
+      set_broadcast_opt_spead_socket(tx->t_x);
+    }
+
+    if (connect_spead_socket(tx->t_x) < 0){
+      destroy_speadtx(tx);
+      return NULL;
+    }
+  }
   
 #ifdef DEBUG
   fprintf(stderr, "%s: pktsize: %d\n", __func__, pkt_size);
@@ -458,6 +474,7 @@ int worker_task_raw_packet_file_speadtx(void *data, struct spead_pipeline *l, in
       usleep(tx->t_delay);
     }
   
+  
   }
 
   fprintf(stderr, "%s: DONE\n", __func__); 
@@ -465,7 +482,7 @@ int worker_task_raw_packet_file_speadtx(void *data, struct spead_pipeline *l, in
   return 0;
 }
 
-int register_speadtx(char *host, char *port, long workers, char broadcast, int pkt_size, int chunk_size, char *ifile, char *rfile, useconds_t delay)
+int register_speadtx(char *host, char *port, long workers, char broadcast, char *multicast, int pkt_size, int chunk_size, char *ifile, char *rfile, useconds_t delay)
 {
   struct spead_tx *tx;
   uint64_t heaps, packets;
@@ -477,7 +494,7 @@ int register_speadtx(char *host, char *port, long workers, char broadcast, int p
   if (register_signals_us() < 0)
     return EX_SOFTWARE;
   
-  tx = create_speadtx(host, port, broadcast, pkt_size, chunk_size, delay);
+  tx = create_speadtx(host, port, broadcast, multicast, pkt_size, chunk_size, delay);
   if (tx == NULL)
     return EX_SOFTWARE;
 
@@ -586,6 +603,7 @@ int usage(char **argv, long cpus)
   fprintf(stderr, "usage:\n\t%s (options) destination port"
                   "\n\n\tOptions\n\t\t-w [workers (d:%ld)]"
                   "\n\t\t-x (enable send to broadcast [priv])"
+                  "\n\t\t-m [multicast address (note destination now local source address)]"
                   "\n\t\t-s [spead packet size]" 
                   "\n\t\t-i [input file]" 
                   "\n\t\t-c [chunk size]"
@@ -597,7 +615,7 @@ int usage(char **argv, long cpus)
 int main(int argc, char **argv)
 {
   long cpus;
-  char c, *port, *host, broadcast, *ifile, *rfile;
+  char c, *port, *host, broadcast, *ifile, *rfile, *multicast;
   int i,j,k, pkt_size, chunk_size;
   useconds_t delay;
 
@@ -613,6 +631,7 @@ int main(int argc, char **argv)
   host = NULL;
   ifile = NULL;
   rfile = NULL;
+  multicast = NULL;
 
   broadcast = 0;
   
@@ -639,6 +658,12 @@ int main(int argc, char **argv)
           break;
 
         /*switches*/  
+        /*
+        case 'x':
+          j++;
+          multicast = 1;
+          break;
+*/
         case 'x':
           j++;
           broadcast = 1;
@@ -654,6 +679,7 @@ int main(int argc, char **argv)
         case 's':
         case 'w':
         case 'r':
+        case 'm':
           j++;
           if (argv[i][j] == '\0'){
             j = 0;
@@ -685,6 +711,9 @@ int main(int argc, char **argv)
               break;
             case 'd':
               delay = atoi(argv[i] + j);
+              break;
+            case 'm':
+              multicast = argv[i] + j;
               break;
           }
           i++;
@@ -722,6 +751,6 @@ int main(int argc, char **argv)
   }
 
 
-  return register_speadtx(host, port, cpus, broadcast, pkt_size, chunk_size, ifile, rfile, delay);
+  return register_speadtx(host, port, cpus, broadcast, multicast, pkt_size, chunk_size, ifile, rfile, delay);
 }
   

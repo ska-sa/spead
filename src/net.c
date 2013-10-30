@@ -159,12 +159,9 @@ struct spead_socket *create_raw_ip_spead_socket(char *host)
     return NULL;
   }
   
-  
   reuse_addr   = 1;
   setsockopt(x->x_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
 
-
-  
   return x;
 }
 
@@ -254,6 +251,35 @@ int set_broadcast_opt_spead_socket(struct spead_socket *x)
 #endif
     return -1;
   }
+  return 0;
+}
+
+int set_multicast_opt_spead_socket(struct spead_socket *x, char *host)
+{ 
+  int loop;
+  struct in_addr loco;
+
+  if (x == NULL)
+    return -1;
+
+  loop = 0;
+
+  if (setsockopt(x->x_fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop)) < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error disable multicast loop setsockopt: %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
+  /*TODO: use inet_pton for ipv6 */
+  loco.s_addr = inet_addr(host);
+  if (setsockopt(x->x_fd, IPPROTO_IP, IP_MULTICAST_IF, (char*) &loco, sizeof(loco)) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error setting mcast iface: %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
   return 0;
 }
 

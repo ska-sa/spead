@@ -56,7 +56,6 @@ int usage(char **argv)
 int run_sender(struct spead_socket *x)
 {
   int rb;
-  fd_set inset;
   
 
 
@@ -165,10 +164,13 @@ int main(int argc, char *argv[])
 #ifdef DEBUG
       fprintf(stderr, "%s: running sender\n", __func__);
 #endif
+
+#if 0
       if (connect_spead_socket(x) < 0){
         goto cleanup;
       }
-      
+#endif 
+
 #if 1
       if (run_sender(x) < 0){
 #ifdef DEBUG
@@ -184,12 +186,14 @@ int main(int argc, char *argv[])
       fprintf(stderr, "%s: running receiver\n", __func__);
 #endif
 
+#if 0
       if (bind_spead_socket(x) < 0){
         goto cleanup;
       }
+#endif
 
-#if 0
-      if (run_raw_receiver(x) < 0){
+#if 1
+      if (run_receiver(x) < 0){
 #ifdef DEBUG
         fprintf(stderr, "%s: run receiver fail\n", __func__);
 #endif

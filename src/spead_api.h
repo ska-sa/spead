@@ -285,6 +285,7 @@ struct spead_socket *create_raw_ip_spead_socket(char *host);
 int bind_spead_socket(struct spead_socket *x);
 int connect_spead_socket(struct spead_socket *x);
 int set_broadcast_opt_spead_socket(struct spead_socket *x);
+int set_multicast_opt_spead_socket(struct spead_socket *x, char *host);
 int get_fd_spead_socket(struct spead_socket *x);
 struct addrinfo *get_addr_spead_socket(struct spead_socket *x);
 int send_packet_spead_socket(void *data, struct spead_packet *p); // data should be a spead_tx data structure
