@@ -98,7 +98,7 @@ struct spead_tx *create_speadtx(char *host, char *port, char bcast, char *mcast,
       return NULL;
     }
 
-    if (set_multicast_opt_spead_socket(tx->t_x, host) < 0){
+    if (set_multicast_send_opts_spead_socket(tx->t_x, host) < 0){
       destroy_speadtx(tx);
       return NULL;
     }

@@ -157,7 +157,7 @@ void destroy_server_us(struct u_server *s)
 #endif
 }
 
-int startup_server_us(struct u_server *s, char *port, int broadcast)
+int startup_server_us(struct u_server *s, char *port, int broadcast, char *multi_grp, char *multi_if)
 {
   if (s == NULL || port == NULL)
     return -1;
@@ -169,7 +169,7 @@ int startup_server_us(struct u_server *s, char *port, int broadcast)
 #endif
     return -1;
   }
-
+  
   if (broadcast){
     if (set_broadcast_opt_spead_socket(s->s_x) < 0){
 #ifdef DEBUG
@@ -181,6 +181,15 @@ int startup_server_us(struct u_server *s, char *port, int broadcast)
   if (bind_spead_socket(s->s_x) < 0)
     return -1;
   
+  if (multi_grp && multi_if){
+    if (set_multicast_receive_opts_spead_socket(s->s_x, multi_grp, multi_if) < 0){
+      return -1;
+    }
+#ifdef DEBUG
+    fprintf(stderr, "%s: running in multicast mode\n", __func__);
+#endif
+  }
+
   s->s_fd = get_fd_spead_socket(s->s_x);
 
 #ifdef DEBUG
@@ -615,7 +624,7 @@ int raw_spead_cap_worker(void *data, struct spead_pipeline *l, int cfd)
 #if 0
 int register_client_handler_server(struct spead_api_module *m, char *port, long cpus, uint64_t hashes, uint64_t hashsize, int broadcast, char *raw_pkt_file)
 #endif
-int register_client_handler_server(struct stack *pl, char *port, long cpus, uint64_t hashes, uint64_t hashsize, int broadcast, char *raw_pkt_file)
+int register_client_handler_server(struct stack *pl, char *port, long cpus, uint64_t hashes, uint64_t hashsize, int broadcast, char *multi_grp, char *multi_if, char *raw_pkt_file)
 {
   struct u_server *s;
   
@@ -632,7 +641,7 @@ int register_client_handler_server(struct stack *pl, char *port, long cpus, uint
     return -1;
   }
 
-  if (startup_server_us(s, port, broadcast) < 0){
+  if (startup_server_us(s, port, broadcast, multi_grp, multi_if) < 0){
     fprintf(stderr,"%s: error in startup\n", __func__);
     shutdown_server_us(s);
     return -1;
@@ -693,7 +702,7 @@ int main(int argc, char *argv[])
 {
   long cpus;
   int i, j, c, broadcast;
-  char *port, *raw_pkt_file, mod_start;
+  char *port, *raw_pkt_file, mod_start, multi_start, *multi_grp, *multi_if;
   uint64_t hashes, hashsize;
   
   struct stack *pl;
@@ -710,6 +719,9 @@ int main(int argc, char *argv[])
   i = 1;
   j = 1;
   broadcast = 0;
+  multi_start = 0;
+  multi_grp = NULL;
+  multi_if = NULL;
 
   hashes   = 1000;
   hashsize = 100;
@@ -757,6 +769,7 @@ int main(int argc, char *argv[])
         case 'p':
         case 'w':
         case 'b':
+        case 'm':
         case 'l':
           j++;
           if (argv[i][j] == '\0'){
@@ -797,6 +810,10 @@ int main(int argc, char *argv[])
             case 'l':
               hashsize = atol(argv[i] + j);
               break;
+            case 'm':
+              multi_start = 1;
+              multi_grp = argv[i]+j;
+              break;
           }
           i++;
           j = 1;
@@ -812,6 +829,10 @@ int main(int argc, char *argv[])
       if (mod_start){
         push_stack(pl, argv[i]);
         i++;
+      } else if (multi_start){
+        multi_start = 0;
+        multi_if = argv[i];
+        i++;  
       } else {
         fprintf(stderr, "%s: extra argument %s\n", argv[0], argv[i]);
         destroy_stack(pl, NULL);
@@ -834,6 +855,6 @@ int main(int argc, char *argv[])
   }
 #endif
 
-  return register_client_handler_server(pl, port, cpus, hashes, hashsize, broadcast, raw_pkt_file);
+  return register_client_handler_server(pl, port, cpus, hashes, hashsize, broadcast, multi_grp, multi_if, raw_pkt_file);
 }
 

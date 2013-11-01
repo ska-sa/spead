@@ -107,7 +107,6 @@ struct spead_socket *create_raw_ip_spead_socket(char *host)
   struct addrinfo hints;
   uint64_t reuse_addr;
 
-
   x = malloc(sizeof(struct spead_socket));
   if (x == NULL){
 #ifdef DEBUG
@@ -254,12 +253,12 @@ int set_broadcast_opt_spead_socket(struct spead_socket *x)
   return 0;
 }
 
-int set_multicast_opt_spead_socket(struct spead_socket *x, char *host)
+int set_multicast_send_opts_spead_socket(struct spead_socket *x, char *host)
 { 
   int loop;
   struct in_addr loco;
 
-  if (x == NULL)
+  if (x == NULL || host == NULL)
     return -1;
 
   loop = 0;
@@ -282,6 +281,28 @@ int set_multicast_opt_spead_socket(struct spead_socket *x, char *host)
 
   return 0;
 }
+
+int set_multicast_receive_opts_spead_socket(struct spead_socket *x, char *grp, char *interface)
+{
+  struct ip_mreq group;
+
+  if (grp == NULL || interface == NULL || x == NULL)
+    return -1;
+
+  /*TODO: use inet_pton for ipv6 */
+  group.imr_multiaddr.s_addr = inet_addr(grp);
+  group.imr_interface.s_addr = inet_addr(interface);
+  if (setsockopt(x->x_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&group, sizeof(group)) < 0) {
+#ifdef DEBUG
+    fprintf(stderr, "%s: error adding mcast group membership: %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+ 
+
+  return 0;
+}
+
 
 int get_fd_spead_socket(struct spead_socket *x)
 {
