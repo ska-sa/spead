@@ -21,6 +21,11 @@
 void destroy_spead_socket(struct spead_socket *x)
 {
   if (x){
+
+    if (unset_multicast_receive_opts_spead_socket(x) == 0){
+      free(x->x_grp);
+    }
+
     if(x->x_res) 
       freeaddrinfo(x->x_res);
     
@@ -52,6 +57,7 @@ struct spead_socket *create_spead_socket(char *host, char *port)
   x->x_active = NULL;
   x->x_fd     = 0;
   x->x_mode   = XSOCK_NONE;
+  x->x_grp    = NULL;
 
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family     = AF_UNSPEC;
@@ -121,6 +127,7 @@ struct spead_socket *create_raw_ip_spead_socket(char *host)
   x->x_active = NULL;
   x->x_fd     = 0;
   x->x_mode   = XSOCK_NONE;
+  x->x_grp    = NULL;
 
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family     = AF_UNSPEC;
@@ -284,25 +291,45 @@ int set_multicast_send_opts_spead_socket(struct spead_socket *x, char *host)
 
 int set_multicast_receive_opts_spead_socket(struct spead_socket *x, char *grp, char *interface)
 {
-  struct ip_mreq group;
+  struct ip_mreq *group;
 
   if (grp == NULL || interface == NULL || x == NULL)
     return -1;
+  
+  x->x_grp = malloc(sizeof(struct ip_mreq));
+  if (x->x_grp == NULL)
+    return -1;
+  
+  group = x->x_grp;
 
   /*TODO: use inet_pton for ipv6 */
-  group.imr_multiaddr.s_addr = inet_addr(grp);
-  group.imr_interface.s_addr = inet_addr(interface);
-  if (setsockopt(x->x_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&group, sizeof(group)) < 0) {
+  group->imr_multiaddr.s_addr = inet_addr(grp);
+  group->imr_interface.s_addr = inet_addr(interface);
+  if (setsockopt(x->x_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, group, sizeof(struct ip_mreq)) < 0) {
 #ifdef DEBUG
     fprintf(stderr, "%s: error adding mcast group membership: %s\n", __func__, strerror(errno));
 #endif
     return -1;
   }
- 
 
   return 0;
 }
 
+int unset_multicast_receive_opts_spead_socket(struct spead_socket *x)
+{
+  if (x == NULL || x->x_grp == NULL){
+    return -1;
+  }
+  
+  if (setsockopt(x->x_fd, IPPROTO_IP, IP_DROP_MEMBERSHIP, x->x_grp, sizeof(struct ip_mreq)) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error adding mcast group membership: %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
+  return 0;
+}
 
 int get_fd_spead_socket(struct spead_socket *x)
 {

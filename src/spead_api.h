@@ -161,6 +161,7 @@ struct spead_socket {
   struct addrinfo   *x_active;  /*pointer to current active addrinfo in x_res*/
   int               x_fd;
   char              x_mode;
+  struct ip_mreq    *x_grp;
 };
 
 
@@ -287,6 +288,7 @@ int connect_spead_socket(struct spead_socket *x);
 int set_broadcast_opt_spead_socket(struct spead_socket *x);
 int set_multicast_send_opts_spead_socket(struct spead_socket *x, char *host);
 int set_multicast_receive_opts_spead_socket(struct spead_socket *x, char *grp, char *interface);
+int unset_multicast_receive_opts_spead_socket(struct spead_socket *x);
 int get_fd_spead_socket(struct spead_socket *x);
 struct addrinfo *get_addr_spead_socket(struct spead_socket *x);
 int send_packet_spead_socket(void *data, struct spead_packet *p); // data should be a spead_tx data structure
