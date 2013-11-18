@@ -133,7 +133,7 @@ struct spead_socket *create_raw_ip_spead_socket(char *host)
   hints.ai_family     = AF_UNSPEC;
   hints.ai_socktype   = SOCK_RAW;
   hints.ai_flags      = AI_PASSIVE;
-  hints.ai_protocol   = 55;
+  hints.ai_protocol   = 155;
   hints.ai_canonname  = NULL;
   hints.ai_addr       = NULL;
   hints.ai_next       = NULL;
