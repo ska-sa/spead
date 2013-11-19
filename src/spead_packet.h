@@ -36,7 +36,8 @@
 #define SPEAD_DIRECTADDR            0
 #define SPEAD_IMMEDIATEADDR         1
 
-#define SPEAD_MAX_PACKET_LEN       0x230C
+// #define SPEAD_MAX_PACKET_LEN       0x230C
+#define SPEAD_MAX_PACKET_LEN       9200
 #define SPEAD_MAX_FMT_LEN          1024
 
 // Reserved Item IDs
