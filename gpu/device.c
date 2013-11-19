@@ -15,6 +15,7 @@ int main(int argc, char *argv[])
   cl_int4           *o_out;
   struct ocl_kernel *o_k;
   int len = LEN;
+  int i;
   
   size_t workGroupSize[2], localz[2];
 
@@ -45,7 +46,7 @@ int main(int argc, char *argv[])
     goto free_kernel;
   }
 
-#if 1
+#if 0
   err  = clSetKernelArg(o_k->k_kernel, 0, sizeof(cl_mem), (void *) &o_in);
   err |= clSetKernelArg(o_k->k_kernel, 1, sizeof(int), (void *) &len);
   if (err != CL_SUCCESS){
@@ -83,19 +84,27 @@ int main(int argc, char *argv[])
   }
 #endif
 
-  if (xfer_from_ocl_mem(o_ds, o_in, sizeof(cl_int4) * len, o_out) < 0){
+  for (i=1024; i<len; i+=1024){
+    
+    if (xfer_from_ocl_mem(o_ds, o_in, sizeof(cl_int4) * i, o_out) < 0){
 #ifdef DEBUG
-    fprintf(stderr, "%s: xfer from ocl error\n", __func__);
+      fprintf(stderr, "%s: xfer from ocl error\n", __func__);
 #endif
-    goto clean_up;
-  }
+      goto clean_up;
+    }
 
+  }
+  
+
+#if 0
 #ifdef DEBUG
   int i;
   for (i=0; i<len; i++){
     fprintf(stderr, "%d %d %d %d\n", o_out[i].w, o_out[i].x, o_out[i].y, o_out[i].z);
   }
 #endif
+#endif
+
 
 clean_up:
 

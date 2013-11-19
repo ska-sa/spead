@@ -1,6 +1,8 @@
 #ifndef STACK_H
 #define STACK_H
 
+#include <stdint.h>
+
 struct stack_o {
   struct stack_o *o_next;
   void *data;

@@ -4,6 +4,8 @@
 #ifndef _AVTREE_H_
 #define _AVTREE_H_
 
+#include <stdint.h>
+
 #define AVL_LEFT        0x2 
 #define AVL_RIGHT       0x1
 #define AVL_MASK        0xF
@@ -50,6 +52,8 @@ void *find_data_avltree(struct avl_tree *t, const void *key);
 int del_name_node_avltree(struct avl_tree *t, const void *key, void (*d_free)(void *));
 void free_node_avltree(struct avl_node *n, void (*d_free)(void *));
 void destroy_avltree(struct avl_tree *t, void (*d_free)(void *));
+
+void *get_max_data_avltree(struct avl_tree *t);
 
 #if 0
 struct avl_node *walk_inorder_avltree(struct avl_node *n);

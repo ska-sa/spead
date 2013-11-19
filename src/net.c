@@ -21,6 +21,11 @@
 void destroy_spead_socket(struct spead_socket *x)
 {
   if (x){
+
+    if (unset_multicast_receive_opts_spead_socket(x) == 0){
+      free(x->x_grp);
+    }
+
     if(x->x_res) 
       freeaddrinfo(x->x_res);
     
@@ -52,6 +57,7 @@ struct spead_socket *create_spead_socket(char *host, char *port)
   x->x_active = NULL;
   x->x_fd     = 0;
   x->x_mode   = XSOCK_NONE;
+  x->x_grp    = NULL;
 
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family     = AF_UNSPEC;
@@ -93,7 +99,75 @@ struct spead_socket *create_spead_socket(char *host, char *port)
   reuse_addr   = 1;
   setsockopt(x->x_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
 
+#ifdef DEBUG
+  fprintf(stderr, "%s: socket at %s:%s\n", __func__, host, port);
+#endif
   
+  return x;
+}
+
+struct spead_socket *create_raw_ip_spead_socket(char *host)
+{
+  struct spead_socket *x;
+
+  struct addrinfo hints;
+  uint64_t reuse_addr;
+
+  x = malloc(sizeof(struct spead_socket));
+  if (x == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: logic cannot malloc\n", __func__);
+#endif
+    return NULL;
+  }
+
+  x->x_host   = host;
+  x->x_port   = NULL;
+  x->x_res    = NULL;
+  x->x_active = NULL;
+  x->x_fd     = 0;
+  x->x_mode   = XSOCK_NONE;
+  x->x_grp    = NULL;
+
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_family     = AF_UNSPEC;
+  hints.ai_socktype   = SOCK_RAW;
+  hints.ai_flags      = AI_PASSIVE;
+  hints.ai_protocol   = 155;
+  hints.ai_canonname  = NULL;
+  hints.ai_addr       = NULL;
+  hints.ai_next       = NULL;
+
+  if ((reuse_addr = getaddrinfo(host, NULL, &hints, &(x->x_res))) != 0) {
+#ifdef DEBUG
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(reuse_addr));
+#endif
+    destroy_spead_socket(x);
+    return NULL;
+  }
+
+  for (x->x_active = x->x_res; x->x_active != NULL; x->x_active = x->x_active->ai_next) {
+#if DEBUG>1
+    fprintf(stderr, "%s: res (%p) with: %d\n", __func__, x->x_active, x->x_active->ai_protocol);
+#endif
+    if (x->x_active->ai_family == AF_INET6)
+      break;
+  }
+
+  x->x_active = (x->x_active == NULL) ? x->x_res : x->x_active;
+
+  x->x_fd = socket(x->x_active->ai_family, x->x_active->ai_socktype, x->x_active->ai_protocol);
+  if (x->x_fd < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error socket (%s)\n", __func__, strerror(errno));
+#endif
+    destroy_spead_socket(x);
+    return NULL;
+  }
+  
+  reuse_addr   = 1;
+  setsockopt(x->x_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
+
   return x;
 }
 
@@ -183,6 +257,77 @@ int set_broadcast_opt_spead_socket(struct spead_socket *x)
 #endif
     return -1;
   }
+  return 0;
+}
+
+int set_multicast_send_opts_spead_socket(struct spead_socket *x, char *host)
+{ 
+  int loop;
+  struct in_addr loco;
+
+  if (x == NULL || host == NULL)
+    return -1;
+
+  loop = 0;
+
+  if (setsockopt(x->x_fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop)) < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error disable multicast loop setsockopt: %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
+  /*TODO: use inet_pton for ipv6 */
+  loco.s_addr = inet_addr(host);
+  if (setsockopt(x->x_fd, IPPROTO_IP, IP_MULTICAST_IF, (char*) &loco, sizeof(loco)) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error setting mcast iface: %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
+  return 0;
+}
+
+int set_multicast_receive_opts_spead_socket(struct spead_socket *x, char *grp, char *interface)
+{
+  struct ip_mreq *group;
+
+  if (grp == NULL || interface == NULL || x == NULL)
+    return -1;
+  
+  x->x_grp = malloc(sizeof(struct ip_mreq));
+  if (x->x_grp == NULL)
+    return -1;
+  
+  group = x->x_grp;
+
+  /*TODO: use inet_pton for ipv6 */
+  group->imr_multiaddr.s_addr = inet_addr(grp);
+  group->imr_interface.s_addr = inet_addr(interface);
+  if (setsockopt(x->x_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, group, sizeof(struct ip_mreq)) < 0) {
+#ifdef DEBUG
+    fprintf(stderr, "%s: error adding mcast group membership: %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
+  return 0;
+}
+
+int unset_multicast_receive_opts_spead_socket(struct spead_socket *x)
+{
+  if (x == NULL || x->x_grp == NULL){
+    return -1;
+  }
+  
+  if (setsockopt(x->x_fd, IPPROTO_IP, IP_DROP_MEMBERSHIP, x->x_grp, sizeof(struct ip_mreq)) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: error adding mcast group membership: %s\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+
   return 0;
 }
 

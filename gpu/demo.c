@@ -150,6 +150,7 @@ int run_pipeline(struct demo_o *d, uint64_t chunk)
   }
   
   off   = 0;
+  //chunk = 32*1024;
   //chunk = 64*1024;
   //chunk = 2*1024*1024;
   //chunk = 8;

@@ -12,11 +12,14 @@
 
 #define SPEAD_DATA_ID    0xb001
 
+#define ITERS       128
+
 struct sapi_obj {
   struct ocl_ds     *o_ds;
   cl_mem            o_in;
   void              *o_host;
   int               o_N;
+  int               o_step;
 };
 
 void spead_api_destroy(struct spead_api_module_shared *s, void *data)
@@ -62,6 +65,7 @@ int setup_cl_mem_buffers(struct sapi_obj *so, int64_t len)
   }
 
   so->o_N = len;
+  so->o_step = len / ITERS;
 
   so->o_host = malloc(len);
   if (so->o_host == NULL){
@@ -90,6 +94,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 {
   struct spead_api_item *itm;
   struct sapi_obj *so;
+  int i;
 
   itm = NULL;
 
@@ -121,6 +126,26 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
     }
   }
 
+  for (i = so->o_step; i < so->o_N; i+= so->o_step){
+
+    if (xfer_to_ocl_mem(so->o_ds, itm->i_data, i, so->o_in) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: xfer to ocl error\n", __func__);
+#endif
+      return -1;
+    }
+
+    if (xfer_from_ocl_mem(so->o_ds, so->o_in, i, so->o_host) < 0){
+#ifdef DEBUG
+      fprintf(stderr, "%s: xfer from ocl error\n", __func__);
+#endif
+      return -1;
+    }
+
+  }
+
+  exit(1);
+#if 0
   if (xfer_to_ocl_mem(so->o_ds, itm->i_data, so->o_N, so->o_in) < 0){
 #ifdef DEBUG
     fprintf(stderr, "%s: xfer to ocl error\n", __func__);
@@ -134,7 +159,7 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
 #endif
     return -1;
   }
-  
+#endif
 
   return 0;
 }

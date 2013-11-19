@@ -34,6 +34,9 @@ consider increasing /proc/sys/kernel/shmmax
 
 sudo sh -c "echo $[1000*1024*1024] > /proc/sys/kernel/shmmax"
 
+sudo socat UDP4-RECVFROM:161,fork UDP4-SENDTO:localhost:10161
+
+
 ITEM_DESCRIPTOR SPEAD ID [0x5]
   provide meta data for incomming spead stream
   can be issued at any time including during a stream

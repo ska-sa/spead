@@ -17,6 +17,10 @@ NCC = nvcc
 IDIR = -I../src
 LDIR = -L../src
 
+#.PHONY: all
+#.SUFFIXES: 
+#.SUFFIXES: .c .o .so
+
 ###############
 #   VERSION   #
 GITVER = $(shell git describe --tags 2> /dev/null || echo unknown)
@@ -25,7 +29,6 @@ CFLAGS += -DVERSION=\"$(GITVER)\"
 ################
 
 .SECONDARY:
-#.PRECIOUS: %.o
 
 #-arch=sm_20
 #USECUFFT = 1
@@ -36,7 +39,7 @@ CFLAGS += -DVERSION=\"$(GITVER)\"
 #OBJ = $(patsubst %.cu,%.so,$(UTILS))
 EXE= demo wave_gen device
 MODS=         dummy.so ocl.so dumpdata.so writefile.so snapshot.so csv.so basic_ocl.so pipeline_0.so pipeline_1.so radix2_po2_fft.so power.so data_transfer.so
-MODS+= fft.so
+#MODS+= fft.so
 SRC= shared.c dummy.c  ocl.c  dumpdata.c  writefile.c snapshot.c csv.c basic_ocl.c pipeline_0.c pipeline_1.c radix2_po2_fft.c power.c data_transfer.c
 
 HDR= shared.h
@@ -48,7 +51,7 @@ all: $(MODS) $(EXELIST)
 %.so: %.cu
 	$(NCC) $(CFLAGS) $(NFLAGS) $(NLIB) $(LIB) $(LDIR) $(IDIR) $< -o $@
 
-%.o: %.c $(HDR)
+%.o:: %.c $(HDR)
 	$(CC) $(CFLAGS) $(KDIR) $(IDIR) -fPIC -c $< -o $@
 
 %.so: %.o shared.o

@@ -1027,6 +1027,43 @@ int del_node_avltree(struct avl_tree *t, struct avl_node *n, void (*d_free)(void
   return 0;
 }
 
+struct avl_node *get_max_node_avltree(struct avl_tree *t)
+{
+  struct avl_node *c;
+  int run;
+
+  if (t == NULL)
+    return NULL;
+  
+  c = t->t_root;
+
+  run = 1;
+  while(run){
+    if (c == NULL) {
+      run =0;
+    } else {
+      if (c->n_right != NULL)
+        c = c->n_right;
+      else
+        return c;
+    }
+  }
+
+  return NULL;
+}
+
+void *get_max_data_avltree(struct avl_tree *t)
+{
+  struct avl_node *n;
+
+  n = get_max_node_avltree(t);
+  if (n == NULL)
+    return NULL;
+
+  return get_node_data_avltree(n);
+}
+
+
 struct avl_node *find_name_node_avltree(struct avl_tree *t, const void *key)
 {
   struct avl_node *c;
@@ -1048,7 +1085,7 @@ struct avl_node *find_name_node_avltree(struct avl_tree *t, const void *key)
 
       if (cmp == 0){
 #if DEBUG > 1
-        fprintf(stderr,"avl_tree: FOUND %s (%p)\n",c->n_key, c);
+        fprintf(stderr,"avl_tree: FOUND <%p> (%p)\n", c->n_key, c);
 #endif
         return c;
       } else if (cmp < 0) {
@@ -1062,7 +1099,7 @@ struct avl_node *find_name_node_avltree(struct avl_tree *t, const void *key)
   } /*while*/
 
 #if DEBUG > 1 
-  fprintf(stderr,"avl_tree: NOT FOUND %s\n", key);
+  fprintf(stderr,"avl_tree: NOT FOUND <%p>\n", key);
 #endif
 
   return NULL;
@@ -1215,7 +1252,45 @@ int store_named_node_avltree(struct avl_tree *t, void *key, void *data)
 }
 
 #ifdef UNIT_TEST_AVL 
+#include <string.h>
 
+int comp_ints(const void *v1, const void *v2)
+{
+  if (*(int*)v1 < *(int*)v2)
+    return -1;
+  else if (*(int*)v1 < *(int*)v2)
+    return 1;
+  return 0;
+}
+
+struct ao {
+  int id;
+};
+
+int main(int argc, char *argv[])
+{
+  struct avl_tree *tree;
+  
+  struct ao o1,o2,o3;
+  o1.id = 1;
+  o2.id = 2;
+  o3.id = 3;
+
+  tree = create_avltree(&comp_ints);
+  if (tree == NULL)
+    return 5; 
+  
+  store_named_node_avltree(tree, &(o1.id), &o1);
+  store_named_node_avltree(tree, &(o2.id), &o2);
+  store_named_node_avltree(tree, &(o3.id), &o3);
+
+  
+  
+  
+  return 0;
+}
+
+#if 0
 int add_file_words_to_avltree(struct avl_tree *t, char *buffer, int bsize)
 {
   int i,j;
@@ -1247,6 +1322,7 @@ int add_file_words_to_avltree(struct avl_tree *t, char *buffer, int bsize)
 
   return 0;
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -1309,7 +1385,7 @@ int main(int argc, char *argv[])
 #endif 
 
 #if 1 
-  tree = create_avltree();
+  tree = create_avltree(&strcmp);
   
   a = create_node_avltree("adam", NULL);
   b = create_node_avltree("ben", NULL);
@@ -1398,7 +1474,7 @@ int main(int argc, char *argv[])
     fprintf(stderr,"avl_tree: couldn't delete\n");
   */
 
-  print_avltree(NULL, tree->t_root, 0, NULL);
+  /*print_avltree(NULL, tree->t_root, 0, NULL);
   //check_balances_avltree(tree->t_root, 0);
   
   
@@ -1410,24 +1486,26 @@ int main(int argc, char *argv[])
       check_balances_avltree(tree->t_root, 0);
     }
   }
+  */
 
 #if 1 
-  print_inorder_avltree(NULL, tree->t_root, NULL, 0);
+  //print_inorder_avltree(NULL, tree->t_root, NULL, 0);
   
-  while ((a = walk_inorder_avltree(tree->t_root)) != NULL){
+  while ((a = walk_inorder_avltree(tree->t_root, NULL, NULL)) != NULL){
     
     if (a != NULL){
 #ifdef DEBUG
       fprintf(stderr, "walk: <%s>\n", a->n_key);
 #endif
     }
+    
 
   }
 #ifdef DEBUG
  fprintf(stderr, "walk round 2\n");
 #endif
   
-  while ((a = walk_inorder_avltree(tree->t_root)) != NULL){
+  while ((a = walk_inorder_avltree(tree->t_root, NULL, NULL)) != NULL){
     
     if (a != NULL){
 #ifdef DEBUG
@@ -1511,6 +1589,7 @@ int main(int argc, char *argv[])
   
   return 0;
 }
+#endif
 
 #endif
 

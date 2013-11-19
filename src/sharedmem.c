@@ -57,6 +57,8 @@ struct shared_mem_region *create_shared_mem_region(uint64_t mid, uint64_t size)
 #endif
     return NULL;
   }
+
+  bzero(ptr, size);
   
   r = mmap(NULL, sizeof(struct shared_mem_region), PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS, (-1), 0);
   if (r == MAP_FAILED){
