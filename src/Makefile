@@ -14,7 +14,7 @@ CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
 #CFLAGS += -m32
-CC = gcc -ggdb
+CC = $(CROSS_COMPILE)gcc -ggdb
 
 LIB = -lspead -L. -lm
 
