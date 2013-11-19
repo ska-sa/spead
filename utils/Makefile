@@ -1,4 +1,4 @@
-CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG
 CFLAGS += -Wall
 CFLAGS += -ggdb
 CFLAGS += -O3

@@ -1,6 +1,6 @@
 CFLAGS += -DIKATCP
-CFLAGS += -DDEBUG
-CFLAGS += -O3
+#CFLAGS += -DDEBUG
+CFLAGS += -g #-O3
 
 CC = gcc -ggdb -Wall
 
