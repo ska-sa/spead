@@ -4,10 +4,13 @@
 #ifndef MUTEX_H
 #define MUTEX_H
 
-#define cpu_relax() \
-  __asm__ __volatile__ ( "pause\n" : : : "memory")
 
 typedef int mutex;
+
+#ifndef ARCH
+
+#define cpu_relax() \
+  __asm__ __volatile__ ( "pause\n" : : : "memory")
 
 static inline mutex cmpxchg(mutex *ptr, mutex old, mutex n)
 {
@@ -29,6 +32,43 @@ static inline mutex xchg(mutex *ptr, mutex x)
   return x;
 }
 
+#else
+
+#define cpu_relax() \
+  __asm__ __volatile__ ( "" : : : "memory")
+
+static inline mutex cmpxchg(mutex *ptr, mutex old, mutex n)
+{
+  mutex ret;
+  
+  asm volatile ( "1: lwarx  %0,0,%2\n\
+                     cmpw   0,%0,%3\n\
+                     bne-   2f\n\
+                     stwcx. %4,0,%2\n\
+                     bne-   1b\n\
+                  2:"
+                  : "=&r" (ret), "+m" (*(mutex *)ptr)
+                  : "r" (ptr), "r" (old), "r" (n)
+                  : "cc", "memory");
+
+  return ret;
+}
+
+static inline mutex xchg(mutex *ptr, mutex x)
+{
+  mutex ret;
+
+  asm volatile ( "1: lwarx  %0,0,%2\n\
+                     stwcx. %3,0,%2\n\
+                     bne-   1b"
+                  : "=&r" (ret), "+m" (*(mutex *)ptr)
+                  : "r" (ptr), "r" (x)
+                  : "cc", "memory");
+  
+  return ;
+}
+
+#endif
 
 void lock_mutex(mutex *m);
 void unlock_mutex(mutex *m);
