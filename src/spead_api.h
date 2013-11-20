@@ -107,7 +107,7 @@ struct coalesce_parcel {
 
 /*spead shared_mem api*/
 
-#define SHARED_MEM_REGION_SIZE  1024*1024*1024
+#define SHARED_MEM_REGION_SIZE  1024*1024
 
 struct shared_mem {
   mutex                     m_m;

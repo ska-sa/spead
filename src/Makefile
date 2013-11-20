@@ -13,6 +13,7 @@ CFLAGS += -DDATA
 #CFLAGS += -O3
 #CFLAGS += -O2
 CFLAGS += -Wall
+#CFLAGS += -DARCH=$(ARCH)
 #CFLAGS += -m32
 CC = $(CROSS_COMPILE)gcc -ggdb
 
