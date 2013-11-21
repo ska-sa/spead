@@ -91,8 +91,8 @@ void *spead_api_setup(struct spead_api_module_shared *s)
     ss->master_pid = 0;
 
     set_data_spead_api_module_shared(s, ss, sizeof(struct snap_shot));
- 
-    fprintf(stderr, "%s: PID [%d] decode BF data %s\n", __func__, getpid());
+
+    fprintf(stderr, "%s: PID [%d] decode BF data %s\n", __func__, getpid(), ss->filename);
 
     fflush(stdout);
   
