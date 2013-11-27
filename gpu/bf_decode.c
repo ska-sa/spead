@@ -162,20 +162,12 @@ int write_bf_data(void *data, uint64_t data_len, unsigned long offset)
 
  da = data ;
 
-//if (heap_count % 1000) {
-// tcks = getticks();
-// for (i=0; i < 50000; i++) { 
-  transpose_bf_block(da, dp, data_len, TS_PER_HEAP, BYTES_PER_SAMPLE);
-// }
-// fprintf(stderr,"Ticks Transpose: %llu\n",(getticks() - tcks) / 50000);
- //dp = da;
-//}
 #ifdef DEBUG
  fprintf(stderr, "Channel 322, timestamp 14: %u %u %u %u",da[28 + (256*322)],da[29 + (256*322)],dp[644 + (14*2048)],dp[645 + (14*2048)]);
 #endif
 
  if (w_fd2 == NULL) { fprintf(stderr,"!!!!! No file !!!!"); return -1;}
- if (pwrite(w_fd2, dp, data_len/2, ((data_len / 2 ) * offset)) < 0) {
+ if (pwrite(w_fd2, da + data_len/4, data_len/2, ((data_len / 2 ) * offset)) < 0) {
   perror("Failed to write.");
   fprintf(stderr,"%s: Failed to write data to disk in thread %d\n",__func__,getpid());
  };
