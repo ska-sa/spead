@@ -230,8 +230,8 @@ int spead_api_callback(struct spead_api_module_shared *s, struct spead_item_grou
   if (ss->prior_ts == 0) {
    if (ss->master_pid == 0) ss->master_pid = getpid();
     // make sure we know who is boss
-   if (ss->flag[3] == 1) { snprintf(ss->filename,100,"/data1/%llu.dat",ts); ss->flag[3]=1; }
-   else { snprintf(ss->filename,100,"/data2/%llu.dat",ts); ss->flag[3]=1;}
+   if (ss->flag[3] == 1) { snprintf(ss->filename,100,"/data1/latest/%llu.dat",ts); ss->flag[3]=1; }
+   else { snprintf(ss->filename,100,"/data2/latest/%llu.dat",ts); ss->flag[3]=1;}
    fprintf(stderr,"%s: Requesting new file %s\n",__func__,ss->filename);
 
    //w_fd2 = open(ss->filename, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
