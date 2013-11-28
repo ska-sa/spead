@@ -149,10 +149,11 @@ struct data_file{
 };
 
 /*spead_socket api*/
-#define XSOCK_NONE       0
-#define XSOCK_BOUND      1
-#define XSOCK_CONNECTED  2
-#define XSOCK_BOTH       3
+#define XSOCK_NONE              0
+#define XSOCK_BOUND             1
+#define XSOCK_CONNECTED         2
+#define XSOCK_BOTH              3
+#define XSOCK_LISTEN_BACKLOG    512
 
 struct spead_socket {
   char              *x_host;
@@ -164,6 +165,11 @@ struct spead_socket {
   struct ip_mreq    *x_grp;
 };
 
+struct spead_client {
+  int                 c_fd;
+  struct sockaddr_in  c_addr; 
+  socklen_t           c_len;
+};
 
 /*subprocess api*/
 struct u_child {
@@ -283,6 +289,7 @@ char *itoa(int64_t i, char b[]);
 void destroy_spead_socket(struct spead_socket *x);
 struct spead_socket *create_spead_socket(char *host, char *port);
 struct spead_socket *create_raw_ip_spead_socket(char *host);
+struct spead_socket *create_tcp_socket(char *host, char *port);
 int bind_spead_socket(struct spead_socket *x);
 int connect_spead_socket(struct spead_socket *x);
 int set_broadcast_opt_spead_socket(struct spead_socket *x);
@@ -294,6 +301,10 @@ struct addrinfo *get_addr_spead_socket(struct spead_socket *x);
 int send_packet_spead_socket(void *data, struct spead_packet *p); // data should be a spead_tx data structure
 int send_raw_data_spead_socket(void *obj, void *data, uint64_t len); //obj should be a spead_tx
 int send_spead_stream_terminator(struct spead_tx *tx);
+int listen_spead_socket(struct spead_socket *x);
+struct spead_client *accept_spead_socket(struct spead_socket *x);
+void destroy_spead_client(void *data);
+int compare_spead_clients(const void *v1, const void *v2);
 
 /*spead workers subprocess api*/
 void destroy_child_sp(void *data);

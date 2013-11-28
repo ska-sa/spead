@@ -171,6 +171,76 @@ struct spead_socket *create_raw_ip_spead_socket(char *host)
   return x;
 }
 
+struct spead_socket *create_tcp_socket(char *host, char *port)
+{
+  struct spead_socket *x;
+
+  struct addrinfo hints;
+  uint64_t reuse_addr;
+
+  x = malloc(sizeof(struct spead_socket));
+  if (x == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: logic cannot malloc\n", __func__);
+#endif
+    return NULL;
+  }
+
+  x->x_host   = host;
+  x->x_port   = port;
+  x->x_res    = NULL;
+  x->x_active = NULL;
+  x->x_fd     = 0;
+  x->x_mode   = XSOCK_NONE;
+  x->x_grp    = NULL;
+
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_family     = AF_UNSPEC;
+  hints.ai_socktype   = SOCK_STREAM;
+  hints.ai_flags      = AI_PASSIVE;
+  hints.ai_protocol   = 0;
+  hints.ai_canonname  = NULL;
+  hints.ai_addr       = NULL;
+  hints.ai_next       = NULL;
+  
+  if ((reuse_addr = getaddrinfo(host, port, &hints, &(x->x_res))) != 0) {
+#ifdef DEBUG
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(reuse_addr));
+#endif
+    destroy_spead_socket(x);
+    return NULL;
+  }
+
+  for (x->x_active = x->x_res; x->x_active != NULL; x->x_active = x->x_active->ai_next) {
+#if DEBUG>1
+    fprintf(stderr, "%s: res (%p) with: %d\n", __func__, x->x_active, x->x_active->ai_protocol);
+#endif
+    if (x->x_active->ai_family == AF_INET6)
+      break;
+  }
+
+  x->x_active = (x->x_active == NULL) ? x->x_res : x->x_active;
+
+  x->x_fd = socket(x->x_active->ai_family, x->x_active->ai_socktype, x->x_active->ai_protocol);
+  if (x->x_fd < 0){
+#ifdef DEBUG
+    fprintf(stderr,"%s: error socket\n", __func__);
+#endif
+    destroy_spead_socket(x);
+    return NULL;
+  }
+  
+  
+  reuse_addr   = 1;
+  setsockopt(x->x_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr));
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: tcp socket at %s:%s\n", __func__, host, port);
+#endif
+  
+  return x;
+}
+
 
 int bind_spead_socket(struct spead_socket *x)
 {
@@ -204,6 +274,86 @@ int bind_spead_socket(struct spead_socket *x)
 
   x->x_mode = (x->x_mode == XSOCK_NONE) ? XSOCK_BOUND : XSOCK_BOTH;
 
+  return 0;
+}
+
+int listen_spead_socket(struct spead_socket *x)
+{
+  if (x == NULL || x->x_active == NULL)
+    return -1;
+
+  if (listen(x->x_fd, XSOCK_LISTEN_BACKLOG) < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: Unable to listen on sock (%s)\n", __func__, strerror(errno));
+#endif
+    return -1;
+  }
+  
+  return 0;
+}
+
+struct spead_client *accept_spead_socket(struct spead_socket *x)
+{
+  struct spead_client *c;
+
+  if (x == NULL || x->x_active == NULL)
+    return NULL;
+  
+  c = malloc(sizeof(struct spead_client));
+  if (c == NULL){
+#ifdef DEBUG
+    fprintf(stderr, "%s: logic error cannot allocate memory\n", __func__);
+#endif
+    return NULL;
+  }
+  
+  memset(c, 0, sizeof(struct spead_client));
+  
+  c->c_len = sizeof(struct sockaddr_in);
+
+  c->c_fd = accept(x->x_fd, (struct sockaddr *) &(c->c_addr), &(c->c_len));
+  if (c->c_fd < 0){
+#ifdef DEBUG
+    fprintf(stderr, "%s: accept error (%s)\n", __func__, strerror(errno));
+#endif
+#if 0
+    shared_free(c, sizeof(struct spead_client));
+#endif
+    free(c);
+    return NULL;
+  }
+
+#ifdef DEBUG
+  fprintf(stderr, "%s: client connected from [%s:%d]\n", __func__, inet_ntoa(c->c_addr.sin_addr), ntohs(c->c_addr.sin_port));
+#endif
+
+  return c;
+}
+
+void destroy_spead_client(void *data)
+{
+  struct spead_client *c;
+
+  c = data;
+  if (c){
+    shutdown(c->c_fd, SHUT_RDWR);
+    close(c->c_fd);
+#if 0
+    shared_free(c, sizeof(struct spead_client));
+#endif
+    free(c);
+#ifdef DEBUG
+    fprintf(stderr, "%s: client destroyed\n", __func__);
+#endif
+  }
+}
+
+int compare_spead_clients(const void *v1, const void *v2)
+{
+  if (*(int *)v1 < *(int *)v2)
+    return -1;
+  else if (*(int *)v1 > *(int *)v2)
+    return 1;
   return 0;
 }
 
@@ -429,7 +579,7 @@ int send_raw_data_spead_socket(void *obj, void *data, uint64_t len)
   sb = sendto(sfd, data, len, 0, dst->ai_addr, dst->ai_addrlen);
   if (sb < 0){
 #ifdef DEBUG
-    fprintf(stderr, "%s: packet (%p) size [%d] sb [%d] bytes\n", __func__, data, len, sb);
+    fprintf(stderr, "%s: packet (%p) size [%ld] sb [%d] bytes\n", __func__, data, len, sb);
 #endif
     fprintf(stderr, "%s: sendto err (\033[31m%s\033[0m)\n", __func__, strerror(errno));
     return -1;
