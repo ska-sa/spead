@@ -124,7 +124,7 @@ void *spead_api_setup(struct spead_api_module_shared *s)
 
     set_data_spead_api_module_shared(s, ss, sizeof(struct snap_shot));
  
-    fprintf(stderr, "%s: PID [%d] decode debug22 BF data\n", __func__, getpid());
+    fprintf(stderr, "%s: PID [%d] decode debug BF data\n", __func__, getpid());
     fprintf(stderr, "\nConfiguration\n=============\nFilename Prefix (PREFIX): %s\nTranspose data (TRANPOSE): %s\nRecord Fullband (FULLBAND): %s\n\n", ss->prefix, ss->transpose ? "True":"False", ss->fullband ? "True":"False");
 
     fflush(stdout);
@@ -207,19 +207,19 @@ int write_bf_data(void *data, uint64_t data_len, unsigned long offset, int divis
 int write_debug_data(unsigned long long ts, unsigned long long offset, uint64_t data_len)
 {
 
-  fprintf(stderr, "Thread number %d", getpid());
-  fprintf(stderr, "Saving data to offset %llu, timestamp size of %d, offset size of %d", offset, sizeof(ts), sizeof(offset));
+  // fprintf(stderr, "Thread number %d\n", getpid());
+  // fprintf(stderr, "Saving data to offset %llu, timestamp size of %d, offset size of %d\n", offset, sizeof(ts), sizeof(offset));
 
   // fprintf(stderr, "In write_debug\n");
 
  if (w_fd2 == NULL) { fprintf(stderr,"!!!!! No file !!!!"); return -1;}
- if (pwrite(timestampfile, ts, sizeof(ts), sizeof(ts) * offset) < 0) {
+ if (pwrite(timestampfile, &ts, sizeof(ts), sizeof(ts) * offset) < 0) {
   // perror("Failed to write.");
   fprintf (stderr, "ts offset : %llu\n", sizeof(ts) * offset);
   fprintf(stderr,"%s: Failed to write data to timestampfile in thread %d\n",__func__,getpid());
  };
 
- if (pwrite(offsetfile, data_len, sizeof(data_len), sizeof(data_len) * offset) < 0) {
+ if (pwrite(offsetfile, &offset, sizeof(offset), sizeof(offset) * offset) < 0) {
   // perror("Failed to write.");
   fprintf(stderr,"%s: Failed to write data to offsetfile in thread %d\n",__func__,getpid());
  };
